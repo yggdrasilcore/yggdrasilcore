@@ -221,6 +221,7 @@ bool npc_escortAI::IsPlayerOrGroupInRange()
     {
         if (Group* group = player->GetGroup())
         {
+<<<<<<< HEAD
             std::vector<ObjectGuid> guids = group->GetMemberGUIDs();
             for (ObjectGuid const& guid : guids)
             {
@@ -230,8 +231,14 @@ bool npc_escortAI::IsPlayerOrGroupInRange()
                 if (me->IsWithinDistInMap(member, GetMaxPlayerDistance(), true, false))
                     return true;
             }
+=======
+            for (GroupReference* groupRef = group->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+                if (Player* member = groupRef->GetSource())
+                    if (me->IsWithinDistInMap(member, GetMaxPlayerDistance(), true, false, false))
+                        return true;
+>>>>>>> 675135e19 (fix(Core/Spells): only include the targets size for some GroundEffects (#23478))
         }
-        else if (me->IsWithinDistInMap(player, GetMaxPlayerDistance(), true, false))
+        else if (me->IsWithinDistInMap(player, GetMaxPlayerDistance(), true, false, false))
             return true;
     }
 
