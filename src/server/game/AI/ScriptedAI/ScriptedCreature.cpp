@@ -1,5 +1,5 @@
 /*
- * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License as published by the
@@ -280,27 +280,25 @@ void ScriptedAI::DoPlayMusic(uint32 soundId, bool zone)
 
     if (me && me->FindMap())
     {
-        Map* musicMap = me->GetMap();
-        uint32 zoneId = me->GetZoneId();
-        uint32 areaId = me->GetAreaId();
+        Map::PlayerList const& players = me->GetMap()->GetPlayers();
         targets = new ObjectList();
 
-        std::vector<ObjectGuid> guids = musicMap->CopyPlayerGuids();
-        for (ObjectGuid const& playerGuid : guids)
+        if (!players.IsEmpty())
         {
-            Player* player = ObjectAccessor::FindPlayer(playerGuid);
-            if (!player || !player->IsInWorld() || player->GetMap() != musicMap)
-                continue;
-            if (player->GetZoneId() == zoneId)
-            {
-                if (!zone)
+            for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
+                if (Player* player = i->GetSource())
                 {
-                    if (player->GetAreaId() == areaId)
-                        targets->push_back(player);
+                    if (player->GetZoneId() == me->GetZoneId())
+                    {
+                        if (!zone)
+                        {
+                            if (player->GetAreaId() == me->GetAreaId())
+                                targets->push_back(player);
+                        }
+                        else
+                            targets->push_back(player);
+                    }
                 }
-                else
-                    targets->push_back(player);
-            }
         }
     }
 
@@ -481,22 +479,18 @@ void ScriptedAI::DoTeleportAll(float x, float y, float z, float o)
     if (!map->IsDungeon())
         return;
 
-    std::vector<ObjectGuid> guids = map->CopyPlayerGuids();
-    for (ObjectGuid const& playerGuid : guids)
-    {
-        Player* player = ObjectAccessor::FindPlayer(playerGuid);
-        if (!player || !player->IsInWorld() || player->GetMap() != map)
-            continue;
-        if (player->IsAlive())
-            player->TeleportTo(me->GetMapId(), x, y, z, o, TELE_TO_NOT_LEAVE_COMBAT);
-    }
+    Map::PlayerList const& PlayerList = map->GetPlayers();
+    for (Map::PlayerList::const_iterator itr = PlayerList.begin(); itr != PlayerList.end(); ++itr)
+        if (Player* player = itr->GetSource())
+            if (player->IsAlive())
+                player->TeleportTo(me->GetMapId(), x, y, z, o, TELE_TO_NOT_LEAVE_COMBAT);
 }
 
 Unit* ScriptedAI::DoSelectLowestHpFriendly(float range, uint32 minHPDiff)
 {
     Unit* unit = nullptr;
-    Ycore::MostHPMissingInRange u_check(me, range, minHPDiff);
-    Ycore::UnitLastSearcher<Ycore::MostHPMissingInRange> searcher(me, unit, u_check);
+    Acore::MostHPMissingInRange u_check(me, range, minHPDiff);
+    Acore::UnitLastSearcher<Acore::MostHPMissingInRange> searcher(me, unit, u_check);
     Cell::VisitObjects(me, searcher, range);
 
     return unit;
@@ -505,8 +499,8 @@ Unit* ScriptedAI::DoSelectLowestHpFriendly(float range, uint32 minHPDiff)
 std::list<Creature*> ScriptedAI::DoFindFriendlyCC(float range)
 {
     std::list<Creature*> list;
-    Ycore::FriendlyCCedInRange u_check(me, range);
-    Ycore::CreatureListSearcher<Ycore::FriendlyCCedInRange> searcher(me, list, u_check);
+    Acore::FriendlyCCedInRange u_check(me, range);
+    Acore::CreatureListSearcher<Acore::FriendlyCCedInRange> searcher(me, list, u_check);
     Cell::VisitObjects(me, searcher, range);
     return list;
 }
@@ -514,8 +508,8 @@ std::list<Creature*> ScriptedAI::DoFindFriendlyCC(float range)
 std::list<Creature*> ScriptedAI::DoFindFriendlyMissingBuff(float range, uint32 uiSpellid)
 {
     std::list<Creature*> list;
-    Ycore::FriendlyMissingBuffInRange u_check(me, range, uiSpellid);
-    Ycore::CreatureListSearcher<Ycore::FriendlyMissingBuffInRange> searcher(me, list, u_check);
+    Acore::FriendlyMissingBuffInRange u_check(me, range, uiSpellid);
+    Acore::CreatureListSearcher<Acore::FriendlyMissingBuffInRange> searcher(me, list, u_check);
     Cell::VisitObjects(me, searcher, range);
     return list;
 }
@@ -524,8 +518,8 @@ Player* ScriptedAI::GetPlayerAtMinimumRange(float minimumRange)
 {
     Player* player = nullptr;
 
-    Ycore::PlayerAtMinimumRangeAway check(me, minimumRange);
-    Ycore::PlayerSearcher<Ycore::PlayerAtMinimumRangeAway> searcher(me, player, check);
+    Acore::PlayerAtMinimumRangeAway check(me, minimumRange);
+    Acore::PlayerSearcher<Acore::PlayerAtMinimumRangeAway> searcher(me, player, check);
 
     Cell::VisitObjects(me, searcher, minimumRange);
 
@@ -568,21 +562,17 @@ enum eNPCs
 
 Player* ScriptedAI::SelectTargetFromPlayerList(float maxdist, uint32 excludeAura, bool mustBeInLOS) const
 {
-    Map* targetMap = me->GetMap();
-    std::vector<ObjectGuid> guids = targetMap->CopyPlayerGuids();
+    Map::PlayerList const& pList = me->GetMap()->GetPlayers();
     std::vector<Player*> tList;
-    for (ObjectGuid const& playerGuid : guids)
+    for(Map::PlayerList::const_iterator itr = pList.begin(); itr != pList.end(); ++itr)
     {
-        Player* listed = ObjectAccessor::FindPlayer(playerGuid);
-        if (!listed || !listed->IsInWorld() || listed->GetMap() != targetMap)
+        if (!me->IsWithinDistInMap(itr->GetSource(), maxdist, true, false, false) || !itr->GetSource()->IsAlive() || itr->GetSource()->IsGameMaster())
             continue;
-        if (!me->IsWithinDistInMap(listed, maxdist, true, false) || !listed->IsAlive() || listed->IsGameMaster())
+        if (excludeAura && itr->GetSource()->HasAura(excludeAura))
             continue;
-        if (excludeAura && listed->HasAura(excludeAura))
+        if (mustBeInLOS && !me->IsWithinLOSInMap(itr->GetSource()))
             continue;
-        if (mustBeInLOS && !me->IsWithinLOSInMap(listed))
-            continue;
-        tList.push_back(listed);
+        tList.push_back(itr->GetSource());
     }
     if (!tList.empty())
         return tList[urand(0, tList.size() - 1)];
