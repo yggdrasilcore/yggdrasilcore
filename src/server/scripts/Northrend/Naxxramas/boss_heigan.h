@@ -1,3 +1,20 @@
+/*
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by the
+ * Free Software Foundation; either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef BOSS_HEIGAN_H_
 #define BOSS_HEIGAN_H_
 
@@ -23,8 +40,7 @@ enum Says
 enum Spells
 {
     SPELL_SPELL_DISRUPTION          = 29310,
-    SPELL_DECREPIT_FEVER_10         = 29998,
-    SPELL_DECREPIT_FEVER_25         = 55011,
+    SPELL_DECREPIT_FEVER            = 29998,
     SPELL_PLAGUE_CLOUD              = 29350,
     SPELL_TELEPORT_SELF             = 30211
 };
@@ -157,7 +173,7 @@ public:
                     events.Repeat(10s);
                     break;
                 case EVENT_DECEPIT_FEVER:
-                    me->CastSpell(me, RAID_MODE(SPELL_DECREPIT_FEVER_10, SPELL_DECREPIT_FEVER_25), false);
+                    me->CastSpell(me, SPELL_DECREPIT_FEVER, false);
                     events.Repeat(22s, 25s);
                     break;
                 case EVENT_PLAGUE_CLOUD:

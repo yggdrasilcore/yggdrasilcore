@@ -1,3 +1,20 @@
+/*
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by the
+ * Free Software Foundation; either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef BOSSGROBBULUS_H_
 #define BOSSGROBBULUS_H_
 
@@ -17,10 +34,8 @@ enum Spells
     SPELL_POISON_CLOUD                      = 28240,
     SPELL_MUTATING_INJECTION                = 28169,
     SPELL_MUTATING_EXPLOSION                = 28206,
-    SPELL_SLIME_SPRAY_10                    = 28157,
-    SPELL_SLIME_SPRAY_25                    = 54364,
-    SPELL_POISON_CLOUD_DAMAGE_AURA_10       = 28158,
-    SPELL_POISON_CLOUD_DAMAGE_AURA_25       = 54362,
+    SPELL_SLIME_SPRAY                       = 28157,
+    SPELL_POISON_CLOUD_DAMAGE_AURA          = 28158,
     SPELL_BERSERK                           = 26662,
     SPELL_BOMBARD_SLIME                     = 28280
 };
@@ -93,14 +108,6 @@ public:
             events.ScheduleEvent(EVENT_BERSERK, RAID_MODE(720s, 540s));
         }
 
-        void SpellHitTarget(Unit* target, SpellInfo const* spellInfo) override
-        {
-            if (spellInfo->Id == RAID_MODE(SPELL_SLIME_SPRAY_10, SPELL_SLIME_SPRAY_25) && target->IsPlayer())
-            {
-                me->SummonCreature(NPC_FALLOUT_SLIME, target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
-            }
-        }
-
         void JustSummoned(Creature* cr) override
         {
             if (cr->GetEntry() == NPC_FALLOUT_SLIME)
@@ -157,7 +164,7 @@ public:
                     break;
                 case EVENT_SLIME_SPRAY:
                     Talk(EMOTE_SLIME);
-                    me->CastSpell(me->GetVictim(), RAID_MODE(SPELL_SLIME_SPRAY_10, SPELL_SLIME_SPRAY_25), false);
+                    me->CastSpell(me->GetVictim(), SPELL_SLIME_SPRAY, false);
                     events.Repeat(20s);
                     break;
                 case EVENT_MUTATING_INJECTION:
@@ -211,7 +218,7 @@ public:
                 auraVisualTimer += diff;
                 if (auraVisualTimer >= 1000)
                 {
-                    me->CastSpell(me, (me->GetMap()->Is25ManRaid() ? SPELL_POISON_CLOUD_DAMAGE_AURA_25 : SPELL_POISON_CLOUD_DAMAGE_AURA_10), true);
+                    me->CastSpell(me, SPELL_POISON_CLOUD_DAMAGE_AURA, true);
                     auraVisualTimer = 0;
                 }
             }
@@ -276,6 +283,22 @@ class spell_grobbulus_mutating_injection_aura : public AuraScript
     void Register() override
     {
         AfterEffectRemove += AuraEffectRemoveFn(spell_grobbulus_mutating_injection_aura::HandleRemove, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+class spell_grobbulus_slime_spray : public SpellScript
+{
+    PrepareSpellScript(spell_grobbulus_slime_spray);
+
+    void HandleHit()
+    {
+        if (Unit* target = GetHitUnit())
+            GetCaster()->SummonCreature(NPC_FALLOUT_SLIME, target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+    }
+
+    void Register() override
+    {
+        OnHit += SpellHitFn(spell_grobbulus_slime_spray::HandleHit);
     }
 };
 
