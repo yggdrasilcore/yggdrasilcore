@@ -1891,7 +1891,7 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
 
     auto canTakeMeleeDamage = [&]()
     {
-        return victim->IsAlive() && !victim->HasUnitState(UNIT_STATE_IN_FLIGHT) && (!victim->IsCreature() || !victim->ToCreature()->IsEvadingAttacks());
+        return victim->IsAlive() && !victim->IsInFlight() && (!victim->IsCreature() || !victim->ToCreature()->IsEvadingAttacks());
     };
 
     if (!canTakeMeleeDamage())
@@ -18273,10 +18273,8 @@ void Unit::SetControlled(bool apply, UnitState state, Unit* source /*= nullptr*/
 
 void Unit::SetStunned(bool apply)
 {
-    if (HasUnitState(UNIT_STATE_IN_FLIGHT))
-    {
+    if (IsInFlight())
         return;
-    }
 
     if (apply)
     {
