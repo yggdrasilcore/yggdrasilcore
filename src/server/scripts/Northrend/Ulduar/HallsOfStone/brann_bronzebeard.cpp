@@ -48,13 +48,10 @@ enum Misc
 {
     // BRANN EVENT
     SPELL_GLARE_OF_THE_TRIBUNAL     = 50988,
-    SPELL_GLARE_OF_THE_TRIBUNAL_H   = 59870,
     SPELL_DARK_MATTER_VISUAL        = 51000,
     SPELL_DARK_MATTER_VISUAL_CHANNEL= 51001,
     SPELL_DARK_MATTER               = 51012,
-    SPELL_DARK_MATTER_H             = 59868,
     SPELL_SEARING_GAZE              = 51136,
-    SPELL_SEARING_GAZE_H            = 59867,
 
     // DARK RUNE PROTECTOR
     SPELL_DRP_CHARGE                = 22120,
@@ -62,14 +59,11 @@ enum Misc
 
     // DARK RUNE STORMCALLER
     SPELL_DRS_LIGHTING_BOLT         = 12167,
-    SPELL_DRS_LIGHTING_BOLT_H       = 59863,
     SPELL_DRS_SHADOW_WORD_PAIN      = 15654,
-    SPELL_DRS_SHADOW_WORD_PAIN_H    = 59864,
 
     // IRON GOLEM CUSTODIAN
     SPELL_IGC_CRUSH_ARMOR           = 33661,
     SPELL_IGC_GROUND_SMASH          = 12734,
-    SPELL_IGC_GROUND_SMASH_H        = 59865,
 
     // QUESTS
     QUEST_HALLS_OF_STONE            = 13207,
@@ -255,6 +249,7 @@ public:
         ObjectGuid KaddrakGUID;
         ObjectGuid darkMatterTargetGUID;
 
+        uint8 WaveNum;
 
         bool TalkEvent;
         uint32 SpeechCount, SpeechPause;
@@ -332,6 +327,7 @@ public:
             summons.DespawnAll();
             DespawnHeads();
 
+            WaveNum = 0;
             SpeechCount = 0;
             SpeechPause = 0;
             TalkEvent = false;
@@ -359,7 +355,6 @@ public:
             SetDespawnAtEnd(false);
             ResetEvent();
 
-            me->SetFaction(FACTION_FRIENDLY);
             me->SetReactState(REACT_PASSIVE);
             me->ReplaceAllNpcFlags(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
 
@@ -391,25 +386,12 @@ public:
                 case ACTION_START_ESCORT_EVENT:
                     Start(false, ObjectGuid::Empty, 0, true, false);
                     Talk(SAY_BRANN_ESCORT_START);
-                    me->SetFaction(FACTION_ESCORTEE_N_NEUTRAL_PASSIVE);
                     me->SetReactState(REACT_AGGRESSIVE);
                     me->SetRegeneratingHealth(true);
                     break;
                 case ACTION_START_TRIBUNAL:
                 {
                     me->SetReactState(REACT_PASSIVE);
-                    Map* snapMap = me->GetMap();
-                    std::vector<ObjectGuid> guids = snapMap->CopyPlayerGuids();
-                    if (!guids.empty())
-                        for (ObjectGuid const& playerGuid : guids)
-                        {
-                            Player* p = ObjectAccessor::FindPlayer(playerGuid);
-                            if (!p || !p->IsInWorld() || p->GetMap() != snapMap)
-                                continue;
-                            me->SetFaction(p->GetFaction());
-                            break;
-                        }
-
                     SetEscortPaused(false);
                     InitializeEvent();
                     me->ReplaceAllNpcFlags(UNIT_NPC_FLAG_NONE);
@@ -423,7 +405,6 @@ public:
                     break;
                 case ACTION_GO_TO_SJONNIR:
                     Talk(SAY_BRANN_ENTRANCE_MEET);
-                    me->SetFaction(FACTION_FRIENDLY);
                     me->SetReactState(REACT_PASSIVE);
                     me->SetRegeneratingHealth(true);
                     SetEscortPaused(false);
@@ -432,10 +413,8 @@ public:
                     DoCast(me, 58506, false);
                     me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_READY_UNARMED);
                     me->SendMovementFlagUpdate();
-                    me->SetImmuneToAll(true);
                     break;
                 case ACTION_START_SJONNIR_FIGHT:
-                    me->SetFaction(FACTION_FRIENDLY);
                     SetEscortPaused(false);
                     break;
                 case ACTION_SJONNIR_DEAD:
@@ -508,7 +487,7 @@ public:
                         if (Creature* kaddrak = GetKaddrak())
                         {
                             if (Player* plr = SelectTargetFromPlayerList(100.0f))
-                                kaddrak->CastSpell(plr, DUNGEON_MODE(SPELL_GLARE_OF_THE_TRIBUNAL, SPELL_GLARE_OF_THE_TRIBUNAL_H), true);
+                                kaddrak->CastSpell(plr, SPELL_GLARE_OF_THE_TRIBUNAL, true);
                         }
 
                         events.RescheduleEvent(EVENT_KADDRAK_SWITCH_EYE, 1s);
@@ -569,9 +548,14 @@ public:
                                 if (!plr)
                                     return; //no target
 
-                                darkMatterTarget->GetMotionMaster()->MovePoint(0, plr->GetPositionX(), plr->GetPositionY(), plr->GetPositionZ());
+                                float speed = 10.0f;
+                                float tooFarAwaySpeed = me->GetDistance(plr->GetPositionX(), plr->GetPositionY(), plr->GetPositionZ()) / (5000.0f * 0.001f);
+                                if (speed < tooFarAwaySpeed)
+                                    speed = tooFarAwaySpeed;
 
-                                if (darkMatterTarget->GetDistance(plr) < 5.0f)
+                                darkMatterTarget->GetMotionMaster()->MovePoint(0, plr->GetPositionX(), plr->GetPositionY(), plr->GetPositionZ(), FORCED_MOVEMENT_NONE, speed);
+
+                                if (darkMatterTarget->GetDistance(plr) < 15.0f)
                                 {
                                     events.RescheduleEvent(EVENT_DARK_MATTER_END, 3s);
                                 }
@@ -591,7 +575,7 @@ public:
                     {
                         if (Creature* darkMatterTarget = ObjectAccessor::GetCreature(*me, darkMatterTargetGUID))
                         {
-                            darkMatterTarget->CastSpell(darkMatterTarget, darkMatterTarget->GetMap()->IsHeroic() ? SPELL_DARK_MATTER_H : SPELL_DARK_MATTER, true);
+                            darkMatterTarget->CastSpell(darkMatterTarget, SPELL_DARK_MATTER, true);
                             darkMatterTarget->DespawnOrUnsummon(500ms);
                         }
                         break;
@@ -610,7 +594,7 @@ public:
                             {
                                 // summon another abedneum to create double beam, despawn just after trigger despawn
                                 me->SummonCreature(NPC_ABEDNEUM, 897.0f, 326.9f, 223.5f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 12000);
-                                cr->CastSpell(cr, DUNGEON_MODE(SPELL_SEARING_GAZE, SPELL_SEARING_GAZE_H), true);
+                                cr->CastSpell(cr, SPELL_SEARING_GAZE, true);
                             }
                         }
                         events.Repeat(15s);
@@ -1050,13 +1034,13 @@ public:
             {
                 case EVENT_DRS_LIGHTNING_BOLD:
                     {
-                        me->CastSpell(me->GetVictim(), IsHeroic() ? SPELL_DRS_LIGHTING_BOLT_H : SPELL_DRS_LIGHTING_BOLT, false);
+                        me->CastSpell(me->GetVictim(), SPELL_DRS_LIGHTING_BOLT, false);
                         events.Repeat(5s);
                         break;
                     }
                 case EVENT_DRS_SHADOW_WORD_PAIN:
                     {
-                        me->CastSpell(me->GetVictim(), IsHeroic() ? SPELL_DRS_SHADOW_WORD_PAIN_H : SPELL_DRS_SHADOW_WORD_PAIN, false);
+                        me->CastSpell(me->GetVictim(), SPELL_DRS_SHADOW_WORD_PAIN, false);
                         events.Repeat(12s);
                         break;
                     }
@@ -1110,7 +1094,7 @@ public:
                     }
                 case EVENT_IGC_GROUND_SMASH:
                     {
-                        me->CastSpell(me->GetVictim(), IsHeroic() ? SPELL_IGC_GROUND_SMASH_H : SPELL_IGC_GROUND_SMASH, false);
+                        me->CastSpell(me->GetVictim(), SPELL_IGC_GROUND_SMASH, false);
                         events.Repeat(20s, 40s);
                         break;
                     }
@@ -1127,13 +1111,13 @@ class spell_hos_dark_matter : public AuraScript
 
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_DARK_MATTER_H, SPELL_DARK_MATTER });
+        return ValidateSpellInfo({ SPELL_DARK_MATTER });
     }
 
     void HandleEffectRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
         if (Unit* caster = GetCaster())
-            caster->CastSpell(caster, caster->GetMap()->IsHeroic() ? SPELL_DARK_MATTER_H : SPELL_DARK_MATTER, true);
+            caster->CastSpell(caster, SPELL_DARK_MATTER, true);
     }
 
     void Register() override
