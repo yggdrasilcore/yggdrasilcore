@@ -597,7 +597,7 @@ void Unit::UpdateSplineMovement(uint32 t_diff)
         DisableSpline();
 
         if (movespline->HasAnimation() && IsCreature() && IsAlive())
-            SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, movespline->GetAnimationType());
+            SetAnimTier(AnimTier(movespline->GetAnimationType()));
     }
 
     // pussywizard: update always! not every 400ms, because movement generators need the actual position
@@ -15270,6 +15270,11 @@ float Unit::GetSpellMinRangeForTarget(Unit const* target, SpellInfo const* spell
     }
 
     return spellInfo->GetMinRange(!IsHostileTo(target));
+}
+
+void Unit::SetAnimTier(AnimTier animTier)
+{
+    SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, uint8(animTier));
 }
 
 uint32 Unit::GetCreatureType() const

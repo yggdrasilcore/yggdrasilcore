@@ -115,6 +115,9 @@ void PointMovementGenerator<T>::DoInitialize(T* unit)
         init.SetFacing(i_orientation);
     }
 
+    if (_animTier)
+        init.SetAnimation(*_animTier);
+
     init.Launch();
     i_launched = true;
 }
@@ -181,6 +184,9 @@ bool PointMovementGenerator<T>::DoUpdate(T* unit, uint32 /*diff*/)
             init.SetWalk(true);
         else if (_forcedMovement == FORCED_MOVEMENT_RUN)
             init.SetWalk(false);
+
+        if (_animTier)
+            init.SetAnimation(*_animTier);
 
         if (i_orientation > 0.0f)
         {
