@@ -15,21 +15,22 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef YCORE_POINTMOVEMENTGENERATOR_H
-#define YCORE_POINTMOVEMENTGENERATOR_H
+#ifndef ACORE_POINTMOVEMENTGENERATOR_H
+#define ACORE_POINTMOVEMENTGENERATOR_H
 
 #include "Creature.h"
 #include "MovementGenerator.h"
 #include "MoveSplineInit.h"
+#include <optional>
 
 template<class T>
 class PointMovementGenerator : public MovementGeneratorMedium< T, PointMovementGenerator<T> >
 {
 public:
     PointMovementGenerator(uint32 _id, float _x, float _y, float _z, ForcedMovement forcedMovement, float _speed = 0.0f, float orientation = 0.0f, const Movement::PointsArray* _path = nullptr,
-        bool generatePath = false, bool forceDestination = false, ObjectGuid chargeTargetGUID = ObjectGuid::Empty, bool reverseOrientation = false, ObjectGuid facingTargetGuid = ObjectGuid())
-        : id(_id), i_x(_x), i_y(_y), i_z(_z), speed(_speed), i_orientation(orientation), i_recalculateSpeed(false), i_deferred(false), i_launched(false), _generatePath(generatePath), _forceDestination(forceDestination), _reverseOrientation(reverseOrientation),
-        _chargeTargetGUID(chargeTargetGUID), _forcedMovement(forcedMovement), _facingTargetGuid(facingTargetGuid)
+        bool generatePath = false, bool forceDestination = false, std::optional<AnimTier> animTier = std::nullopt, ObjectGuid chargeTargetGUID = ObjectGuid::Empty, bool reverseOrientation = false, ObjectGuid facingTargetGuid = ObjectGuid())
+        : id(_id), i_x(_x), i_y(_y), i_z(_z), speed(_speed), i_orientation(orientation), _generatePath(generatePath), _forceDestination(forceDestination), _reverseOrientation(reverseOrientation),
+        _chargeTargetGUID(chargeTargetGUID), _forcedMovement(forcedMovement), _facingTargetGuid(facingTargetGuid), _animTier(animTier)
     {
         if (_path)
             m_precomputedPath = *_path;
@@ -47,21 +48,12 @@ public:
     MovementGeneratorType GetMovementGeneratorType() { return POINT_MOTION_TYPE; }
 
     bool GetDestination(float& x, float& y, float& z) const { x = i_x; y = i_y; z = i_z; return true; }
-
-    void Relaunch(T* unit)
-    {
-        if (_generatePath)
-            m_precomputedPath.clear();
-        DoInitialize(unit);
-    }
 private:
     uint32 id;
     float i_x, i_y, i_z;
     float speed;
     float i_orientation;
     bool i_recalculateSpeed;
-    bool i_deferred;
-    bool i_launched;
     Movement::PointsArray m_precomputedPath;
     bool _generatePath;
     bool _forceDestination;
@@ -69,6 +61,7 @@ private:
     ObjectGuid _chargeTargetGUID;
     ForcedMovement _forcedMovement;
     ObjectGuid _facingTargetGuid;
+    std::optional<AnimTier> _animTier;
 };
 
 class AssistanceMovementGenerator : public PointMovementGenerator<Creature>
