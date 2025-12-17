@@ -146,7 +146,7 @@ class spell_the_flag_of_ownership : public SpellScript
 
         LocaleConstant loc_idx = caster->ToPlayer()->GetSession()->GetSessionDbLocaleIndex();
         BroadcastText const* bct = sObjectMgr->GetBroadcastText(TEXT_FLAG_OF_OWNERSHIP);
-        std::string bctMsg = Ycore::StringFormat(bct->GetText(loc_idx, caster->getGender()), caster->GetName(), target->GetName());
+        std::string bctMsg = Acore::StringFormat(bct->GetText(loc_idx, caster->getGender()), caster->GetName(), target->GetName());
         caster->Talk(bctMsg, CHAT_MSG_MONSTER_EMOTE, LANG_UNIVERSAL, sWorld->getFloatConfig(CONFIG_LISTEN_RANGE_TEXTEMOTE), target);
 
         haveTarget = true;
@@ -544,11 +544,10 @@ class spell_gen_rallying_cry_of_the_dragonslayer : public SpellScript
         if (GetCaster()->GetMapId() == MAP_KALIMDOR)
             zoneId = AREA_ORGRIMMAR;
 
-        GetCaster()->GetMap()->DoForAllPlayers([&](Player* player)
-        {
-            if (player->GetZoneId() == zoneId)
-                targets.push_back(player);
-        });
+        Map::PlayerList const& pList = GetCaster()->GetMap()->GetPlayers();
+        for (Map::PlayerList::const_iterator itr = pList.begin(); itr != pList.end(); ++itr)
+            if (itr->GetSource()->GetZoneId() == zoneId)
+                targets.push_back(itr->GetSource());
     }
 
     void Register() override
@@ -670,7 +669,7 @@ public:
     void FilterTargets(std::list<WorldObject*>& targets)
     {
         targets.remove(GetCaster());
-        Ycore::Containers::RandomResize(targets, _count);
+        Acore::Containers::RandomResize(targets, _count);
     }
 
     void Register() override
@@ -1357,8 +1356,8 @@ class spell_gen_cannibalize : public SpellScript
         float max_range = GetSpellInfo()->GetMaxRange(false);
         WorldObject* result = nullptr;
         // search for nearby enemy corpse in range
-        Ycore::AnyDeadUnitSpellTargetInRangeCheck check(caster, max_range, GetSpellInfo(), TARGET_CHECK_CORPSE);
-        Ycore::WorldObjectSearcher<Ycore::AnyDeadUnitSpellTargetInRangeCheck> searcher(caster, result, check);
+        Acore::AnyDeadUnitSpellTargetInRangeCheck check(caster, max_range, GetSpellInfo(), TARGET_CHECK_CORPSE);
+        Acore::WorldObjectSearcher<Acore::AnyDeadUnitSpellTargetInRangeCheck> searcher(caster, result, check);
         Cell::VisitObjects(caster, searcher, max_range);
         if (!result)
         {
@@ -1971,7 +1970,7 @@ class spell_pvp_trinket_wotf_shared_cd : public SpellScript
             {
                 WorldPacket data;
                 player->BuildCooldownPacket(data, SPELL_COOLDOWN_FLAG_INCLUDE_GCD, 7744, GetSpellInfo()->CategoryRecoveryTime); // Will of the forsaken
-                player->GetSession()->SendPacket(&data);
+                player->SendDirectMessage(&data);
             }
             else
             {
@@ -1984,11 +1983,11 @@ class spell_pvp_trinket_wotf_shared_cd : public SpellScript
                 data << uint16(GetSpellInfo()->GetCategory());                   // spell category
                 data << uint32(0);
                 data << uint32(GetSpellInfo()->CategoryRecoveryTime);
-                player->GetSession()->SendPacket(&data);
+                player->SendDirectMessage(&data);
 
                 WorldPacket data2;
                 player->BuildCooldownPacket(data2, SPELL_COOLDOWN_FLAG_INCLUDE_GCD, SPELL_PVP_TRINKET, GetSpellInfo()->CategoryRecoveryTime); // PvP Trinket spell
-                player->GetSession()->SendPacket(&data2);
+                player->SendDirectMessage(&data2);
             }
         }
     }
@@ -2020,15 +2019,17 @@ class spell_gen_animal_blood : public AuraScript
     {
         // Remove all auras with spell id 46221, except the one currently being applied
         while (Aura* aur = GetUnitOwner()->GetOwnedAura(SPELL_ANIMAL_BLOOD, ObjectGuid::Empty, ObjectGuid::Empty, 0, GetAura()))
-            GetUnitOwner()->RemoveOwnedAura(aur);
+            GetUnitOwner()->RemoveOwnedAura(aur, AURA_REMOVE_BY_EXPIRE);
     }
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
+        if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
+            return;
+
         if (Unit* owner = GetUnitOwner())
-        {
-            owner->CastSpell(owner, SPELL_SPAWN_BLOOD_POOL, true);
-        }
+            if (owner->IsInWater())
+                owner->CastSpell(owner, SPELL_SPAWN_BLOOD_POOL, true);
     }
 
     void Register() override
@@ -2046,7 +2047,7 @@ class spell_spawn_blood_pool : public SpellScript
     void SetDest(SpellDestination &dest)
     {
         Unit* caster = GetCaster();
-        LiquidData liquidStatus = caster->GetMap()->GetLiquidData(caster->GetPhaseMask(), caster->GetPositionX(), caster->GetPositionY(), caster->GetPositionZ(), caster->GetCollisionHeight(), MAP_ALL_LIQUIDS);
+        LiquidData liquidStatus = caster->GetMap()->GetLiquidData(caster->GetPhaseMask(), caster->GetPositionX(), caster->GetPositionY(), caster->GetPositionZ(), caster->GetCollisionHeight(), {});
 
         float level = liquidStatus.Level > INVALID_HEIGHT ? liquidStatus.Level : caster->GetPositionZ();
         Position pos = Position(caster->GetPositionX(), caster->GetPositionY(), level, caster->GetOrientation());
@@ -2651,7 +2652,7 @@ class spell_gen_spirit_healer_res : public SpellScript
         {
             WorldPacket data(SMSG_SPIRIT_HEALER_CONFIRM, 8);
             data << target->GetGUID();
-            originalCaster->GetSession()->SendPacket(&data);
+            originalCaster->SendDirectMessage(&data);
         }
     }
 
@@ -4032,36 +4033,6 @@ public:
         return true;
     }
 
-    SpellCastResult CheckCast()
-    {
-        Player* caster = GetCaster()->ToPlayer();
-        if (!caster || !caster->IsInWater())
-            return SPELL_CAST_OK;
-
-        uint32 ground = 0;
-        switch (caster->GetBaseSkillValue(SKILL_RIDING))
-        {
-            case 0:
-                ground = _mount0;
-                break;
-            case 75:
-                ground = _mount60;
-                break;
-            case 150:
-            case 225:
-            case 300:
-                ground = _mount100;
-                break;
-            default:
-                break;
-        }
-
-        if (!ground)
-            return SPELL_FAILED_ONLY_ABOVEWATER;
-
-        return SPELL_CAST_OK;
-    }
-
     void HandleMount(SpellEffIndex effIndex)
     {
         PreventHitDefaultEffect(effIndex);
@@ -4084,12 +4055,6 @@ public:
             // Xinef: add battlefield check
             Battlefield* Bf = sBattlefieldMgr->GetBattlefieldToZoneId(target->GetZoneId());
             if ((area && canFly && (area->flags & AREA_FLAG_NO_FLY_ZONE)) || (Bf && !Bf->CanFlyIn()))
-                canFly = false;
-
-            // These skill/location-scaling mounts resolve to their ground version in water,
-            // the same way they do in non-flying areas.
-            // https://wowpedia.fandom.com/wiki/The_Horseman%27s_Reins
-            if (target->IsInWater())
                 canFly = false;
 
             uint32 mount = 0;
@@ -4138,7 +4103,6 @@ public:
 
     void Register() override
     {
-        OnCheckCast += SpellCheckCastFn(spell_gen_mount::CheckCast);
         OnEffectHitTarget += SpellEffectFn(spell_gen_mount::HandleMount, EFFECT_2, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 
@@ -4305,13 +4269,13 @@ class spell_gen_replenishment : public SpellScript
             }
         }
 
-        targets.remove_if(Ycore::PowerCheck(POWER_MANA, false));
+        targets.remove_if(Acore::PowerCheck(POWER_MANA, false));
 
         uint8 const maxTargets = 10;
 
         if (targets.size() > maxTargets)
         {
-            targets.sort(Ycore::PowerPctOrderPred(POWER_MANA));
+            targets.sort(Acore::PowerPctOrderPred(POWER_MANA));
             targets.resize(maxTargets);
         }
     }
@@ -4460,7 +4424,9 @@ class spell_gen_eject_all_passengers : public SpellScript
     }
 };
 
-/* 62539 - Eject Passenger 2
+/* 49259 - Despawn Driver
+   49261 - Dismount Passenger
+   62539 - Eject Passenger 2
    64614 - Eject Passenger 4
    64629 - Eject Passenger 1
    64630 - Eject Passenger 2
@@ -5708,25 +5674,26 @@ class spell_gen_bm_on : public SpellScript
     }
 };
 
-// 38182 - Stormhammer
-// 38066 - Unstable Concoction
-// Knock the player off their mount when the spell lands
-class spell_gen_rider_guard_dismount : public SpellScript
+class spell_gen_whisper_to_controller : public SpellScript
 {
-    PrepareSpellScript(spell_gen_rider_guard_dismount);
+    PrepareSpellScript(spell_gen_whisper_to_controller);
 
-    void HandleSchoolDamage(SpellEffIndex /*effIndex*/)
+    bool Validate(SpellInfo const* spellInfo) override
     {
-        if (Player* target = GetHitPlayer())
-        {
-            target->Dismount();
-            target->RemoveAurasByType(SPELL_AURA_MOUNTED);
-        }
+        return sObjectMgr->GetBroadcastText(uint32(spellInfo->GetEffect(EFFECT_0).CalcValue()));
+    }
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* caster = GetCaster())
+            if (TempSummon* casterSummon = caster->ToTempSummon())
+                if (Player* target = casterSummon->GetSummonerUnit()->ToPlayer())
+                    casterSummon->Unit::Whisper(uint32(GetEffectValue()), target, false);
     }
 
     void Register() override
     {
-        OnEffectHitTarget += SpellEffectFn(spell_gen_rider_guard_dismount::HandleSchoolDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+        OnEffectHit += SpellEffectFn(spell_gen_whisper_to_controller::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 };
 
@@ -5738,7 +5705,6 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_the_flag_of_ownership);
     RegisterSpellScript(spell_gen_have_item_auras);
     RegisterSpellScript(spell_gen_mine_sweeper);
-    RegisterSpellScript(spell_gen_rider_guard_dismount);
     RegisterSpellAndAuraScriptPair(spell_gen_reduced_above_60, spell_gen_reduced_above_60_aura);
     RegisterSpellScriptWithArgs(spell_gen_relocaste_dest, "spell_q10838_demoniac_scryer_visual", 0, 0, 20.0, 0);
     RegisterSpellScriptWithArgs(spell_gen_relocaste_dest, "spell_q20438_q24556_aquantos_laundry", 0, 0, 7.0f, 0);
@@ -5904,4 +5870,5 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_gen_invis_on);
     RegisterSpellScript(spell_gen_bm_on);
     RegisterSpellScript(spell_gen_bm_off);
+    RegisterSpellScript(spell_gen_whisper_to_controller);
 }
