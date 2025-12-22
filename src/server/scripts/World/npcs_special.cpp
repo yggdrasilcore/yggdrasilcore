@@ -1,14 +1,14 @@
 /*
- * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -102,7 +102,7 @@ public:
             {
                 case EVENT_CLEARWATER_ANNOUNCE:
                     {
-                        tm strdate = Ycore::Time::TimeBreakdown();
+                        tm strdate = Acore::Time::TimeBreakdown();
 
                         if (!preWarning && strdate.tm_hour == 13 && strdate.tm_min == 55)
                         {
@@ -561,10 +561,6 @@ public:
 
         {
             if (!SpawnAssoc)
-                return;
-
-            // check if they're hostile
-            if (!(me->IsHostileTo(who) || who->IsHostileTo(me)))
                 return;
 
             if (me->IsValidAttackTarget(who))
@@ -2683,296 +2679,58 @@ struct npc_controller : public PossessedAI
     }
 };
 
-enum TrainWrecker
+enum TravelerMammothVendor
 {
-    GO_TOY_TRAIN          = 193963,
-    SPELL_WRECK_TRAIN     = 62943,
-    ACTION_WRECKED        = 1,
-    EVENT_DO_JUMP         = 1,
-    EVENT_DO_FACING       = 2,
-    EVENT_DO_WRECK        = 3,
-    EVENT_DO_DANCE        = 4,
-    MOVEID_CHASE          = 1,
-    MOVEID_JUMP           = 2,
+    SAY_DISMISS      = 0,
 };
 
-struct npc_train_wrecker : public NullCreatureAI
+struct npc_traveler_mammoth_vendor : public ScriptedAI
 {
-    npc_train_wrecker(Creature* creature) : NullCreatureAI(creature), _isSearching(true), _nextAction(0), _timer(1 * IN_MILLISECONDS) { }
+    npc_traveler_mammoth_vendor(Creature* creature) : ScriptedAI(creature) { }
 
-    GameObject* VerifyTarget() const
-    {
-        if (GameObject* target = ObjectAccessor::GetGameObject(*me, _target))
-            return target;
-
-        me->HandleEmoteCommand(EMOTE_ONESHOT_RUDE);
-        me->DespawnOrUnsummon(3s);
-        return nullptr;
-    }
-
-    void UpdateAI(uint32 diff) override
-    {
-        if (_isSearching)
-        {
-            if (diff < _timer)
-            {
-                _timer -= diff;
-                return;
-            }
-
-            if (GameObject* target = me->FindNearestGameObject(GO_TOY_TRAIN, 15.0f))
-            {
-                _isSearching = false;
-                _target = target->GetGUID();
-                me->SetWalk(true);
-                me->GetMotionMaster()->MovePoint(MOVEID_CHASE, target->GetNearPosition(3.0f, target->GetAngle(me)));
-            }
-            else
-                _timer = 3 * IN_MILLISECONDS;
-
-            return;
-        }
-
-        switch (_nextAction)
-        {
-            case EVENT_DO_JUMP:
-                if (GameObject* target = VerifyTarget())
-                    me->GetMotionMaster()->MoveJump(*target, 5.0f, 10.0f, MOVEID_JUMP);
-                _nextAction = 0;
-                break;
-            case EVENT_DO_FACING:
-                if (GameObject* target = VerifyTarget())
-                {
-                    me->SetFacingTo(target->GetOrientation());
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_ATTACK1H);
-                    _timer = 1500;
-                    _nextAction = EVENT_DO_WRECK;
-                }
-                else
-                    _nextAction = 0;
-                break;
-            case EVENT_DO_WRECK:
-                if (diff < _timer)
-                {
-                    _timer -= diff;
-                    break;
-                }
-
-                if (GameObject* target = VerifyTarget())
-                {
-                    me->CastSpell(target, SPELL_WRECK_TRAIN, false);
-                    target->AI()->DoAction(ACTION_WRECKED);
-                    _timer = 2 * IN_MILLISECONDS;
-                    _nextAction = EVENT_DO_DANCE;
-                }
-                else
-                    _nextAction = 0;
-                break;
-            case EVENT_DO_DANCE:
-                if (diff < _timer)
-                {
-                    _timer -= diff;
-                    break;
-                }
-
-                me->SetEmoteState(EMOTE_STATE_DANCE);
-                me->DespawnOrUnsummon(5s);
-                _nextAction = 0;
-                break;
-            default:
-                break;
-        }
-    }
-
-    void MovementInform(uint32 /*type*/, uint32 id) override
-    {
-        if (id == MOVEID_CHASE)
-            _nextAction = EVENT_DO_JUMP;
-        else if (id == MOVEID_JUMP)
-            _nextAction = EVENT_DO_FACING;
-    }
-
-private:
-    bool _isSearching;
-    uint8 _nextAction;
-    uint32 _timer;
-    ObjectGuid _target;
-};
-
-enum LilXt
-{
-    SPELL_LIL_XT_SLEEP         = 76116,
-    SPELL_LIL_XT_DANCE         = 76114,
-    SPELL_LIL_XT_DESTROY_TRAIN = 76092,
-    TEXT_LIL_XT_HELLO          = 0,
-    TEXT_LIL_XT_TIRED          = 1,
-    TEXT_LIL_XT_TRAIN_BROKEN   = 2,
-    TEXT_LIL_XT_NEW_TOYS       = 3,
-    MOVEID_LIL_XT_JUMP         = 1,
-};
-
-struct npc_lil_xt : public CreatureAI
-{
-    npc_lil_xt(Creature* creature) : CreatureAI(creature),
-        _sleepTimer(urand(35, 45) * IN_MILLISECONDS),
-        _danceTimer(urand(100, 105) * IN_MILLISECONDS),
-        _trainTimer(5 * IN_MILLISECONDS) { }
+    bool _hasEjected = false;
+    ObjectGuid _playerGuid;
 
     void Reset() override
     {
-        _trainPhase = PHASE_NONE;
-        _trainGuid.Clear();
-        _trainTimer = 5 * IN_MILLISECONDS;
-        _sleepTimer = urand(35, 45) * IN_MILLISECONDS;
-        _danceTimer = urand(100, 105) * IN_MILLISECONDS;
+        _hasEjected = false;
+        _playerGuid.Clear();
 
-        Talk(TEXT_LIL_XT_HELLO);
-        FollowOwner();
+        if (sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GROUP) && !me->GetMap()->IsBattlegroundOrArena())
+            me->SetFaction(FACTION_FRIENDLY);
+
+        me->m_Events.KillAllEvents(false);
     }
 
-    void UpdateAI(uint32 diff) override
+    void UpdateAI(uint32 /*diff*/) override
     {
-        if (_trainPhase != PHASE_NONE)
+        if (_playerGuid.IsEmpty() && me->GetVehicle())
         {
-            UpdateTrainEvent(diff);
-            return;
+            _playerGuid = me->GetVehicleBase()->GetGUID();
         }
-
-        if (_sleepTimer <= diff)
+        if (!me->GetVehicle() && !_hasEjected)
         {
-            DoCastSelf(SPELL_LIL_XT_SLEEP);
-            Talk(TEXT_LIL_XT_TIRED);
-            _sleepTimer = 120 * IN_MILLISECONDS;
-        }
-        else
-            _sleepTimer -= diff;
+            _hasEjected = true;
 
-        if (_danceTimer <= diff)
-        {
-            DoCastSelf(SPELL_LIL_XT_DANCE);
-            _danceTimer = 120 * IN_MILLISECONDS;
-        }
-        else
-            _danceTimer -= diff;
+            me->m_Events.AddEventAtOffset([this] {
+                if (Unit* driver = ObjectAccessor::GetUnit(*me, _playerGuid))
+                    me->SetFacingToObject(driver);
+            }, 2500ms);
 
-        if (_trainTimer <= diff)
-        {
-            _trainTimer = 30 * IN_MILLISECONDS;
-            if (TryStartTrainEvent())
-                return;
-        }
-        else
-            _trainTimer -= diff;
+            me->m_Events.AddEventAtOffset([this] {
+                me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_VENDOR_MASK);
+            }, 3300ms);
 
-        if (Unit* owner = me->GetCharmerOrOwner())
-            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
-                me->GetMotionMaster()->MoveFollow(owner, 1.1f, 2.0f);
-    }
+            me->m_Events.AddEventAtOffset([this] {
+                Talk(SAY_DISMISS);
+                me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
+            }, 4100ms);
 
-    void MovementInform(uint32 /*type*/, uint32 id) override
-    {
-        if (id != MOVEID_LIL_XT_JUMP || _trainPhase != PHASE_JUMP)
-            return;
-
-        _trainPhase = PHASE_DESTROY;
-        _trainTimer = 0;
-    }
-
-private:
-    enum TrainPhase
-    {
-        PHASE_NONE,
-        PHASE_DELAY,
-        PHASE_JUMP,
-        PHASE_DESTROY,
-        PHASE_RESUME,
-    };
-
-    void FollowOwner()
-    {
-        if (Unit* owner = me->GetCharmerOrOwner())
-            me->GetMotionMaster()->MoveFollow(owner, 1.1f, 2.0f);
-    }
-
-    bool TryStartTrainEvent()
-    {
-        GameObject* train = me->FindNearestGameObject(GO_TOY_TRAIN, 15.0f);
-        if (!train)
-            return false;
-
-        _trainGuid = train->GetGUID();
-        _trainPhase = PHASE_DELAY;
-        _trainTimer = 5 * IN_MILLISECONDS;
-
-        me->GetMotionMaster()->Clear(false);
-        me->StopMoving();
-        me->GetMotionMaster()->MoveIdle();
-
-        Talk(TEXT_LIL_XT_NEW_TOYS);
-        return true;
-    }
-
-    void UpdateTrainEvent(uint32 diff)
-    {
-        if (_trainTimer > diff)
-        {
-            _trainTimer -= diff;
-            return;
-        }
-
-        GameObject* train = nullptr;
-        if (_trainPhase != PHASE_RESUME)
-        {
-            train = ObjectAccessor::GetGameObject(*me, _trainGuid);
-            if (!train)
-            {
-                EndTrainEvent(false);
-                return;
-            }
-        }
-
-        switch (_trainPhase)
-        {
-            case PHASE_DELAY:
-                _trainPhase = PHASE_JUMP;
-                me->GetMotionMaster()->MoveJump(train->GetPosition(), 10.0f, 10.0f, MOVEID_LIL_XT_JUMP);
-                _trainTimer = 3 * IN_MILLISECONDS;
-                break;
-            case PHASE_JUMP:
-                _trainPhase = PHASE_DESTROY;
-                _trainTimer = 0;
-                break;
-            case PHASE_DESTROY:
-                me->CastSpell(me, SPELL_LIL_XT_DESTROY_TRAIN, false);
-                _trainPhase = PHASE_RESUME;
-                _trainTimer = 7 * IN_MILLISECONDS;
-                break;
-            case PHASE_RESUME:
-                EndTrainEvent(true);
-                break;
-            default:
-                EndTrainEvent(false);
-                break;
+            me->m_Events.AddEventAtOffset([this] {
+                me->DespawnOrUnsummon();
+            }, 10200ms);
         }
     }
-
-    void EndTrainEvent(bool brokeTrain)
-    {
-        _trainPhase = PHASE_NONE;
-        _trainGuid.Clear();
-        _trainTimer = 30 * IN_MILLISECONDS;
-
-        FollowOwner();
-
-        if (brokeTrain)
-            Talk(TEXT_LIL_XT_TRAIN_BROKEN);
-    }
-
-    TrainPhase _trainPhase = PHASE_NONE;
-    uint32 _sleepTimer;
-    uint32 _danceTimer;
-    uint32 _trainTimer;
-    ObjectGuid _trainGuid;
 };
 
 void AddSC_npcs_special()
@@ -3001,6 +2759,5 @@ void AddSC_npcs_special()
     RegisterCreatureAI(npc_arcanite_dragonling);
     RegisterCreatureAI(npc_crashin_thrashin_robot);
     RegisterCreatureAI(npc_controller);
-    RegisterCreatureAI(npc_train_wrecker);
-    RegisterCreatureAI(npc_lil_xt);
+    RegisterCreatureAI(npc_traveler_mammoth_vendor);
 }
