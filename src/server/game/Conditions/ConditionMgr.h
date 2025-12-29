@@ -15,14 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef YCORE_CONDITIONMGR_H
-#define YCORE_CONDITIONMGR_H
+#ifndef ACORE_CONDITIONMGR_H
+#define ACORE_CONDITIONMGR_H
 
 #include "Define.h"
 #include <list>
 #include <map>
-#include <shared_mutex>
-#include <vector>
 
 class Player;
 class Unit;
@@ -85,13 +83,14 @@ enum ConditionTypes
     CONDITION_DIFFICULTY_ID            = 49,            // Difficulty       0              0                  true is map has difficulty id
     CONDITION_TC_END                   = 50,            // placeholder
 
-    CONDITION_YC_START                 = 100,
+    CONDITION_AC_START                 = 100,
     CONDITION_QUEST_SATISFY_EXCLUSIVE  = 101,           // quest_id         0              0                  true if satisfied exclusive group
     CONDITION_HAS_AURA_TYPE            = 102,           // aura_type        0              0                  true if has aura type
     CONDITION_WORLD_SCRIPT             = 103,           // conditionId      state          0                  true if WorldState::IsConditionFulfilled returns true
     CONDITION_AI_DATA                  = 104,           // dataId           value          0                  true if AI::GetData returns value
+    CONDITION_RANDOM_DUNGEON           = 105,           // difficulty (0 = any) 0          0                  true if player is queued for a random dungeon via RDF (param1 = Difficulty)
 
-    CONDITION_YC_END                   = 105            // placeholder
+    CONDITION_AC_END                   = 106            // placeholder
 };
 
 /*! Documentation on implementing a new ConditionSourceType:
@@ -281,8 +280,6 @@ private:
 
     void Clean(); // free up resources
     std::list<Condition*> AllocatedMemoryStore; // some garbage collection :)
-    // Retired on reload, freed on the next one (see Clean).
-    std::vector<Condition*> _retiredConditions;
 
     ConditionContainer                ConditionStore;
     ConditionReferenceContainer       ConditionReferenceStore;
@@ -290,9 +287,6 @@ private:
     CreatureSpellConditionContainer   SpellClickEventConditionStore;
     NpcVendorConditionContainer       NpcVendorConditionContainerStore;
     SmartEventConditionContainer      SmartEventConditionStore;
-    // Guards all stores above. Readers copy lists under shared lock;
-    // LoadConditions/Clean take unique (Clean defers deletes one reload).
-    mutable std::shared_mutex _condLock;
 };
 
 #define sConditionMgr ConditionMgr::instance()
