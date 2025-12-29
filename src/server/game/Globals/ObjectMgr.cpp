@@ -665,7 +665,7 @@ void ObjectMgr::LoadCreatureTemplate(Field* fields, bool triggerHook)
     creatureTemplate.MovementType   = uint32(fields[47].Get<uint8>());
     if (!fields[48].IsNull())
     {
-        creatureTemplate.Movement.Ground = static_cast<CreatureGroundMovementType>(fields[48].Get<uint8>());
+        creatureTemplate.Movement.Ground = static_cast<CreatureGroundMovementType>(fields[44].Get<uint8>());
     }
 
     creatureTemplate.Movement.Swim = fields[49].Get<bool>();
