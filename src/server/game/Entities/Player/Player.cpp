@@ -2509,7 +2509,6 @@ void Player::GiveLevel(uint8 level)
     m_Played_time[PLAYED_TIME_LEVEL] = 0;                   // Level Played Time reset
 
     _ApplyAllLevelScaleItemMods(false);
-    _RemoveAllAuraStatMods();
 
     SetLevel(level);
 
@@ -2532,7 +2531,6 @@ void Player::GiveLevel(uint8 level)
         UpdateSkillsToMaxSkillsForLevel();
 
     _ApplyAllLevelScaleItemMods(true);
-    _ApplyAllAuraStatMods();
 
     if (!isDead())
     {
