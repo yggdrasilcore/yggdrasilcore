@@ -1658,6 +1658,11 @@ public:
                 me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_READY1H);
                 _events.ScheduleEvent(EVENT_THASSARIAN_SCRIPT_1, 2s);
             }
+            else if (type == POINT_MOTION_TYPE && param == 0)
+            {
+                if (Creature* talbot = ObjectAccessor::GetCreature(*me, _talbotGUID))
+                    me->SetFacingToObject(talbot);
+            }
         }
 
         void UpdateAI(uint32 diff) override
@@ -1990,6 +1995,7 @@ public:
         {
             if (action == 0)
             {
+                me->setActive(true);
                 _playerGUID = player->GetGUID();
                 CloseGossipMenuFor(player);
                 me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
