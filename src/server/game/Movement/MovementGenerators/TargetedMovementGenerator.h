@@ -15,8 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef YCORE_TARGETEDMOVEMENTGENERATOR_H
-#define YCORE_TARGETEDMOVEMENTGENERATOR_H
+#ifndef ACORE_TARGETEDMOVEMENTGENERATOR_H
+#define ACORE_TARGETEDMOVEMENTGENERATOR_H
 
 #include "FollowerReference.h"
 #include "MovementGenerator.h"
@@ -91,7 +91,7 @@ class FollowMovementGenerator : public MovementGeneratorMedium<T, FollowMovement
 {
 public:
     FollowMovementGenerator(Unit* target, float range, ChaseAngle angle, bool inheritWalkState, bool inheritSpeed)
-        : TargetedMovementGeneratorBase(target), i_path(nullptr), i_recheckPredictedDistanceTimer(0), i_recheckPredictedDistance(false), i_gravityLocked(false), _range(range), _angle(angle),_inheritWalkState(inheritWalkState), _inheritSpeed(inheritSpeed) {}
+        : TargetedMovementGeneratorBase(target), i_path(nullptr), i_recheckPredictedDistanceTimer(0), i_recheckPredictedDistance(false), _range(range), _angle(angle), _inheritWalkState(inheritWalkState), _inheritSpeed(inheritSpeed) {}
     ~FollowMovementGenerator() { }
 
     MovementGeneratorType GetMovementGeneratorType() { return FOLLOW_MOTION_TYPE; }
@@ -106,7 +106,7 @@ public:
 
     void unitSpeedChanged() { _lastTargetPosition.reset(); }
 
-    bool PositionOkay(Unit* owner, Unit* target, bool isPlayerPet, bool& targetIsMoving, uint32 diff);
+    bool PositionOkay(Unit* target, bool isPlayerPet, bool& targetIsMoving, uint32 diff);
 
     static void _clearUnitStateMove(T* u) { u->ClearUnitState(UNIT_STATE_FOLLOW_MOVE); }
     static void _addUnitStateMove(T* u) { u->AddUnitState(UNIT_STATE_FOLLOW_MOVE); }
@@ -117,7 +117,6 @@ private:
     std::unique_ptr<PathGenerator> i_path;
     TimeTrackerSmall i_recheckPredictedDistanceTimer;
     bool i_recheckPredictedDistance;
-    bool i_gravityLocked;
 
     Optional<Position> _lastTargetPosition;
     Optional<Position> _lastPredictedPosition;
