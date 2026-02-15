@@ -286,10 +286,23 @@ public:
 
     struct npc_time_lost_proto_drakeAI : public ScriptedAI
     {
-        npc_time_lost_proto_drakeAI(Creature* creature) : ScriptedAI(creature), _pathIndex(0), _lastPoint(0), _nextPoint(0), _started(false), _cyclicActive(false)
+        npc_time_lost_proto_drakeAI(Creature* creature) : ScriptedAI(creature) {}
+
+        void Reset() override
+        {
+            scheduler.CancelAll();
+        }
+
+        void InitializeAI() override
         {
             me->setActive(true);
             me->SetVisible(false);
+            me->SetImmuneToAll(true);
+
+            me->m_Events.AddEventAtOffset([&] {
+                me->SetVisible(true);
+                me->SetImmuneToAll(false);
+            }, Hours(urand(6, 22)));
         }
 
         struct PathPoint { float x, y, z; };

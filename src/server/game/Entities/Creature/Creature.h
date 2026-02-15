@@ -434,11 +434,20 @@ public:
     [[nodiscard]] bool CanAttackAtRange() const;
     float GetLeashZCap() const;
     void ClearLeash();
+    bool HasLeashEntryFor(Unit const* target) const;
+    time_t GetLeashDeadlineFor(Unit const* target) const;
     bool IsLeashExpiredFor(Unit const* target) const;
     bool IsOutsideLeashRange(Unit const* victim) const;
     // Shared pack state: assisting mobs inherit the originally engaged NPC's leash.
     std::shared_ptr<LeashState> const& GetLeashStatePtr() const;
     void SetLeashStatePtr(std::shared_ptr<LeashState> const& state);
+    // Backwards-compat wrappers (single-timer API replaced by per-target queue)
+    std::shared_ptr<time_t> const& GetLastLeashExtensionTimePtr() const = delete;
+    void SetLastLeashExtensionTimePtr(std::shared_ptr<time_t> const& timer) = delete;
+    void ClearLastLeashExtensionTimePtr();
+    time_t GetLastLeashExtensionTime() const;
+    void UpdateLeashExtensionTime();
+    void UpdateLeashExtensionTimeFor(Unit* victim);
     uint32 GetLeashTimer() const;
 
     CreatureTextRepeatIds const& GetTextRepeatGroup(uint8 textGroup);

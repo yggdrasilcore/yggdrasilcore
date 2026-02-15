@@ -135,7 +135,7 @@ struct npc_citizen_of_havenshire : public ScriptedAI
 
         me->SetLootRecipient(nullptr);
         me->ResetPlayerDamageReq();
-        me->ClearLeash();
+        me->ClearLastLeashExtensionTimePtr();
 
         events.CancelEvent(EVENT_COWER);
         me->ClearEmoteState();
