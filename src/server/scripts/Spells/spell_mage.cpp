@@ -34,6 +34,7 @@ enum MageSpells
     SPELL_MAGE_BURNOUT_TRIGGER                   = 44450,
     SPELL_MAGE_IMPROVED_BLIZZARD_CHILLED         = 12486,
     SPELL_MAGE_COMBUSTION                        = 11129,
+    SPELL_MAGE_COMBUSTION_PROC                   = 28682,
     SPELL_MAGE_COLD_SNAP                         = 11958,
     SPELL_MAGE_FOCUS_MAGIC_PROC                  = 54648,
     SPELL_MAGE_FROST_WARDING_R1                  = 11189,
@@ -962,7 +963,108 @@ class spell_mage_fingers_of_frost_proc_aura : public AuraScript
 
     bool AfterCheckProc(ProcEventInfo& eventInfo, bool isTriggeredAtSpellProcEvent)
     {
+<<<<<<< HEAD
         if (eventInfo.GetSpellPhaseMask() != PROC_SPELL_PHASE_CAST)
+=======
+        PreventDefaultAction();
+        uint32 spellId = GetSpellInfo()->GetRank() == 1 ? SPELL_MAGE_ARCANE_POTENCY_RANK_1 : SPELL_MAGE_ARCANE_POTENCY_RANK_2;
+        GetTarget()->CastSpell(GetTarget(), spellId, true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_mage_arcane_potency::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_mage_arcane_potency::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// 11129 - Combustion
+class spell_mage_combustion : public AuraScript
+{
+    PrepareAuraScript(spell_mage_combustion);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_COMBUSTION_PROC });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        // Do not take charges, add a stack of crit buff
+        if (!(eventInfo.GetHitMask() & PROC_HIT_CRITICAL))
+        {
+            eventInfo.GetActor()->CastSpell(static_cast<Unit*>(nullptr), SPELL_MAGE_COMBUSTION_PROC, true);
+            return false;
+        }
+
+        return true;
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_mage_combustion::CheckProc);
+    }
+};
+
+// -31656 - Empowered Fire
+class spell_mage_empowered_fire : public AuraScript
+{
+    PrepareAuraScript(spell_mage_empowered_fire);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_EMPOWERED_FIRE_PROC });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
+        if (!spellInfo)
+            return false;
+
+        // Only proc on Ignite
+        return spellInfo->Id == SPELL_MAGE_IGNITE;
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    {
+        PreventDefaultAction();
+
+        Unit* target = GetTarget();
+        // Calculate mana restored: 2% of base mana (percent value comes from spell 67545 effect 0)
+        uint32 percent = sSpellMgr->GetSpellInfo(SPELL_MAGE_EMPOWERED_FIRE_PROC)->Effects[EFFECT_0].CalcValue();
+        int32 mana = int32(CalculatePct(target->GetCreateMana(), percent));
+        target->CastCustomSpell(SPELL_MAGE_EMPOWERED_FIRE_PROC, SPELLVALUE_BASE_POINT0, mana, target, true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_mage_empowered_fire::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_mage_empowered_fire::HandleProc, EFFECT_0, SPELL_AURA_ADD_FLAT_MODIFIER);
+    }
+};
+
+// 48108 - Hot Streak, 57761 - Fireball!
+class spell_mage_gen_extra_effects : public AuraScript
+{
+    PrepareAuraScript(spell_mage_gen_extra_effects);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+            {
+                SPELL_MAGE_T8_4P_BONUS,
+                SPELL_MAGE_T10_2P_BONUS,
+                SPELL_MAGE_T10_2P_BONUS_EFFECT
+            });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        Unit* caster = eventInfo.GetActor();
+        // T8 4P bonus: prevent double proc on Arcane Missiles
+        if (GetSpellInfo()->Id == SPELL_MAGE_HOT_STREAK_PROC && caster->HasAura(SPELL_MAGE_T8_4P_BONUS))
+>>>>>>> 61e5cd7ac (fix(Core/Spells): Combustion non-crit hits now add crit stacks (#24752))
         {
             eventInfo.ResetProcChance();
         }
