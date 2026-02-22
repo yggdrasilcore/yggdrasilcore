@@ -267,6 +267,7 @@ public:
                         }
                         break;
 
+<<<<<<< HEAD
                     case MI_POINT_INTRO_CENTER_AIR:
                         events.RescheduleEvent(EVENT_INTRO_LAND, 0ms, 1);
                         break;
@@ -284,6 +285,195 @@ public:
                     case MI_POINT_SURGE_OF_POWER_CENTER:
                         events.RescheduleEvent(EVENT_SURGE_OF_POWER_WARNING, 0ms, 1);
                         break;
+=======
+            DoZoneInCombat();
+
+            events.RescheduleEvent(EVENT_SAY_PHASE_3_INTRO, 3s, 1);
+        }
+        break;
+        case EVENT_SAY_PHASE_3_INTRO:
+            Talk(SAY_INTRO_PHASE_3);
+            break;
+        case EVENT_START_PHASE_3:
+            events.SetPhase(PHASE_THREE);
+            SetInvincibility(false);
+            me->GetMap()->SetZoneOverrideLight(AREA_EYE_OF_ETERNITY, LIGHT_OBSCURE_ARCANE_RUNES, 1s);
+            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+            me->SetUnitFlag(UNIT_FLAG_PACIFIED | UNIT_FLAG_DISABLE_MOVE);
+            if (Unit* target = me->GetVictim())
+                AttackStart(target);
+            events.RescheduleEvent(EVENT_SPELL_ARCANE_PULSE, 0ms, 1);
+            events.RescheduleEvent(EVENT_SPELL_STATIC_FIELD, 1s, 4s, 1);
+            events.RescheduleEvent(EVENT_SPELL_PH3_SURGE_OF_POWER, 4s, 7s, 1);
+            events.RescheduleEvent(EVENT_SPELL_ARCANE_STORM, 12s, 15s, 1);
+            break;
+        case EVENT_SPELL_ARCANE_PULSE:
+            me->CastSpell(me, SPELL_ARCANE_PULSE, true);
+            events.Repeat(3s);
+            break;
+        case EVENT_SPELL_STATIC_FIELD:
+            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 200.0f, false))
+            {
+                me->SetFacingToObject(target);
+                me->CastSpell(target, SPELL_STATIC_FIELD_MAIN, true);
+            }
+            events.Repeat(12s);
+            break;
+        case EVENT_SPELL_PH3_SURGE_OF_POWER:
+            me->CastSpell((Unit*)nullptr, SPELL_PH3_SURGE_OF_POWER, false);
+            events.Repeat(7s);
+            break;
+        }
+
+        DoMeleeAttackIfReady();
+    }
+
+    void JustDied(Unit*  /*killer*/) override
+    {
+        _JustDied();
+        Talk(SAY_DEATH);
+        instance->DoUpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE, NPC_MALYGOS, 1);
+    }
+
+    void KilledUnit(Unit* victim) override
+    {
+        if (victim && victim->GetGUID() == me->GetGUID())
+            return;
+
+        if (events.IsInPhase(PHASE_ONE))
+            Talk(SAY_SLAY_P1);
+        else if (events.IsInPhase(PHASE_TWO))
+            Talk(SAY_SLAY_P2);
+        else
+            Talk(SAY_SLAY_P3);
+    }
+
+    void JustSummoned(Creature* summon) override
+    {
+        if (!summon)
+            return;
+        summons.Summon(summon);
+        switch (summon->GetEntry())
+        {
+        case NPC_ARCANE_OVERLOAD:
+            summon->CastSpell(summon, SPELL_ARCANE_OVERLOAD_DMG, true);
+            summon->DespawnOrUnsummon(45s);
+            break;
+        case NPC_STATIC_FIELD:
+            summon->DespawnOrUnsummon(20s);
+            break;
+        }
+    }
+
+    void MoveInLineOfSight(Unit*  /*who*/) override {}
+
+    void EnterEvadeMode(EvadeReason why) override
+    {
+        me->SetDisableGravity(true);
+        me->GetMap()->SetZoneOverrideLight(AREA_EYE_OF_ETERNITY, LIGHT_GET_DEFAULT_FOR_MAP, 1s);
+
+        me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE);
+        ScriptedAI::EnterEvadeMode(why);
+    }
+
+    void HandleIntroSpeech(const uint32 diff)
+    {
+        if (me->IsInCombat() || me->isDead())
+            return;
+
+        // speech timer
+        if (timer1 <= diff)
+        {
+            Talk(SAY_INTRO);
+            timer1 = MalygosIntroIntervals[IntroCounter];
+            if (++IntroCounter >= 5)
+                IntroCounter = 0;
+        }
+        else
+            timer1 -= diff;
+
+        // movement timer
+        if (timer2)
+        {
+            if (timer2 <= diff)
+            {
+                timer2 = 0;
+                uint32 tmp = urand(0, 3);
+                me->RemoveUnitMovementFlag(MOVEMENTFLAG_WALKING);
+                me->GetMotionMaster()->MovePoint(MI_POINT_INTRO_SIDE_0 + tmp, FourSidesPos[tmp]);
+            }
+            else
+                timer2 -= diff;
+        }
+    }
+};
+
+struct npc_power_spark : public NullCreatureAI
+{
+    npc_power_spark(Creature* creature) : NullCreatureAI(creature)
+    {
+        _instance = me->GetInstanceScript();
+        _checkTimer = 1000;
+        _moveTimer = 0;
+    }
+
+    InstanceScript* _instance;
+    uint16 _checkTimer;
+    uint16 _moveTimer;
+
+    void DoAction(int32 param) override
+    {
+        switch (param)
+        {
+        case ACTION_POWER_SPARK_FOLLOW:
+            _moveTimer = 1;
+            break;
+        case ACTION_POWER_SPARK_STOP:
+            _moveTimer = 0;
+            me->GetMotionMaster()->MoveIdle();
+            me->DisableSpline();
+            me->GetMotionMaster()->MovePoint(0, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 0.05f, FORCED_MOVEMENT_NONE, 7.0f);
+            break;
+        }
+    }
+
+    void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    {
+        if (damage < me->GetHealth())
+            return;
+
+        damage = 0;
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+            return;
+
+        _moveTimer = 0;
+        me->GetMotionMaster()->MoveIdle();
+        me->DisableSpline();
+        me->GetMotionMaster()->MovePoint(0, me->GetPositionX(), me->GetPositionY(), CenterPos.GetPositionZ(), FORCED_MOVEMENT_NONE, 100.0f);
+        me->ReplaceAllUnitFlags(UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_DISABLE_MOVE);
+        me->RemoveAura(SPELL_POWER_SPARK_VISUAL);
+        me->CastSpell(me, SPELL_POWER_SPARK_GROUND_BUFF, true);
+        me->DespawnOrUnsummon(60s);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (me->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE))
+            return;
+
+        if (_checkTimer <= diff)
+        {
+            if (_instance)
+            {
+                if (Creature* malygos = _instance->GetCreature(DATA_MALYGOS))
+                {
+                    if (me->IsWithinDist3d(malygos, 12.0f))
+                    {
+                        me->CastSpell(malygos, SPELL_POWER_SPARK_MALYGOS_BUFF, true);
+                        me->DespawnOrUnsummon();
+                        return;
+                    }
+>>>>>>> a4e1975a3 (fix(DB/Creature): Fix Power Spark movement (#24798))
                 }
             }
             else if (type == EFFECT_MOTION_TYPE)
