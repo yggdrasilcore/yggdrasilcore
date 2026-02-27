@@ -16635,6 +16635,23 @@ void Unit::TriggerAurasProcOnEvent(std::list<AuraApplication*>* myProcAuras, std
     std::list<AuraApplication*> myAurasTriggeringProc;
     GetProcAurasTriggeredOnEvent(myAurasTriggeringProc, myProcAuras, myProcEventInfo);
 
+    // needed for example for Cobra Strikes, pet does the attack, but aura is on owner
+    if (Player* modOwner = GetSpellModOwner())
+    {
+        if (modOwner != this && spell)
+        {
+            std::list<AuraApplication*> modAuras;
+            for (auto itr = modOwner->GetAppliedAuras().begin(); itr != modOwner->GetAppliedAuras().end(); ++itr)
+            {
+                if (spell->m_appliedMods.count(itr->second->GetBase()) != 0)
+                    modAuras.push_back(itr->second);
+            }
+
+            if (!modAuras.empty())
+                modOwner->GetProcAurasTriggeredOnEvent(myAurasTriggeringProc, &modAuras, myProcEventInfo);
+        }
+    }
+
     // prepare data for target trigger
     ProcEventInfo targetProcEventInfo = ProcEventInfo(this, actionTarget, this, typeMaskActionTarget, spellTypeMask, spellPhaseMask, hitMask, spell, damageInfo, healInfo);
     std::list<AuraApplication*> targetAurasTriggeringProc;
