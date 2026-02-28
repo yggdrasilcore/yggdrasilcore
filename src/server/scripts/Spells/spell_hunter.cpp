@@ -1364,6 +1364,204 @@ class spell_hun_explosive_shot : public SpellScript
     }
 };
 
+<<<<<<< HEAD
+=======
+// 34026 - Kill Command
+class spell_hun_kill_command : public SpellScript
+{
+    PrepareSpellScript(spell_hun_kill_command);
+
+    SpellCastResult CheckCast()
+    {
+        Unit* caster = GetCaster();
+        if (!caster || !caster->IsPlayer())
+            return SPELL_FAILED_NO_VALID_TARGETS;
+
+        Pet* pet = caster->ToPlayer()->GetPet();
+        if (!pet)
+            return SPELL_FAILED_NO_PET;
+
+        return SPELL_CAST_OK;
+    }
+
+    void Register() override
+    {
+        OnCheckCast += SpellCheckCastFn(spell_hun_kill_command::CheckCast);
+    }
+};
+
+// 34026 - Kill Command
+class spell_hun_kill_command : public SpellScript
+{
+    PrepareSpellScript(spell_hun_kill_command);
+
+    SpellCastResult CheckCast()
+    {
+        Unit* caster = GetCaster();
+        if (!caster || !caster->IsPlayer())
+            return SPELL_FAILED_NO_VALID_TARGETS;
+
+        Pet* pet = caster->ToPlayer()->GetPet();
+        if (!pet)
+            return SPELL_FAILED_NO_PET;
+
+        return SPELL_CAST_OK;
+    }
+
+    void Register() override
+    {
+        OnCheckCast += SpellCheckCastFn(spell_hun_kill_command::CheckCast);
+    }
+};
+
+// 58914 - Kill Command (Pet Aura)
+class spell_hun_kill_command_pet : public AuraScript
+{
+    PrepareAuraScript(spell_hun_kill_command_pet);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_HUNTER_KILL_COMMAND_HUNTER });
+    }
+
+    void HandleProc(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
+    {
+        // prevent charge drop (aura has both proc charge and stacks)
+        PreventDefaultAction();
+
+        if (Unit* owner = eventInfo.GetActor()->GetOwner())
+            owner->RemoveAuraFromStack(SPELL_HUNTER_KILL_COMMAND_HUNTER);
+
+        ModStackAmount(-1);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_hun_kill_command_pet::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
+// -53228 - Rapid Recuperation (talent aura)
+class spell_hun_rapid_recuperation_trigger : public AuraScript
+{
+    PrepareAuraScript(spell_hun_rapid_recuperation_trigger);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo(
+        {
+            SPELL_HUNTER_RAPID_RECUPERATION_MANA_R1,
+            SPELL_HUNTER_RAPID_RECUPERATION_MANA_R2
+        });
+    }
+
+    void HandleRapidFireProc(AuraEffect const* /*aurEff*/, ProcEventInfo& eventInfo)
+    {
+        // Proc only from Rapid Fire
+        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
+        if (!spellInfo || !(spellInfo->SpellFamilyFlags[0] & 0x00000020))
+        {
+            PreventDefaultAction();
+            return;
+        }
+    }
+
+    void HandleRapidKillingProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        static uint32 const triggerSpells[2] = { SPELL_HUNTER_RAPID_RECUPERATION_MANA_R1, SPELL_HUNTER_RAPID_RECUPERATION_MANA_R2 };
+
+        PreventDefaultAction();
+
+        // Proc only from Rapid Killing
+        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
+        if (!spellInfo || !(spellInfo->SpellFamilyFlags[1] & 0x01000000))
+            return;
+
+        uint8 rank = GetSpellInfo()->GetRank();
+        uint32 spellId = triggerSpells[rank - 1];
+        eventInfo.GetActor()->CastSpell(eventInfo.GetActor(), spellId, true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_hun_rapid_recuperation_trigger::HandleRapidFireProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+        OnEffectProc += AuraEffectProcFn(spell_hun_rapid_recuperation_trigger::HandleRapidKillingProc, EFFECT_1, SPELL_AURA_DUMMY);
+    }
+};
+
+// -53234 - Piercing Shots
+class spell_hun_piercing_shots : public AuraScript
+{
+    PrepareAuraScript(spell_hun_piercing_shots);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_HUNTER_PIERCING_SHOTS });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        return eventInfo.GetActionTarget() != nullptr;
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+
+        DamageInfo* dmgInfo = eventInfo.GetDamageInfo();
+        if (!dmgInfo || !dmgInfo->GetDamage())
+            return;
+
+        Unit* caster = eventInfo.GetActor();
+        Unit* target = eventInfo.GetActionTarget();
+
+        SpellInfo const* piercingShots = sSpellMgr->AssertSpellInfo(SPELL_HUNTER_PIERCING_SHOTS);
+        int32 bp = CalculatePct(static_cast<int32>(dmgInfo->GetDamage()), aurEff->GetAmount());
+
+        ASSERT(piercingShots->GetMaxTicks() > 0);
+        bp /= piercingShots->GetMaxTicks();
+
+        target->CastDelayedSpellWithPeriodicAmount(caster, SPELL_HUNTER_PIERCING_SHOTS, SPELL_AURA_PERIODIC_DAMAGE, bp);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_hun_piercing_shots::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_hun_piercing_shots::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
+// 67151 - Item - Hunter T9 4P Bonus (Steady Shot)
+class spell_hun_t9_4p_bonus : public AuraScript
+{
+    PrepareAuraScript(spell_hun_t9_4p_bonus);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_HUNTER_T9_4P_GREATNESS });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        Unit* actor = eventInfo.GetActor();
+        return actor && actor->IsPlayer() && actor->ToPlayer()->GetPet();
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+        Unit* caster = eventInfo.GetActor();
+        caster->CastSpell(caster->ToPlayer()->GetPet(), SPELL_HUNTER_T9_4P_GREATNESS, true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_hun_t9_4p_bonus::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_hun_t9_4p_bonus::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
+>>>>>>> 40c712fae (fix(Core/Spells): Prevent Kill Command cast without a pet (#24929))
 void AddSC_hunter_spell_scripts()
 {
     RegisterSpellScript(spell_hun_check_pet_los);
@@ -1396,4 +1594,17 @@ void AddSC_hunter_spell_scripts()
     RegisterSpellScript(spell_hun_bestial_wrath);
     RegisterSpellScript(spell_hun_target_self_and_pet);
     RegisterSpellScript(spell_hun_explosive_shot);
+<<<<<<< HEAD
+=======
+    RegisterSpellScript(spell_hun_thrill_of_the_hunt);
+    RegisterSpellScript(spell_hun_hunting_party);
+    RegisterSpellScript(spell_hun_glyph_of_mend_pet);
+    // Proc system scripts
+    RegisterSpellScript(spell_hun_rapid_recuperation);
+    RegisterSpellScript(spell_hun_kill_command);
+    RegisterSpellScript(spell_hun_kill_command_pet);
+    RegisterSpellScript(spell_hun_piercing_shots);
+    RegisterSpellScript(spell_hun_rapid_recuperation_trigger);
+    RegisterSpellScript(spell_hun_t9_4p_bonus);
+>>>>>>> 40c712fae (fix(Core/Spells): Prevent Kill Command cast without a pet (#24929))
 }
