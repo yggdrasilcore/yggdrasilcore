@@ -128,14 +128,10 @@ class spell_pal_seal_of_command_aura : public AuraScript
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
     {
         PreventDefaultAction();
-        int32 targets = 3;
-        if (SpellInfo const* procSpell = eventInfo.GetSpellInfo())
-        {
-            if (procSpell->IsAffectingArea())
-            {
-                targets = 1;
-            }
-        }
+        // Only auto-attacks (no spell info) should trigger SoC's cleave.
+        // Spells like HotR/ShoR should proc SoC but not cleave.
+        // Judgement cleave is handled separately via JotJ code path.
+        int32 targets = eventInfo.GetSpellInfo() ? 1 : 3;
 
         Unit* target = eventInfo.GetActionTarget();
         if (target->IsAlive())
