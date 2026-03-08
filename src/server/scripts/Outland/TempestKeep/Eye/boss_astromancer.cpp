@@ -199,6 +199,7 @@ struct boss_high_astromancer_solarian : public BossAI
             }).Schedule(23s, [this](TaskContext)
             {
                 me->SetReactState(REACT_AGGRESSIVE);
+                DoResetThreatList();
                 summons.DoForAllSummons([&](WorldObject* summon)
                 {
                     if (Creature* light = summon->ToCreature())
