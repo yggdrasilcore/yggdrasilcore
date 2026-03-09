@@ -3233,7 +3233,7 @@ void Spell::DoTriggersOnSpellHit(Unit* unit, uint8 effMask)
                             Aura* aur = unit->GetAura(m_spellInfo->Id, m_caster->GetGUID());
                             _duration = aur ? aur->GetDuration() : -1;
                         }
-                        triggeredAur->SetDuration(_duration);
+                        triggeredAur->SetDuration(std::max(triggeredAur->GetDuration(), _duration));
                     }
                 }
             }
