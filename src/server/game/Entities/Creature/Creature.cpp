@@ -313,12 +313,19 @@ bool AssistDelayEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
                 {
                     assistant->AI()->AttackStart(victim);
 
+<<<<<<< HEAD
                     // When nearby mobs aggro from another mob's initial call for assistance
                     // they inherit the leash queue from the originally engaged NPC (chain leashing).
                     // Attacking one keeps the rest from evading.
                     if (assistant->GetVictim())
                         assistant->SetLeashStatePtr(m_owner->GetLeashStatePtr());
                 }
+=======
+                // When nearby mobs aggro from another mob's initial call for assistance
+                // their leash timers become linked and attacking one will keep the rest from evading.
+                if (assistant->IsEngaged())
+                    assistant->SetLastLeashExtensionTimePtr(m_owner->GetLastLeashExtensionTimePtr());
+>>>>>>> e5746fbc8 (fix(Core/Scripts): Fix GetVictim() returning null during JustEngagedWith (#25131))
             }
         }
     }
@@ -2628,20 +2635,18 @@ void Creature::CallAssistance(Unit* target /*= nullptr*/)
 
 void Creature::CallForHelp(float radius, Unit* target /*= nullptr*/)
 {
-    if (radius <= 0.0f || IsPet() || IsCharmed())
-    {
+    if (radius <= 0.0f || !IsEngaged() || !IsAlive() || IsPet() || IsCharmed())
         return;
-    }
 
     if (!target)
-    {
-        target = GetVictim();
-    }
+        target = GetThreatMgr().GetCurrentVictim();
+    if (!target)
+        target = GetThreatMgr().GetAnyTarget();
+    if (!target)
+        target = GetCombatManager().GetAnyTarget();
 
     if (!target)
-    {
         return;
-    }
 
     if (m_alreadyCallForHelp) // avoid recursive call for help for any reason
         return;
