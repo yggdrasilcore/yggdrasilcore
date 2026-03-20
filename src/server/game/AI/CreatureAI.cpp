@@ -199,6 +199,18 @@ void CreatureAI::MoveInLineOfSight(Unit* who)
         AttackStart(who);
 }
 
+<<<<<<< HEAD
+=======
+void CreatureAI::OnOwnerCombatInteraction(Unit* target)
+{
+    if (!target || !me->IsAlive())
+        return;
+
+    if (!me->HasReactState(REACT_PASSIVE) && me->CanStartAttack(target, true))
+        me->EngageWithTarget(target);
+}
+
+>>>>>>> 48fa4d285 (fix(Core/Scripts): Fix DK pets not correctly attacking (#25128))
 // Distract creature, if player gets too close while stealthed/prowling
 void CreatureAI::TriggerAlert(Unit const* who) const
 {
