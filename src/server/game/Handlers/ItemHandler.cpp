@@ -256,8 +256,8 @@ void WorldSession::HandleAutoEquipItemOpcode(WorldPackets::Item::AutoEquipItem& 
         }
 
         // now do moves, remove...
-        _player->RemoveItem(dstbag, dstslot, true, true);
-        _player->RemoveItem(packet.SourceBag, packet.SourceSlot, true, true);
+        _player->RemoveItem(dstbag, dstslot, true);
+        _player->RemoveItem(packet.SourceBag, packet.SourceSlot, true);
 
         // add to dest
         _player->EquipItem(dest, pSrcItem, true);
@@ -602,7 +602,10 @@ void WorldSession::HandleSellItemOpcode(WorldPackets::Item::SellItem& packet)
     if (pItem)
     {
         if (!sScriptMgr->OnPlayerCanSellItem(_player, pItem, creature))
+        {
+            _player->SendSellError(SELL_ERR_CANT_SELL_ITEM, creature, packet.ItemGuid, 0);
             return;
+        }
 
         // prevent sell not owner item
         if (_player->GetGUID() != pItem->GetOwnerGUID())
@@ -869,7 +872,8 @@ void WorldSession::SendListInventory(ObjectGuid vendorGuid, uint32 vendorEntry)
     }
 
     // Stop the npc if moving
-    vendor->PauseMovementForInteraction(_player);
+    if (uint32 pause = vendor->GetMovementTemplate().GetInteractionPauseTimer())
+        vendor->PauseMovement(pause);
 
     // Update home position for patrolling NPCs only (prevents drift for stationary NPCs)
     if (vendor->GetDefaultMovementType() == WAYPOINT_MOTION_TYPE ||
