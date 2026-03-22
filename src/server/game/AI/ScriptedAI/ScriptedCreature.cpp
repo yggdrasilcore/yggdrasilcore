@@ -15,12 +15,13 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptedCreature.h"
 #include "Cell.h"
 #include "CellImpl.h"
+#include "Containers.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
 #include "ObjectMgr.h"
+#include "ScriptedCreature.h"
 #include "Spell.h"
 #include "TemporarySummon.h"
 
@@ -141,6 +142,23 @@ Creature* SummonList::GetCreatureWithEntry(uint32 entry) const
     return nullptr;
 }
 
+Creature* SummonList::GetRandomCreatureWithEntry(uint32 entry) const
+{
+    std::vector<ObjectGuid> candidates;
+    candidates.reserve(storage_.size());
+
+    for (auto const guid : storage_)
+        if (Creature* summon = ObjectAccessor::GetCreature(*me, guid))
+            if (summon->GetEntry() == entry)
+                candidates.push_back(guid);
+
+    if (candidates.empty())
+        return nullptr;
+
+    ObjectGuid randomGuid = Acore::Containers::SelectRandomContainerElement(candidates);
+    return ObjectAccessor::GetCreature(*me, randomGuid);
+}
+
 bool SummonList::IsAnyCreatureAlive() const
 {
     for (auto const& guid : storage_)
@@ -251,6 +269,16 @@ void ScriptedAI::DoStopAttack()
         me->AttackStop();
 }
 
+void ScriptedAI::DoRewardPlayersInArea()
+{
+    me->GetMap()->DoForAllPlayers([&](Player* player)
+    {
+        if (player->GetFaction() != me->GetCreatureTemplate()->faction && !player->IsGameMaster())
+            if (player->GetAreaId() == me->GetAreaId())
+                player->KilledMonsterCredit(me->GetEntry());
+    });
+}
+
 void ScriptedAI::DoCastSpell(Unit* target, SpellInfo const* spellInfo, bool triggered)
 {
     if (!target || me->IsNonMeleeSpellCast(false))
@@ -280,27 +308,25 @@ void ScriptedAI::DoPlayMusic(uint32 soundId, bool zone)
 
     if (me && me->FindMap())
     {
-        Map* musicMap = me->GetMap();
-        uint32 zoneId = me->GetZoneId();
-        uint32 areaId = me->GetAreaId();
+        Map::PlayerList const& players = me->GetMap()->GetPlayers();
         targets = new ObjectList();
 
-        std::vector<ObjectGuid> guids = musicMap->CopyPlayerGuids();
-        for (ObjectGuid const& playerGuid : guids)
+        if (!players.IsEmpty())
         {
-            Player* player = ObjectAccessor::FindPlayer(playerGuid);
-            if (!player || !player->IsInWorld() || player->GetMap() != musicMap)
-                continue;
-            if (player->GetZoneId() == zoneId)
-            {
-                if (!zone)
+            for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
+                if (Player* player = i->GetSource())
                 {
-                    if (player->GetAreaId() == areaId)
-                        targets->push_back(player);
+                    if (player->GetZoneId() == me->GetZoneId())
+                    {
+                        if (!zone)
+                        {
+                            if (player->GetAreaId() == me->GetAreaId())
+                                targets->push_back(player);
+                        }
+                        else
+                            targets->push_back(player);
+                    }
                 }
-                else
-                    targets->push_back(player);
-            }
         }
     }
 
@@ -446,7 +472,7 @@ void ScriptedAI::DoResetThreat(Unit* unit)
 
 void ScriptedAI::DoResetThreatList()
 {
-    if (!me->CanHaveThreatList() || me->GetThreatMgr().isThreatListEmpty())
+    if (!me->CanHaveThreatList() || me->GetThreatMgr().IsThreatListEmpty(true))
     {
         LOG_ERROR("entities.unit.ai", "DoResetThreatList called for creature that either cannot have threat list or has empty threat list (me entry = {})", me->GetEntry());
         return;
@@ -481,22 +507,18 @@ void ScriptedAI::DoTeleportAll(float x, float y, float z, float o)
     if (!map->IsDungeon())
         return;
 
-    std::vector<ObjectGuid> guids = map->CopyPlayerGuids();
-    for (ObjectGuid const& playerGuid : guids)
-    {
-        Player* player = ObjectAccessor::FindPlayer(playerGuid);
-        if (!player || !player->IsInWorld() || player->GetMap() != map)
-            continue;
-        if (player->IsAlive())
-            player->TeleportTo(me->GetMapId(), x, y, z, o, TELE_TO_NOT_LEAVE_COMBAT);
-    }
+    Map::PlayerList const& PlayerList = map->GetPlayers();
+    for (Map::PlayerList::const_iterator itr = PlayerList.begin(); itr != PlayerList.end(); ++itr)
+        if (Player* player = itr->GetSource())
+            if (player->IsAlive())
+                player->TeleportTo(me->GetMapId(), x, y, z, o, TELE_TO_NOT_LEAVE_COMBAT);
 }
 
 Unit* ScriptedAI::DoSelectLowestHpFriendly(float range, uint32 minHPDiff)
 {
     Unit* unit = nullptr;
-    Ycore::MostHPMissingInRange u_check(me, range, minHPDiff);
-    Ycore::UnitLastSearcher<Ycore::MostHPMissingInRange> searcher(me, unit, u_check);
+    Acore::MostHPMissingInRange u_check(me, range, minHPDiff);
+    Acore::UnitLastSearcher<Acore::MostHPMissingInRange> searcher(me, unit, u_check);
     Cell::VisitObjects(me, searcher, range);
 
     return unit;
@@ -505,8 +527,8 @@ Unit* ScriptedAI::DoSelectLowestHpFriendly(float range, uint32 minHPDiff)
 std::list<Creature*> ScriptedAI::DoFindFriendlyCC(float range)
 {
     std::list<Creature*> list;
-    Ycore::FriendlyCCedInRange u_check(me, range);
-    Ycore::CreatureListSearcher<Ycore::FriendlyCCedInRange> searcher(me, list, u_check);
+    Acore::FriendlyCCedInRange u_check(me, range);
+    Acore::CreatureListSearcher<Acore::FriendlyCCedInRange> searcher(me, list, u_check);
     Cell::VisitObjects(me, searcher, range);
     return list;
 }
@@ -514,8 +536,8 @@ std::list<Creature*> ScriptedAI::DoFindFriendlyCC(float range)
 std::list<Creature*> ScriptedAI::DoFindFriendlyMissingBuff(float range, uint32 uiSpellid)
 {
     std::list<Creature*> list;
-    Ycore::FriendlyMissingBuffInRange u_check(me, range, uiSpellid);
-    Ycore::CreatureListSearcher<Ycore::FriendlyMissingBuffInRange> searcher(me, list, u_check);
+    Acore::FriendlyMissingBuffInRange u_check(me, range, uiSpellid);
+    Acore::CreatureListSearcher<Acore::FriendlyMissingBuffInRange> searcher(me, list, u_check);
     Cell::VisitObjects(me, searcher, range);
     return list;
 }
@@ -524,8 +546,8 @@ Player* ScriptedAI::GetPlayerAtMinimumRange(float minimumRange)
 {
     Player* player = nullptr;
 
-    Ycore::PlayerAtMinimumRangeAway check(me, minimumRange);
-    Ycore::PlayerSearcher<Ycore::PlayerAtMinimumRangeAway> searcher(me, player, check);
+    Acore::PlayerAtMinimumRangeAway check(me, minimumRange);
+    Acore::PlayerSearcher<Acore::PlayerAtMinimumRangeAway> searcher(me, player, check);
 
     Cell::VisitObjects(me, searcher, minimumRange);
 
@@ -568,21 +590,17 @@ enum eNPCs
 
 Player* ScriptedAI::SelectTargetFromPlayerList(float maxdist, uint32 excludeAura, bool mustBeInLOS) const
 {
-    Map* targetMap = me->GetMap();
-    std::vector<ObjectGuid> guids = targetMap->CopyPlayerGuids();
+    Map::PlayerList const& pList = me->GetMap()->GetPlayers();
     std::vector<Player*> tList;
-    for (ObjectGuid const& playerGuid : guids)
+    for(Map::PlayerList::const_iterator itr = pList.begin(); itr != pList.end(); ++itr)
     {
-        Player* listed = ObjectAccessor::FindPlayer(playerGuid);
-        if (!listed || !listed->IsInWorld() || listed->GetMap() != targetMap)
+        if (!me->IsWithinDistInMap(itr->GetSource(), maxdist, true, false, false) || !itr->GetSource()->IsAlive() || itr->GetSource()->IsGameMaster())
             continue;
-        if (!me->IsWithinDistInMap(listed, maxdist, true, false) || !listed->IsAlive() || listed->IsGameMaster())
+        if (excludeAura && itr->GetSource()->HasAura(excludeAura))
             continue;
-        if (excludeAura && listed->HasAura(excludeAura))
+        if (mustBeInLOS && !me->IsWithinLOSInMap(itr->GetSource()))
             continue;
-        if (mustBeInLOS && !me->IsWithinLOSInMap(listed))
-            continue;
-        tList.push_back(listed);
+        tList.push_back(itr->GetSource());
     }
     if (!tList.empty())
         return tList[urand(0, tList.size() - 1)];
@@ -696,11 +714,12 @@ void BossAI::TeleportCheaters()
     float x, y, z;
     me->GetPosition(x, y, z);
 
-    ThreatContainer::StorageType threatList = me->GetThreatMgr().GetThreatList();
-    for (ThreatContainer::StorageType::const_iterator itr = threatList.begin(); itr != threatList.end(); ++itr)
-        if (Unit* target = (*itr)->getTarget())
-            if (target->IsPlayer() && !IsInBoundary(target))
-                target->NearTeleportTo(x, y, z, 0);
+    for (auto const& pair : me->GetCombatManager().GetPvECombatRefs())
+    {
+        Unit* target = pair.second->GetOther(me);
+        if (target->IsControlledByPlayer() && !IsInBoundary(target))
+            target->NearTeleportTo(x, y, z, 0);
+    }
 }
 
 void BossAI::JustSummoned(Creature* summon)
@@ -748,9 +767,26 @@ void BossAI::UpdateAI(uint32 diff)
         DoMeleeAttackIfReady();
 }
 
-void BossAI::OnSpellCastFinished(SpellInfo const* spellInfo, SpellFinishReason reason)
+void BossAI::OnSpellCast(SpellInfo const* spellInfo)
 {
-    ScriptedAI::OnSpellCastFinished(spellInfo, reason);
+    ScriptedAI::OnSpellCast(spellInfo);
+    _CheckHealthAfterCast();
+}
+
+void BossAI::OnChannelFinished(SpellInfo const* spellInfo)
+{
+    ScriptedAI::OnChannelFinished(spellInfo);
+    _CheckHealthAfterCast();
+}
+
+void BossAI::OnSpellFailed(SpellInfo const* spellInfo)
+{
+    ScriptedAI::OnSpellFailed(spellInfo);
+    _CheckHealthAfterCast();
+}
+
+void BossAI::_CheckHealthAfterCast()
+{
     // Check if any health check events are pending (i.e. waiting for the boss to stop casting.
     if (_nextHealthCheck.IsPending() && me->IsInCombat())
     {
