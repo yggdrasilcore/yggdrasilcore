@@ -34,10 +34,7 @@ CREATE TABLE `updates_include` (
 LOCK TABLES `updates_include` WRITE;
 /*!40000 ALTER TABLE `updates_include` DISABLE KEYS */;
 INSERT INTO `updates_include` VALUES
-('$/data/sql/archive/db_characters','ARCHIVED'),
-('$/data/sql/custom/db_characters','CUSTOM'),
-('$/data/sql/updates/db_characters','RELEASED'),
-('$/data/sql/updates/pending_db_characters','PENDING');
+('$/data/sql/updates/db_characters','RELEASED');
 /*!40000 ALTER TABLE `updates_include` ENABLE KEYS */;
 UNLOCK TABLES;
 
