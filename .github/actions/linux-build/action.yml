@@ -149,7 +149,7 @@ runs:
     - name: get dbc files
       shell: bash
       run: |
-        curl -L https://github.com/yggdrasilcore/client-data/releases/latest/download/data.zip -o /tmp/data.zip
+        curl -L https://github.com/yggdrasilcore/client-data/releases/latest/download/Data.zip -o /tmp/data.zip
         unzip -q -o /tmp/data.zip -d "$YC_DATA_DIR"
 
     - name: Start MySQL container
