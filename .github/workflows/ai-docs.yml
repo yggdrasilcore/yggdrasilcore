@@ -49,10 +49,16 @@ jobs:
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
 
-      - name: Pull model and serve
+      - name: Start Ollama
         run: |
-          ollama pull "${{ inputs.model || 'qwen3.5:4b' }}"
-          (ollama serve &>/tmp/ollama.log & sleep 8; ollama list)
+          (ollama serve &>/tmp/ollama.log &)
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/tags >/dev/null && break
+            sleep 1
+          done
+
+      - name: Pull model
+        run: ollama pull "${{ inputs.model || 'qwen3.5:4b' }}"
 
       - name: Generate docs
         run: |
