@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "*master*" ]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: "core-build-${{ github.ref }}"
   cancel-in-progress: true
@@ -20,19 +24,41 @@ jobs:
       CCACHE_CPP2: "true"
 
     steps:
+    - name: Detect source changes
+      id: changes
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        files=""
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          files=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.number }}/files" --paginate --jq '.[].filename')
+        elif [ "${{ github.event_name }}" = "push" ]; then
+          files=$(gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' || true)
+        fi
+        if [ -z "$files" ] || printf '%s\n' "$files" | grep -qiE '\.(c|cc|cpp|cxx|h|hh|hpp|sql)$|(^|/)CMakeLists\.txt$|\.cmake$'; then
+          echo "code=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "code=false" >> "$GITHUB_OUTPUT"
+          echo "No source changes; skipping build."
+        fi
+
     - name: Checkout YggdrasilCore
+      if: steps.changes.outputs.code == 'true'
       uses: actions/checkout@v4
       with:
         submodules: 'recursive'
         fetch-depth: 1
 
     - name: Set reusable strings
+      if: steps.changes.outputs.code == 'true'
       id: strings
       shell: bash
       run: |
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     - name: Ccache
+      if: steps.changes.outputs.code == 'true'
       uses: hendrikmuhs/ccache-action@v1
       with:
         key: yggdrasilcore-ubuntu-24.04-gcc-${{ github.ref_name }}
@@ -41,6 +67,7 @@ jobs:
         max-size: 1000M
 
     - name: Install Requirements
+      if: steps.changes.outputs.code == 'true'
       run: >
         sudo apt-get update &&
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
@@ -48,6 +75,7 @@ jobs:
         libmysqlclient-dev libssl-dev libbz2-dev libreadline-dev libncurses-dev libboost-all-dev
 
     - name: Configure CMake
+      if: steps.changes.outputs.code == 'true'
       run: >
         cmake -G Ninja -B ${{ steps.strings.outputs.build-output-dir }}
         -DCMAKE_CXX_COMPILER=g++
@@ -60,4 +88,5 @@ jobs:
         -S ${{ github.workspace }}
 
     - name: Build
+      if: steps.changes.outputs.code == 'true'
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release --parallel $(nproc)
