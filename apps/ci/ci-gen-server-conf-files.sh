@@ -11,5 +11,7 @@ sed -i "s/127.0.0.1;3306;ycore;ycore/localhost;3306;root;$MYSQL_ROOT_PASSWORD/" 
 
 if [[ $APP_NAME == "worldserver" ]]; then
     sed -i 's/DataDir = \".\"/DataDir = \".\/data"/' ./env/dist/$CONFIG_FOLDER/$APP_NAME.conf
-    git clone --depth=1 --branch=master --single-branch https://github.com/yggdrasilcore/client-data.git ./env/dist/$BIN_FOLDER/data
+    curl -L https://github.com/yggdrasilcore/client-data/releases/latest/download/data.zip -o ./env/dist/$BIN_FOLDER/data.zip
+    unzip -q -o ./env/dist/$BIN_FOLDER/data.zip -d ./env/dist/$BIN_FOLDER/data
+    rm ./env/dist/$BIN_FOLDER/data.zip
 fi
