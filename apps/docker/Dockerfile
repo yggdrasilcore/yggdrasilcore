@@ -1,6 +1,6 @@
 ARG UBUNTU_VERSION=22.04 # lts
 
-# This target lays out the general directory skeleton for AzerothCore,
+# This target lays out the general directory skeleton for YggdrasilCore,
 # This target isn't intended to be directly used
 FROM ubuntu:$UBUNTU_VERSION AS skeleton
 
@@ -13,21 +13,21 @@ ARG DEBIAN_FRONTEND=noninteractive
 ENV YC_FORCE_CREATE_DB=1
 
 RUN mkdir -pv \
-        /azerothcore/bin                   \
-        /azerothcore/data                  \
-        /azerothcore/deps                  \
-        /azerothcore/env/dist/bin          \
-        /azerothcore/env/dist/data/Cameras \
-        /azerothcore/env/dist/data/dbc     \
-        /azerothcore/env/dist/data/maps    \
-        /azerothcore/env/dist/data/mmaps   \
-        /azerothcore/env/dist/data/vmaps   \
-        /azerothcore/env/dist/logs         \
-        /azerothcore/env/dist/temp         \
-        /azerothcore/env/dist/etc          \
-        /azerothcore/modules               \
-        /azerothcore/src                   \
-        /azerothcore/build
+        /yggdrasilcore/bin                   \
+        /yggdrasilcore/data                  \
+        /yggdrasilcore/deps                  \
+        /yggdrasilcore/env/dist/bin          \
+        /yggdrasilcore/env/dist/data/Cameras \
+        /yggdrasilcore/env/dist/data/dbc     \
+        /yggdrasilcore/env/dist/data/maps    \
+        /yggdrasilcore/env/dist/data/mmaps   \
+        /yggdrasilcore/env/dist/data/vmaps   \
+        /yggdrasilcore/env/dist/logs         \
+        /yggdrasilcore/env/dist/temp         \
+        /yggdrasilcore/env/dist/etc          \
+        /yggdrasilcore/modules               \
+        /yggdrasilcore/src                   \
+        /yggdrasilcore/build
 
 # Configure Timezone
 RUN apt-get update                                                       \
@@ -37,7 +37,7 @@ RUN apt-get update                                                       \
     && dpkg-reconfigure --frontend noninteractive tzdata                 \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /azerothcore
+WORKDIR /yggdrasilcore
 
 # This target builds the docker image
 # This target can be useful to inspect the explicit outputs from the build,
@@ -71,15 +71,15 @@ RUN apt-get update                                                     \
     && dpkg -s libmysqlclient-dev | grep '^Version' | cut -d' ' -f2 > /mysql-client-version \
     && rm -rf /var/lib/apt/lists/*
 
-COPY CMakeLists.txt /azerothcore/CMakeLists.txt
-COPY conf /azerothcore/conf
-COPY deps /azerothcore/deps
-COPY src /azerothcore/src
-COPY modules /azerothcore/modules
+COPY CMakeLists.txt /yggdrasilcore/CMakeLists.txt
+COPY conf /yggdrasilcore/conf
+COPY deps /yggdrasilcore/deps
+COPY src /yggdrasilcore/src
+COPY modules /yggdrasilcore/modules
 
 ARG CACHEBUST=1
 
-WORKDIR /azerothcore/build
+WORKDIR /yggdrasilcore/build
 
 RUN --mount=type=cache,target=/ccache,sharing=locked \
                                                                             
@@ -87,11 +87,11 @@ RUN --mount=type=cache,target=/ccache,sharing=locked \
                                                                                 
                                                                                
                                      
-    --mount=type=bind,target=/azerothcore/.git,source=.git \
-    git config --global --add safe.directory /azerothcore \
-    && cmake /azerothcore \
+    --mount=type=bind,target=/yggdrasilcore/.git,source=.git \
+    git config --global --add safe.directory /yggdrasilcore \
+    && cmake /yggdrasilcore \
        -G Ninja \
-       -DCMAKE_INSTALL_PREFIX="/azerothcore/env/dist"  \
+       -DCMAKE_INSTALL_PREFIX="/yggdrasilcore/env/dist"  \
        -DAPPS_BUILD="all"                              \
        -DTOOLS_BUILD="$CTOOLS_BUILD"                   \
        -DSCRIPTS="$CSCRIPTS"                           \
@@ -119,7 +119,7 @@ ARG DOCKER_USER=ycore
 
 ENV YCORE_COMPONENT=undefined
 
-# Install base dependencies for azerothcore
+# Install base dependencies for yggdrasilcore
 COPY --from=build /mysql-client-version /mysql-client-version
 
 RUN apt-get update && \
@@ -129,39 +129,39 @@ RUN apt-get update && \
       gdb gdbserver && \
     rm -rf /var/lib/apt/lists/*
 
-COPY apps/startup-scripts/gdb.conf /azerothcore/gdb.conf
+COPY apps/startup-scripts/gdb.conf /yggdrasilcore/gdb.conf
 
-COPY --from=build /azerothcore/env/dist/etc/ /azerothcore/env/ref/etc
+COPY --from=build /yggdrasilcore/env/dist/etc/ /yggdrasilcore/env/ref/etc
 
-VOLUME /azerothcore/env/dist/etc
+VOLUME /yggdrasilcore/env/dist/etc
 
-ENV PATH="/azerothcore/env/dist/bin:$PATH"
+ENV PATH="/yggdrasilcore/env/dist/bin:$PATH"
 
 RUN groupadd --gid "$GROUP_ID"  "$DOCKER_USER" && \
-    useradd -d /azerothcore --uid "$USER_ID"  --gid "$GROUP_ID"  "$DOCKER_USER" && \
+    useradd -d /yggdrasilcore --uid "$USER_ID"  --gid "$GROUP_ID"  "$DOCKER_USER" && \
     passwd -d "$DOCKER_USER"
                                                      
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --chmod=755 \
-     apps/docker/entrypoint.sh /azerothcore/entrypoint.sh
+     apps/docker/entrypoint.sh /yggdrasilcore/entrypoint.sh
 
-RUN mkdir -p /azerothcore/env/dist/logs && \
-    mkdir -p /azerothcore/monitor && \
-    chown -R "$DOCKER_USER:$DOCKER_USER" /azerothcore && \
-    chmod -R 755 /azerothcore/env/dist/logs && \
-    chmod -R 755 /azerothcore/monitor
+RUN mkdir -p /yggdrasilcore/env/dist/logs && \
+    mkdir -p /yggdrasilcore/monitor && \
+    chown -R "$DOCKER_USER:$DOCKER_USER" /yggdrasilcore && \
+    chmod -R 755 /yggdrasilcore/env/dist/logs && \
+    chmod -R 755 /yggdrasilcore/monitor
 
 USER $DOCKER_USER
 
-ENTRYPOINT ["/usr/bin/env", "bash", "/azerothcore/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/env", "bash", "/yggdrasilcore/entrypoint.sh"]
 
 ###############
 # Auth Server #
 ###############
 
 FROM runtime AS authserver
-LABEL description="AzerothCore Auth Server"
+LABEL description="YggdrasilCore Auth Server"
 
 ENV YCORE_COMPONENT=authserver
 # Don't run database migrations. We can leave that up to the db-import container
@@ -172,7 +172,7 @@ ENV YC_CLOSE_IDLE_CONNECTIONS=0
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --from=build \
-     /azerothcore/env/dist/bin/authserver /azerothcore/env/dist/bin/authserver
+     /yggdrasilcore/env/dist/bin/authserver /yggdrasilcore/env/dist/bin/authserver
 
 
 CMD ["authserver"]
@@ -183,7 +183,7 @@ CMD ["authserver"]
 
 FROM runtime AS worldserver
 
-LABEL description="AzerothCore World Server"
+LABEL description="YggdrasilCore World Server"
 
 ENV YCORE_COMPONENT=worldserver
 # Don't run database migrations. We can leave that up to the db-import container
@@ -194,9 +194,9 @@ ENV YC_CLOSE_IDLE_CONNECTIONS=0
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --from=build \
-     /azerothcore/env/dist/bin/worldserver /azerothcore/env/dist/bin/worldserver
+     /yggdrasilcore/env/dist/bin/worldserver /yggdrasilcore/env/dist/bin/worldserver
 
-VOLUME /azerothcore/env/dist/etc
+VOLUME /yggdrasilcore/env/dist/etc
 
 CMD ["worldserver"]
 
@@ -206,7 +206,7 @@ CMD ["worldserver"]
 
 FROM runtime AS db-import
 
-LABEL description="AzerothCore Database Import tool"
+LABEL description="YggdrasilCore Database Import tool"
 
 USER $DOCKER_USER
 
@@ -214,9 +214,9 @@ ENV YCORE_COMPONENT=dbimport
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER\
      --from=build \
-     /azerothcore/env/dist/bin/dbimport /azerothcore/env/dist/bin/dbimport
+     /yggdrasilcore/env/dist/bin/dbimport /yggdrasilcore/env/dist/bin/dbimport
 
-CMD [ "/azerothcore/env/dist/bin/dbimport" ]
+CMD [ "/yggdrasilcore/env/dist/bin/dbimport" ]
 
 ###############
 # Client Data #
@@ -224,9 +224,9 @@ CMD [ "/azerothcore/env/dist/bin/dbimport" ]
 
 FROM skeleton AS client-data
 
-LABEL description="AzerothCore client-data"
+LABEL description="YggdrasilCore client-data"
 
-ENV DATAPATH=/azerothcore/env/dist/data
+ENV DATAPATH=/yggdrasilcore/env/dist/data
 
 RUN apt-get update && \
     apt-get install -y curl unzip && \
@@ -234,11 +234,11 @@ RUN apt-get update && \
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER apps apps
 
-VOLUME /azerothcore/env/dist/data
+VOLUME /yggdrasilcore/env/dist/data
 
 USER $DOCKER_USER
 
-CMD ["bash", "/azerothcore/apps/docker/download-client-data.sh" ]
+CMD ["bash", "/yggdrasilcore/apps/docker/download-client-data.sh" ]
 
 ##################
 # Map Extractors #
@@ -246,24 +246,24 @@ CMD ["bash", "/azerothcore/apps/docker/download-client-data.sh" ]
 
 FROM runtime AS tools
 
-LABEL description="AzerothCore Tools"
+LABEL description="YggdrasilCore Tools"
 
-WORKDIR /azerothcore/env/dist/
+WORKDIR /yggdrasilcore/env/dist/
 
-RUN mkdir -pv /azerothcore/env/dist/Cameras \
-              /azerothcore/env/dist/dbc     \
-              /azerothcore/env/dist/maps    \
-              /azerothcore/env/dist/mmaps   \
-              /azerothcore/env/dist/vmaps
-
-COPY --chown=$DOCKER_USER:$DOCKER_USER --from=build \
-  /azerothcore/env/dist/bin/map_extractor /azerothcore/env/dist/bin/map_extractor
+RUN mkdir -pv /yggdrasilcore/env/dist/Cameras \
+              /yggdrasilcore/env/dist/dbc     \
+              /yggdrasilcore/env/dist/maps    \
+              /yggdrasilcore/env/dist/mmaps   \
+              /yggdrasilcore/env/dist/vmaps
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER --from=build \
-  /azerothcore/env/dist/bin/mmaps_generator /azerothcore/env/dist/bin/mmaps_generator
+  /yggdrasilcore/env/dist/bin/map_extractor /yggdrasilcore/env/dist/bin/map_extractor
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER --from=build \
-  /azerothcore/env/dist/bin/vmap4_assembler /azerothcore/env/dist/bin/vmap4_assembler
+  /yggdrasilcore/env/dist/bin/mmaps_generator /yggdrasilcore/env/dist/bin/mmaps_generator
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER --from=build \
-  /azerothcore/env/dist/bin/vmap4_extractor /azerothcore/env/dist/bin/vmap4_extractor
+  /yggdrasilcore/env/dist/bin/vmap4_assembler /yggdrasilcore/env/dist/bin/vmap4_assembler
+
+COPY --chown=$DOCKER_USER:$DOCKER_USER --from=build \
+  /yggdrasilcore/env/dist/bin/vmap4_extractor /yggdrasilcore/env/dist/bin/vmap4_extractor

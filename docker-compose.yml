@@ -1,4 +1,4 @@
-# docker-compose.yml for AzerothCore.
+# docker-compose.yml for YggdrasilCore.
 #
 # Start the server with `docker compose up -d --build`
 #
@@ -40,25 +40,25 @@ services:
         GROUP_ID: ${DOCKER_GROUP_ID:-1000}
         DOCKER_USER: ${DOCKER_USER:-ycore}
     environment:
-      YC_DATA_DIR: "/azerothcore/env/dist/data"
-      YC_LOGS_DIR: "/azerothcore/env/dist/logs"
+      YC_DATA_DIR: "/yggdrasilcore/env/dist/data"
+      YC_LOGS_DIR: "/yggdrasilcore/env/dist/logs"
       YC_LOGIN_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_auth"
       YC_WORLD_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_world"
       YC_CHARACTER_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_characters"
     volumes:
-      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/azerothcore/env/dist/etc
+      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/yggdrasilcore/env/dist/etc
       # [osxfs optimization]: https://stackoverflow.com/a/63437557/1964544
-      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/azerothcore/env/dist/logs:delegated
+      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/yggdrasilcore/env/dist/logs:delegated
       # SQL sources are mounted, not baked into the image, so editing SQL does
       # not require rebuilding/recreating the image.
-      - ./data:/azerothcore/data:ro
-      - ./modules:/azerothcore/modules:ro
+      - ./data:/yggdrasilcore/data:ro
+      - ./modules:/yggdrasilcore/modules:ro
     depends_on:
       yggdrasilcore-database:
         condition: service_healthy
         
   yggdrasilcore-worldserver:
-    command: gdb -x /azerothcore/gdb.conf --batch /azerothcore/env/dist/bin/worldserver
+    command: gdb -x /yggdrasilcore/gdb.conf --batch /yggdrasilcore/env/dist/bin/worldserver
     container_name: yggdrasilcore-worldserver
     image: yggdrasilwotlk/yggdrasilcore-wotlk-worldserver:${DOCKER_IMAGE_TAG:-master}
     build:
@@ -77,8 +77,8 @@ services:
     env_file:
         ${DOCKER_YC_ENV_FILE:-conf/dist/env.yc}
     environment:
-      YC_DATA_DIR: "/azerothcore/env/dist/data"
-      YC_LOGS_DIR: "/azerothcore/env/dist/logs"
+      YC_DATA_DIR: "/yggdrasilcore/env/dist/data"
+      YC_LOGS_DIR: "/yggdrasilcore/env/dist/logs"
       YC_LOGIN_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_auth"
       YC_WORLD_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_world"
       YC_CHARACTER_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_characters"
@@ -87,11 +87,11 @@ services:
       - ${DOCKER_WORLD_EXTERNAL_PORT:-8085}:8085
       - ${DOCKER_SOAP_EXTERNAL_PORT:-7878}:7878
     volumes:
-      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/azerothcore/env/dist/etc
+      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/yggdrasilcore/env/dist/etc
       # [osxfs optimization]: https://stackoverflow.com/a/63437557/1964544
-      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/azerothcore/env/dist/logs:delegated
+      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/yggdrasilcore/env/dist/logs:delegated
       # client data
-      - ${DOCKER_VOL_DATA:-yggdrasilcore-client-data}:/azerothcore/env/dist/data/:ro
+      - ${DOCKER_VOL_DATA:-yggdrasilcore-client-data}:/yggdrasilcore/env/dist/data/:ro
     depends_on:
       yggdrasilcore-database:
         condition: service_healthy
@@ -118,13 +118,13 @@ services:
     env_file:
         ${DOCKER_YC_ENV_FILE:-conf/dist/env.yc}
     environment:
-      YC_LOGS_DIR: "/azerothcore/env/dist/logs"
-      YC_TEMP_DIR: "/azerothcore/env/dist/temp"
+      YC_LOGS_DIR: "/yggdrasilcore/env/dist/logs"
+      YC_TEMP_DIR: "/yggdrasilcore/env/dist/temp"
       YC_LOGIN_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_auth"
     volumes:
-      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/azerothcore/env/dist/etc
+      - ${DOCKER_VOL_ETC:-./env/dist/etc}:/yggdrasilcore/env/dist/etc
       # [osxfs optimization]: https://stackoverflow.com/a/63437557/1964544
-      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/azerothcore/env/dist/logs:delegated
+      - ${DOCKER_VOL_LOGS:-./env/dist/logs}:/yggdrasilcore/env/dist/logs:delegated
     ports:
       - ${DOCKER_AUTH_EXTERNAL_PORT:-3724}:3724
     depends_on:
@@ -145,7 +145,7 @@ services:
         GROUP_ID: ${DOCKER_GROUP_ID:-1000}
         DOCKER_USER: ${DOCKER_USER:-ycore}
     volumes:
-      - ${DOCKER_VOL_CLIENT_DATA:-yggdrasilcore-client-data}:/azerothcore/env/dist/data
+      - ${DOCKER_VOL_CLIENT_DATA:-yggdrasilcore-client-data}:/yggdrasilcore/env/dist/data
 
   # used for extracting maps from files shipped with game client
   # Most of the time this shouldn't be needed
@@ -160,10 +160,10 @@ services:
         USER_ID: ${DOCKER_USER_ID:-1000}
         GROUP_ID: ${DOCKER_GROUP_ID:-1000}
         DOCKER_USER: ${DOCKER_USER:-ycore}
-    working_dir: /azerothcore/env/client/
+    working_dir: /yggdrasilcore/env/client/
     volumes:
       # this is not the directory of the extracted data! It's the client folder used by the extractors
-      - ${DOCKER_YC_CLIENT_FOLDER:-./var/client}:/azerothcore/env/dist/bin/Data
+      - ${DOCKER_YC_CLIENT_FOLDER:-./var/client}:/yggdrasilcore/env/dist/bin/Data
     # Activate with `docker compose --profile tools ...`
     profiles: [tools]
 

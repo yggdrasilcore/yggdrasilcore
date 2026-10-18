@@ -1,4 +1,4 @@
-# The AzerothCore Database Exporter for Database Squashes
+# The Yggdrasilcore Database Exporter for Database Squashes
 
 > [!CAUTION]
 > These steps are only for project maintainers who intend to update base files.

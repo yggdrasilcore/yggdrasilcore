@@ -23,5 +23,3 @@ do
         source "$entry"
     fi
 done
-
-YCORE_VERSION=$("$YC_PATH_DEPS/jsonpath/JSONPath.sh" -f "$YC_PATH_ROOT/acore.json" -b '$.version')

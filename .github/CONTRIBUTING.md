@@ -25,7 +25,7 @@ instead.
 - Native Ubuntu 24.04, as defined in `.github/workflows/core-build.yml`.
 
 We do not support any other OS, distro version, compiler, IDE setup
-(VSCode/devcontainer), Nix flakes, the `acore.sh` installer flow, or repacks.
+(VSCode/devcontainer), Nix flakes, or repacks.
 Bug reports and pull requests using those will be closed.
 
 ## Pull request requirements

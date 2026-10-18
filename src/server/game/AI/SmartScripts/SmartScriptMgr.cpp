@@ -1004,7 +1004,7 @@ bool SmartAIMgr::IsEventValid(SmartScriptHolder& e)
         case SMART_ACTION_SPAWN_SPAWNGROUP:
         case SMART_ACTION_DESPAWN_SPAWNGROUP:
         case SMART_ACTION_RESPAWN_BY_SPAWNID:
-            LOG_ERROR("sql.sql", "SmartAIMgr: EntryOrGuid {} using event({}) has an action type that is not yet supported on AzerothCore ({}), skipped.",
+            LOG_ERROR("sql.sql", "SmartAIMgr: EntryOrGuid {} using event({}) has an action type that is not yet supported on YggdrasilCore ({}), skipped.",
                              e.entryOrGuid, e.event_id, e.GetActionType());
             return false;
         default:
@@ -1018,7 +1018,7 @@ bool SmartAIMgr::IsEventValid(SmartScriptHolder& e)
     }
     if (e.target.type == SMART_TARGET_LOOT_RECIPIENTS)
     {
-        LOG_ERROR("sql.sql", "SmartAIMgr: EntryOrGuid {} using event({}) has a target type that is not yet supported on AzerothCore ({}), skipped.",
+        LOG_ERROR("sql.sql", "SmartAIMgr: EntryOrGuid {} using event({}) has a target type that is not yet supported on YggdrasilCore ({}), skipped.",
                          e.entryOrGuid, e.event_id, e.GetTargetType());
         return false;
     }

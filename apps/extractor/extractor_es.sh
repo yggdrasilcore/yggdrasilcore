@@ -40,7 +40,7 @@ function All {
 function Menu {
 echo ""
 echo "..............................................."
-echo "Extractor de dbc, maps, vmaps, mmaps de AzerothCore"
+echo "Extractor de dbc, maps, vmaps, mmaps de YggdrasilCore"
 echo "..............................................."
 echo "PRESIONE 1, 2, 3 O 4 para seleccionar su tarea, o 5 para SALIR."
 echo "..............................................."

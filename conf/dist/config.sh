@@ -1,11 +1,11 @@
-# absolute root path of your azerothcore repository
+# absolute root path of your YggdrasilCore repository
 # It should not be modified if you don't really know what you're doing
 SRCPATH="$YC_PATH_ROOT"
 
 # absolute path where build files must be stored
 BUILDPATH=${BUILDPATH:-"$YC_PATH_VAR/build/obj"}
 
-# absolute path where azerothcore will be installed
+# absolute path where YggdrasilCore will be installed
 # NOTE: on linux the binaries are stored in a subfolder (/bin)
 # of the $BINPATH
 BINPATH="$YC_PATH_ROOT/env/dist"
@@ -28,7 +28,6 @@ SKIP_MYSQL_INSTALL=${SKIP_MYSQL_INSTALL:-false}
 # CONFDIR="$YC_PATH_ROOT/env/dist/etc/"
 
 # absolute path where maps and client data will be downloaded
-# by the YC dashboard
 # default: the system will use binpath by default
 # DATAPATH="$BINPATH/bin"
 # DATAPATH_ZIP="$DATAPATH/data.zip"
@@ -130,9 +129,9 @@ export YC_ENABLE_ROOT_CMAKE_INSTALL=${YC_ENABLE_ROOT_CMAKE_INSTALL:-0}
 # Note: dependencies above are already installed in docker
 #
 # Usage:
-#  1. To enable the gperftools you need to compile with the -DWITH_PERFTOOLS=ON compiler flag. You can use CCUSTOMOPTIONS above to set it for the dashboard compiler
+#  1. To enable the gperftools you need to compile with the -DWITH_PERFTOOLS=ON compiler flag. You can use CCUSTOMOPTIONS above to set it for the build
 #  2. Configure the variable below accordingly to your needs
-#  3. run the worldserver with the "./acore.sh run-worldserver"
+#  3. run the worldserver
 #  4. run "killall -12 worldserver"  This command will start the monitoring process. Run "killall -12 worldserver" again to stop the process when you want
 #  5. At this time you will have the .prof file ready in the folder configured below.
 #  Run "google-pprof --callgrind <path/of/worldserver/bin> </path/of/prof/file>" This will generate a callgrind file that can be read with

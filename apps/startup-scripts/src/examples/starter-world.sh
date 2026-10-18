@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# AzerothCore World Server Starter Example
+# YggdrasilCore World Server Starter Example
 # This example shows how to use the run-engine to start worldserver without restart loop
 
 PATH_RUNENGINE="./"
@@ -24,7 +24,7 @@ fi
 # Method 2: Direct binary path (full path)
 # Uncomment the line below to start with full binary path
 #
-# "$PATH_RUNENGINE/run-engine" start /home/user/azerothcore/bin/worldserver --server-config /path/to/worldserver.conf
+# "$PATH_RUNENGINE/run-engine" start /home/user/yggdrasilcore/bin/worldserver --server-config /path/to/worldserver.conf
 
 # Method 3: Binary name only (system PATH)
 # Uncomment the line below if worldserver is in your system PATH

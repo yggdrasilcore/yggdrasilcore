@@ -73,7 +73,7 @@ endfunction()
 
 #
 # Use it like:
-# CopyModuleConfig("acore.conf.dist")
+# CopyModuleConfig("ycore.conf.dist")
 #
 
 function(CopyModuleConfig configDir)

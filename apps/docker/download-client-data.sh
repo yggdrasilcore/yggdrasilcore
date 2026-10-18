@@ -11,7 +11,7 @@ echo "Client data downloader"
 echo "#######################"
 
 # first check if it's defined in env, otherwise use the default
-path="${DATAPATH:-/azerothcore/env/dist/data}"
+path="${DATAPATH:-/yggdrasilcore/env/dist/data}"
 zipPath="${DATAPATH_ZIP:-"$path/data.zip"}"
 
 dataVersionFile="$path/data-version"

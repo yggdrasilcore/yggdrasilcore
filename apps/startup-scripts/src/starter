@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# AzerothCore Starter Script
-# This script handles the execution of AzerothCore binaries with optional GDB support
+# YggdrasilCore Starter Script
+# This script handles the execution of YggdrasilCore binaries with optional GDB support
 #
 # Usage: starter <binpath> <binfile> [gdb_file] [config] [syslog] [syserr] [gdb_enabled] [crashes_path]
 #

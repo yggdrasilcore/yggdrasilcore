@@ -1,6 +1,6 @@
-# AzerothCore Startup Scripts
+# Yggdrasilcore Startup Scripts
 
-A comprehensive suite of scripts for managing AzerothCore server instances with advanced session management, automatic restart capabilities, and production-ready service management.
+A comprehensive suite of scripts for managing Yggdrasilcore server instances with advanced session management, automatic restart capabilities, and production-ready service management.
 
 ## 📋 Table of Contents
 
@@ -15,25 +15,23 @@ A comprehensive suite of scripts for managing AzerothCore server instances with 
 
 ## 🎯 Overview
 
-The AzerothCore startup scripts provide multiple approaches to running server instances:
+The Yggdrasilcore startup scripts provide multiple approaches to running server instances:
 
 1. **Development/Testing**: Simple execution for debugging and development
 2. **Production with Restarts**: Automatic restart on crashes with crash detection
 3. **Background Services**: Production-ready service management with PM2 or systemd
 4. **Session Management**: Interactive console access via tmux/screen
 
-All scripts are integrated into the `acore.sh` dashboard for easy access.
-
 ### 📦 Automatic Deployment
 
-**Important**: When you compile AzerothCore using the ycore dashboard (`./acore.sh compiler build`), all startup scripts are automatically copied from `apps/startup-scripts/src/` to your `bin/` folder. This means:
+**Important**: When you build YggdrasilCore, all startup scripts are automatically copied from `apps/startup-scripts/src/` to your `bin/` folder. This means:
 
 - ✅ **Portable Deployment**: You can copy the entire `bin/` folder to different servers
 - ✅ **Self-Contained**: All restart and service management tools travel with your binaries  
 - ✅ **No Additional Setup**: Scripts work immediately after deployment
 - ✅ **Production Ready**: Deploy to production servers without needing the full source code
 
-This makes it easy to deploy your compiled binaries along with the management scripts to production environments where you may not have the full AzerothCore source code.
+This makes it easy to deploy your compiled binaries along with the management scripts to production environments where you may not have the full Yggdrasilcore source code.
 
 ## 🔧 Components
 
@@ -92,18 +90,6 @@ This makes it easy to deploy your compiled binaries along with the management sc
 ./service-manager.sh stop auth
 ```
 
-### 4. Using acore.sh Dashboard
-
-```bash
-# Interactive dashboard
-./acore.sh
-
-# Direct commands
-./acore.sh run-authserver    # Start authserver with restart
-./acore.sh run-worldserver   # Start worldserver with restart
-./acore.sh service-manager   # Access service manager
-```
-
 ## ⚙️ Configuration
 
 ### Configuration Priority (Highest to Lowest)
@@ -127,7 +113,7 @@ nano scripts/conf.sh
 
 ```bash
 # Binary settings
-export BINPATH="/path/to/azerothcore/bin"
+export BINPATH="/path/to/yggdrasilcore/bin"
 export SERVERBIN="worldserver"  # or "authserver"
 export CONFIG="/path/to/worldserver.conf"
 
@@ -522,7 +508,7 @@ The startup scripts recognize several environment variables for configuration an
 #### Configuration Directory Variables
 
 - **`YC_SERVICE_CONFIG_DIR`**: Override the default configuration directory for services registry and configurations
-  - Default: `${XDG_CONFIG_HOME:-$HOME/.config}/azerothcore/services`
+  - Default: `${XDG_CONFIG_HOME:-$HOME/.config}/yggdrasilcore/services`
   - Used for storing service registry and run-engine configurations
 
 #### Service Detection Variables
@@ -534,7 +520,7 @@ The startup scripts recognize several environment variables for configuration an
   
 - **`YC_DISABLE_INTERACTIVE`**: Controls interactive mode (0=enabled, 1=disabled)
   - Automatically set based on execution context
-  - Prevents AzerothCore from showing interactive prompts in service environments
+  - Prevents Yggdrasilcore from showing interactive prompts in service environments
 
 #### Configuration Variables
 
@@ -579,32 +565,6 @@ Services can be configured with session managers for interactive access:
 tmux attach-session -t worldserver
 ```
 
-## 🎮 Integration with acore.sh Dashboard
-
-The startup scripts are fully integrated into the AzerothCore dashboard:
-
-### Direct Commands
-
-```bash
-# Run servers with simple restart (development/testing)
-./acore.sh run-worldserver   # Option 11 or 'rw'
-./acore.sh run-authserver    # Option 12 or 'ra'
-
-# Access service manager (production)
-./acore.sh service-manager   # Option 15 or 'sm'
-
-# Examples:
-./acore.sh rw               # Quick worldserver start
-./acore.sh ra               # Quick authserver start
-./acore.sh sm create auth authserver --bin-path /path/to/bin
-```
-
-### What Happens Behind the Scenes
-
-- **run-worldserver/run-authserver**: Calls `simple-restarter` with appropriate binary
-- **service-manager**: Provides full access to the service management interface
-- Scripts automatically use the correct binary path from your build configuration
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -618,8 +578,8 @@ Error: Binary '/path/to/bin/worldserver' not found
 # Check if binary exists
 ls -la /path/to/bin/worldserver
 
-# Compile if needed
-./acore.sh compiler build
+# Build if needed
+docker compose build
 ```
 
 #### 2. Configuration File Issues

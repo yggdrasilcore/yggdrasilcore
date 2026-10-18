@@ -5,7 +5,7 @@
 
 set -euo pipefail  # Strict error handling
 
-CONFIG_DIR="${YC_SERVICE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/azerothcore/services}"
+CONFIG_DIR="${YC_SERVICE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/yggdrasilcore/services}"
 REGISTRY_FILE="$CONFIG_DIR/service_registry.json"
 BACKUP_FILE="$CONFIG_DIR/service_registry.json.backup"
 
@@ -16,7 +16,7 @@ readonly RED='\033[0;31m'
 readonly BLUE='\033[0;34m'
 readonly NC='\033[0m'
 
-echo -e "${BLUE}AzerothCore Service Registry Migration Tool${NC}"
+echo -e "${BLUE}YggdrasilCore Service Registry Migration Tool${NC}"
 echo "=============================================="
 
 # Check dependencies

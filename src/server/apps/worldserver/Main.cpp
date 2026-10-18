@@ -63,8 +63,8 @@
 #if YC_PLATFORM == YC_PLATFORM_WINDOWS
 #include "ServiceWin32.h"
 char serviceName[] = "worldserver";
-char serviceLongName[] = "AzerothCore world service";
-char serviceDescription[] = "AzerothCore World of Warcraft emulator world service";
+char serviceLongName[] = "YggdrasilCore world service";
+char serviceDescription[] = "YggdrasilCore World of Warcraft emulator world service";
 /*
  * -1 - not in service mode
  *  0 - stopped
@@ -417,7 +417,7 @@ int main(int argc, char** argv)
 
     // 0 - normal shutdown
     // 1 - shutdown at error
-    // 2 - restart command used, this code can be used by restarter for restart AzerothCore
+    // 2 - restart command used, this code can be used by restarter for restart YggdrasilCore
 
     return World::GetExitCode();
 }

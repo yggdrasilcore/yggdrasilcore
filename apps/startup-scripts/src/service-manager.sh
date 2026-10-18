@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# AzerothCore Service Setup
-# A unified interface for managing AzerothCore services with PM2 or systemd
+# YggdrasilCore Service Setup
+# A unified interface for managing YggdrasilCore services with PM2 or systemd
 # This script provides commands to create, update, delete, and manage server instances
 
 set -euo pipefail  # Strict error handling
@@ -14,7 +14,7 @@ SCRIPT_DIR="$CURRENT_PATH"
 ROOT_DIR="$(cd "$CURRENT_PATH/../../.." && pwd)"
 
 # Configuration directory (can be overridden with YC_SERVICE_CONFIG_DIR)
-CONFIG_DIR="${YC_SERVICE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/azerothcore/services}"
+CONFIG_DIR="${YC_SERVICE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/yggdrasilcore/services}"
 REGISTRY_FILE="$CONFIG_DIR/service_registry.json"
 export YC_SERVICE_CONFIG_DIR="${YC_SERVICE_CONFIG_DIR:-$CONFIG_DIR}"
 
@@ -482,8 +482,8 @@ function print_help() {
 
     local base_name="$(basename $0)"
 
-    echo -e "${BLUE}AzerothCore Service Setup${NC}"
-    echo "A unified interface for managing AzerothCore services with PM2 or systemd"
+    echo -e "${BLUE}YggdrasilCore Service Setup${NC}"
+    echo "A unified interface for managing YggdrasilCore services with PM2 or systemd"
     echo ""
     echo "Usage:"
     echo "  $base_name create <service-type> <service-name> [options]"
@@ -528,22 +528,22 @@ function print_help() {
     echo ""
     echo "Examples:"
     echo "  # Create auth server (auto-detects provider)"
-    echo "  $base_name create auth authserver --bin-path /home/user/azerothcore/bin"
+    echo "  $base_name create auth authserver --bin-path /home/user/yggdrasilcore/bin"
     echo ""
     echo "  # Create PM2 auth server explicitly"
-    echo "  $base_name create auth authserver --provider pm2 --bin-path /home/user/azerothcore/bin"
+    echo "  $base_name create auth authserver --provider pm2 --bin-path /home/user/yggdrasilcore/bin"
     echo ""
     echo "  # Create systemd world server with debugging enabled"
     echo "  $base_name create world worldserver-realm1 --provider systemd"
-    echo "    --bin-path /home/user/azerothcore/bin"
-    echo "    --server-config /home/user/azerothcore/etc/worldserver.conf"
+    echo "    --bin-path /home/user/yggdrasilcore/bin"
+    echo "    --server-config /home/user/yggdrasilcore/etc/worldserver.conf"
     echo "    --gdb-enabled 1 --session-manager tmux"
     echo ""
     echo "  # Create service without starting it"
-    echo "  $base_name create auth authserver --bin-path /home/user/azerothcore/bin --no-start"
+    echo "  $base_name create auth authserver --bin-path /home/user/yggdrasilcore/bin --no-start"
     echo ""
     echo "  # Create service with always restart policy"
-    echo "  $base_name create world worldserver --bin-path /home/user/azerothcore/bin --restart-policy always"
+    echo "  $base_name create world worldserver --bin-path /home/user/yggdrasilcore/bin --restart-policy always"
     echo ""
     echo "  # Update run-engine configuration"
     echo "  $base_name update worldserver-realm1 --session-manager screen --gdb-enabled 0"
@@ -831,7 +831,7 @@ EOF
     if [ "$force_rewrite" = "true" ] || [ ! -f "$service_conf_path" ]; then
         echo -e "${BLUE}Restoring service metadata: $service_conf_path${NC}"
         cat > "$service_conf_path" << EOF
-# AzerothCore service configuration for $service_name
+# YggdrasilCore service configuration for $service_name
 # Restored: $(date)
 # Provider: $provider
 # Service Type: $service_type
@@ -1256,7 +1256,7 @@ function systemd_create_service() {
         # System service template (with User directive)
         cat > "$service_file" << EOF
 [Unit]
-Description=AzerothCore $service_name
+Description=YggdrasilCore $service_name
 After=network.target
 
 [Service]
@@ -1277,7 +1277,7 @@ EOF
         # User service template (no User/Group directives)
         cat > "$service_file" << EOF
 [Unit]
-Description=AzerothCore $service_name
+Description=YggdrasilCore $service_name
 After=network.target
 
 [Service]
@@ -1596,7 +1596,7 @@ EOF
     
     # Create service configuration file for our registry
     cat > "$CONFIG_DIR/$service_name.conf" << EOF
-# AzerothCore service configuration for $service_name
+# YggdrasilCore service configuration for $service_name
 # Created: $(date)
 # Provider: $provider
 # Service Type: $service_type
@@ -1797,7 +1797,7 @@ EOF
     
     # Update service configuration
     cat > "$config_file" << EOF
-# AzerothCore service configuration for $service_name
+# YggdrasilCore service configuration for $service_name
 # Updated: $(date)
 # Provider: $provider
 # Service Type: $service_type
@@ -1876,7 +1876,7 @@ function list_services() {
         # Sync registry first
     sync_registry
     
-    echo -e "${BLUE}AzerothCore Services${NC}"
+    echo -e "${BLUE}YggdrasilCore Services${NC}"
     echo "====================="
     
     if [ "$(jq 'length' "$REGISTRY_FILE")" = "0" ]; then

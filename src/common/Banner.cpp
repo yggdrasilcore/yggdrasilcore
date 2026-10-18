@@ -35,7 +35,7 @@ void Ycore::Banner::Show(std::string_view applicationName, void(*log)(std::strin
     log("                                ██║     ██║   ██║██╔══██╗██╔══╝");
     log("                                ╚██████╗╚██████╔╝██║  ██║███████╗");
     log("                                 ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝\n");
-    log("     AzerothCore 3.3.5a  -  www.azerothcore.org\n");
+    log("     YggdrasilCore 3.3.5a  -  www.azerothcore.org\n");
 
     if (logExtraInfo)
     {

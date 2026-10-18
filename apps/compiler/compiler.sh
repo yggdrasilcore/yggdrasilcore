@@ -62,4 +62,4 @@ function handle_compiler_command() {
 runHooks "ON_AFTER_OPTIONS" # you can create your custom options
 
 # Run the menu system
-menu_run_with_items "ACORE COMPILER" handle_compiler_command -- "${comp_menu_items[@]}" -- "$@"
+menu_run_with_items "YCORE COMPILER" handle_compiler_command -- "${comp_menu_items[@]}" -- "$@"

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # =============================================================================
-# AzerothCore Menu System Library
+# YggdrasilCore Menu System Library
 # =============================================================================
-# This library provides a unified menu system for AzerothCore scripts.
+# This library provides a unified menu system for YggdrasilCore scripts.
 # It supports ordered menu definitions, short commands, numeric selection,
 # and proper argument handling.
 #

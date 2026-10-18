@@ -1058,14 +1058,14 @@ bool CliHandler::HasSession() const
 
 bool AddonChannelCommandHandler::ParseCommands(std::string_view str)
 {
-    if (memcmp(str.data(), "AzerothCore\t", 12))
+    if (memcmp(str.data(), "YggdrasilCore\t", 14))
         return false;
-    char opcode = str[12];
-    if (!opcode) // str[12] is opcode
+    char opcode = str[14];
+    if (!opcode) // str[14] is opcode
         return false;
-    if (!str[13] || !str[14] || !str[15] || !str[16]) // str[13] through str[16] is 4-character command counter
+    if (!str[15] || !str[16] || !str[17] || !str[18]) // str[15] through str[18] is 4-character command counter
         return false;
-    echo = str.substr(13);
+    echo = str.substr(15);
 
     switch (opcode)
     {
@@ -1074,10 +1074,10 @@ bool AddonChannelCommandHandler::ParseCommands(std::string_view str)
             return true;
         case 'h': // h Issue human-readable command
         case 'i': // i Issue command
-            if (!str[17])
+            if (!str[19])
                 return false;
             humanReadable = (opcode == 'h');
-            if (_ParseCommands(str.substr(17))) // actual command starts at str[17]
+            if (_ParseCommands(str.substr(19))) // actual command starts at str[19]
             {
                 if (!hadAck)
                     SendAck();
@@ -1107,10 +1107,10 @@ void AddonChannelCommandHandler::Send(std::string const& msg)
 void AddonChannelCommandHandler::SendAck() // a Command acknowledged, no body
 {
     ASSERT(echo.size());
-    std::string ack = "AzerothCore\ta";
-    ack.resize(18);
-    memcpy(&ack[13], echo.data(), 4);
-    ack[17] = '\0';
+    std::string ack = "YggdrasilCore\ta";
+    ack.resize(20);
+    memcpy(&ack[15], echo.data(), 4);
+    ack[19] = '\0';
     Send(ack);
     hadAck = true;
 }
@@ -1118,20 +1118,20 @@ void AddonChannelCommandHandler::SendAck() // a Command acknowledged, no body
 void AddonChannelCommandHandler::SendOK() // o Command OK, no body
 {
     ASSERT(echo.size());
-    std::string ok = "AzerothCore\to";
-    ok.resize(18);
-    memcpy(&ok[13], echo.data(), 4);
-    ok[17] = '\0';
+    std::string ok = "YggdrasilCore\to";
+    ok.resize(20);
+    memcpy(&ok[15], echo.data(), 4);
+    ok[19] = '\0';
     Send(ok);
 }
 
 void AddonChannelCommandHandler::SendFailed() // f Command failed, no body
 {
     ASSERT(echo.size());
-    std::string fail = "AzerothCore\tf";
-    fail.resize(18);
-    memcpy(&fail[13], echo.data(), 4);
-    fail[17] = '\0';
+    std::string fail = "YggdrasilCore\tf";
+    fail.resize(20);
+    memcpy(&fail[15], echo.data(), 4);
+    fail[19] = '\0';
     Send(fail);
 }
 
@@ -1142,7 +1142,7 @@ void AddonChannelCommandHandler::SendSysMessage(std::string_view str, bool escap
     if (!hadAck)
         SendAck();
 
-    std::string msg = "AzerothCore\tm";
+    std::string msg = "YggdrasilCore\tm";
     msg.append(echo.data(), 4);
     std::string body(str);
     if (escapeCharacters)

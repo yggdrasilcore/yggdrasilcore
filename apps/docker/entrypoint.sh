@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONF_DIR="${CONF_DIR:-/azerothcore/env/dist/etc}"
-LOGS_DIR="${LOGS_DIR:-/azerothcore/env/dist/logs}"
+CONF_DIR="${CONF_DIR:-/yggdrasilcore/env/dist/etc}"
+LOGS_DIR="${LOGS_DIR:-/yggdrasilcore/env/dist/logs}"
 
 if ! touch "$CONF_DIR/.write-test" || ! touch "$LOGS_DIR/.write-test"; then
     cat <<EOF
@@ -37,7 +37,7 @@ fi
 # -r == recursive
 # -n == no clobber (don't overwrite)
 # -v == be verbose
-cp -rnv /azerothcore/env/ref/etc/* "$CONF_DIR"
+cp -rnv /yggdrasilcore/env/ref/etc/* "$CONF_DIR"
 
 CONF="$CONF_DIR/$YCORE_COMPONENT.conf"
 CONF_DIST="$CONF_DIR/$YCORE_COMPONENT.conf.dist"

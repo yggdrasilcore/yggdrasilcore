@@ -1,5 +1,5 @@
 ##################################################
-# AzerothCore Database Import configuration file #
+# YggdrasilCore Database Import configuration file #
 ##################################################
 
 ###################################################################################################
@@ -35,16 +35,16 @@
 #        Description: Logs directory setting.
 #        Important:   LogsDir needs to be quoted, as the string might contain space characters.
 #                     Logs directory must exists, or log file creation will be disabled.
-#        Example:     "/home/youruser/azerothcore/logs"
+#        Example:     "/home/youruser/yggdrasilcore/logs"
 #        Default:     "" - (Log files will be stored in the current path)
 
 LogsDir = ""
 
 #
 #    SourceDirectory
-#        Description: The path to your AzerothCore source directory.
+#        Description: The path to your YggdrasilCore source directory.
 #                     If the path is left empty, the built-in CMAKE_SOURCE_DIR is used.
-#        Example:     "../AzerothCore"
+#        Example:     "../YggdrasilCore"
 #        Default:     ""
 #
 
@@ -67,7 +67,7 @@ MySQLExecutable = ""
 #        Description: Temp directory setting.
 #        Important:   TempDir needs to be quoted, as the string might contain space characters.
 #                     TempDir directory must exists, or the server can't work properly
-#        Example:     "/home/youruser/azerothcore/temp"
+#        Example:     "/home/youruser/yggdrasilcore/temp"
 #        Default:     "" - (Temp files will be stored in the current path)
 
 TempDir = ""

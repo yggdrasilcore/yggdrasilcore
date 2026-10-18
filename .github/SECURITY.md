@@ -13,8 +13,7 @@ build environments:
 ## Not supported
 
 - Any other OS (Windows, macOS), distro, or distro version.
-- Non-Docker local builds, the `acore.sh` installer flow, Nix flakes,
-  devcontainers, and IDE-specific setups.
+- Non-Docker local builds, Nix flakes, devcontainers, and IDE-specific setups.
 - Any fork, repack, or precompiled binary.
 - The abandoned upstream scripts and configs removed from this repository.
 
