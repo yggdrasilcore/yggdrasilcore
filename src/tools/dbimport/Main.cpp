@@ -57,10 +57,12 @@ int main(int argc, char** argv)
         return 0;
 
     // Add file and args in config
-    sConfigMgr->Configure(configFile.generic_string(), std::vector<std::string>(argv, argv + argc));
+    sConfigMgr->Configure(configFile.generic_string(), std::vector<std::string>(argv, argv + argc), CONFIG_FILE_LIST);
 
     if (!sConfigMgr->LoadAppConfigs())
         return 1;
+
+    sConfigMgr->LoadModulesConfigs();
 
     std::vector<std::string> overriddenKeys = sConfigMgr->OverrideWithEnvVariablesIfAny();
 
@@ -98,6 +100,37 @@ int main(int argc, char** argv)
     return 0;
 }
 
+/// Registers module-owned databases based on their configuration entries.
+/// A module database declares itself with a "<Namespace>.Updates.EnableDatabases"
+/// option and provides its connection string through "<Namespace>DatabaseInfo".
+void RegisterModuleDatabases(DatabaseLoader& loader)
+{
+    std::vector<std::string> const namespaces = sConfigMgr->GetConfigNamespaces("Updates.EnableDatabases");
+
+    for (std::string const& dbNamespace : namespaces)
+    {
+        if (dbNamespace.empty())
+            continue;
+
+#ifdef MOD_SHADOWS
+        if (dbNamespace == "shadows")
+        {
+            if (sConfigMgr->GetOption<std::string>("ShadowsDatabaseInfo", "", false).empty())
+            {
+                LOG_WARN("dbimport", "Shadows database updates are configured but ShadowsDatabaseInfo is not set, skipping.");
+                continue;
+            }
+
+            loader.SetUpdateFlags(DatabaseLoader::DATABASE_SHADOWS);
+            loader.AddDatabase(ShadowsDatabase, "Shadows");
+            continue;
+        }
+#endif
+
+        LOG_WARN("dbimport", "Ignoring database namespace '{}': no database is registered for it.", dbNamespace);
+    }
+}
+
 /// Initialize connection to the database
 bool StartDB()
 {
@@ -116,6 +149,8 @@ bool StartDB()
         .AddDatabase(LoginDatabase, "Login")
         .AddDatabase(CharacterDatabase, "Character")
         .AddDatabase(WorldDatabase, "World");
+
+    RegisterModuleDatabases(loader);
 
     if (!loader.Load())
         return false;

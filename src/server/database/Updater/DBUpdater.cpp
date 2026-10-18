@@ -178,6 +178,31 @@ std::string DBUpdater<CharacterDatabaseConnection>::GetDBModuleName()
 }
 
 #ifdef MOD_SHADOWS
+namespace
+{
+    // Locates the module that ships the shadows SQL tree by scanning the modules
+    // directory, instead of hardcoding the module folder name.
+    std::string FindShadowsModuleDirectory()
+    {
+        std::filesystem::path const modulesDirectory = std::filesystem::path(BuiltInConfig::GetSourceDirectory()) / "modules";
+        std::filesystem::path const shadowsSqlDirectory = std::filesystem::path("data") / "sql" / "shadows";
+
+        if (std::filesystem::is_directory(modulesDirectory))
+        {
+            std::filesystem::directory_iterator const end;
+            for (std::filesystem::directory_iterator itr(modulesDirectory); itr != end; ++itr)
+            {
+                if (std::filesystem::is_directory(itr->path()) && std::filesystem::is_directory(itr->path() / shadowsSqlDirectory))
+                {
+                    return itr->path().generic_string();
+                }
+            }
+        }
+
+        return std::string();
+    }
+}
+
 // Shadows Database
 template<>
 std::string DBUpdater<ShadowsDatabaseConnection>::GetConfigEntry()
@@ -194,7 +219,7 @@ std::string DBUpdater<ShadowsDatabaseConnection>::GetTableName()
 template<>
 std::string DBUpdater<ShadowsDatabaseConnection>::GetSourceDirectory()
 {
-    return BuiltInConfig::GetSourceDirectory() + "/modules/mod-shadows";
+    return FindShadowsModuleDirectory();
 }
 
 template<>

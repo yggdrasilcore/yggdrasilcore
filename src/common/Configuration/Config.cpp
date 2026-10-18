@@ -21,10 +21,17 @@
 #include "StringFormat.h"
 #include "Tokenize.h"
 #include "Util.h"
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <mutex>
+#include <set>
 #include <unordered_map>
+
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 namespace
 {
@@ -534,6 +541,67 @@ std::vector<std::string> ConfigMgr::GetKeysByString(std::string const& name)
     }
 
     return keys;
+}
+
+std::vector<std::string> ConfigMgr::GetConfigNamespaces(std::string const& suffix) const
+{
+    std::lock_guard<std::mutex> lock(_configLock);
+
+    std::set<std::string> namespaces;
+    std::string const suffixTail = "." + suffix;
+
+    auto ToLower = [](std::string& value)
+    {
+        std::transform(value.begin(), value.end(), value.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    };
+
+    for (auto const& [optionName, key] : _configOptions)
+    {
+        std::string configNamespace;
+
+        if (optionName == suffix)
+        {
+            configNamespace = ""; // global namespace
+        }
+        else if (optionName.size() > suffixTail.size() &&
+                 optionName.compare(optionName.size() - suffixTail.size(), suffixTail.size(), suffixTail) == 0)
+        {
+            configNamespace = optionName.substr(0, optionName.size() - suffixTail.size());
+        }
+        else
+        {
+            continue;
+        }
+
+        ToLower(configNamespace);
+        namespaces.insert(configNamespace);
+    }
+
+#ifndef _WIN32
+    std::string const envSuffix = "_" + IniKeyToEnvVarKey(suffix);
+
+    for (char** env = environ; env && *env; ++env)
+    {
+        std::string entry(*env);
+        std::string::size_type const separator = entry.find('=');
+        if (separator == std::string::npos)
+            continue;
+
+        std::string const name = entry.substr(0, separator);
+        if (name.compare(0, 3, "AC_") != 0 || name.size() <= envSuffix.size() + 3)
+            continue;
+
+        if (name.compare(name.size() - envSuffix.size(), envSuffix.size(), envSuffix) != 0)
+            continue;
+
+        std::string configNamespace = name.substr(3, name.size() - 3 - envSuffix.size());
+        ToLower(configNamespace);
+        namespaces.insert(configNamespace);
+    }
+#endif
+
+    return std::vector<std::string>(namespaces.begin(), namespaces.end());
 }
 
 std::string const ConfigMgr::GetFilename()
