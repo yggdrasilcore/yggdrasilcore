@@ -68,7 +68,11 @@ jobs:
           fi
           python3 site/docs/gen_ai.py $ARGS
 
+      # Best-effort: if docs advanced during this run the push is rejected and
+      # the cache is simply regenerated on the next scheduled run. It must not
+      # fail the job or skip the Pages deploy.
       - name: Commit cache back to docs branch
+        continue-on-error: true
         run: |
           cd site
           git config user.name "github-actions[bot]"
