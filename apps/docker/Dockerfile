@@ -212,12 +212,6 @@ USER $DOCKER_USER
 
 ENV YCORE_COMPONENT=dbimport
 
-COPY --chown=$DOCKER_USER:$DOCKER_USER \
-    data data
-
-COPY --chown=$DOCKER_USER:$DOCKER_USER \
-    modules modules
-
 COPY --chown=$DOCKER_USER:$DOCKER_USER\
      --from=build \
      /azerothcore/env/dist/bin/dbimport /azerothcore/env/dist/bin/dbimport
@@ -244,7 +238,7 @@ VOLUME /azerothcore/env/dist/data
 
 USER $DOCKER_USER
 
-CMD ["bash",  "-c", "source /azerothcore/apps/installer/includes/functions.sh && inst_download_client_data" ]
+CMD ["bash", "/azerothcore/apps/docker/download-client-data.sh" ]
 
 ##################
 # Map Extractors #

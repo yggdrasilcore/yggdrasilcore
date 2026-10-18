@@ -21,6 +21,8 @@
 #include "DatabaseEnv.h"
 #include "Duration.h"
 #include "Log.h"
+#include <algorithm>
+#include <cctype>
 #include <errmsg.h>
 #include <mysqld_error.h>
 #include <thread>
@@ -34,6 +36,24 @@ DatabaseLoader::DatabaseLoader(std::string const& logger, uint32 const defaultUp
 template <class T>
 DatabaseLoader& DatabaseLoader::AddDatabase(DatabaseWorkerPool<T>& pool, std::string const& name)
 {
+    // Module-owned databases derive their updater metadata from their name and
+    // the module folder that ships the matching SQL tree. Core databases have
+    // dedicated DBUpdater specializations and ignore this metadata.
+    {
+        std::string moduleFolder = name;
+        std::transform(moduleFolder.begin(), moduleFolder.end(), moduleFolder.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+        std::string const moduleDirectory = DBUpdaterUtil::FindModuleDirectory(moduleFolder);
+        if (!moduleDirectory.empty())
+        {
+            DBUpdaterModuleInfo<T>::TableName = name;
+            DBUpdaterModuleInfo<T>::SourceDirectory = moduleDirectory;
+            DBUpdaterModuleInfo<T>::BaseFilesDirectory = moduleDirectory + "/data/sql/" + moduleFolder + "/base/";
+            DBUpdaterModuleInfo<T>::ModuleName = moduleFolder;
+        }
+    }
+
     bool const updatesEnabledForThis = DBUpdater<T>::IsEnabled(_updateFlags);
 
     _open.push([this, name, updatesEnabledForThis, &pool]() -> bool

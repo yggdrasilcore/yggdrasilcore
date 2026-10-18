@@ -49,10 +49,16 @@ jobs:
       - name: Install Ollama
         run: curl -fsSL https://ollama.com/install.sh | sh
 
-      - name: Pull model and serve
+      - name: Start Ollama
         run: |
-          ollama pull "${{ inputs.model || 'qwen3.5:4b' }}"
-          (ollama serve &>/tmp/ollama.log & sleep 8; ollama list)
+          (ollama serve &>/tmp/ollama.log &)
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/api/tags >/dev/null && break
+            sleep 1
+          done
+
+      - name: Pull model
+        run: ollama pull "${{ inputs.model || 'qwen3.5:4b' }}"
 
       - name: Generate docs
         run: |
@@ -62,7 +68,11 @@ jobs:
           fi
           python3 site/docs/gen_ai.py $ARGS
 
+      # Best-effort: if docs advanced during this run the push is rejected and
+      # the cache is simply regenerated on the next scheduled run. It must not
+      # fail the job or skip the Pages deploy.
       - name: Commit cache back to docs branch
+        continue-on-error: true
         run: |
           cd site
           git config user.name "github-actions[bot]"
