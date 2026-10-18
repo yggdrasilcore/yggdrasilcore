@@ -46,12 +46,6 @@ public:
     [[nodiscard]] std::vector<std::string> const& GetArguments() const;
     std::vector<std::string> GetKeysByString(std::string const& name);
 
-    /// Returns the (lower-cased) config namespaces that declare an option ending
-    /// in the given suffix, e.g. suffix "Updates.EnableDatabases" yields the
-    /// namespace of every "<ns>.Updates.EnableDatabases" entry. Namespaces are
-    /// collected from loaded config files and from environment variables.
-    std::vector<std::string> GetConfigNamespaces(std::string const& suffix) const;
-
     template<class T>
     T GetOption(std::string const& name, T const& def, bool showLogs = true) const;
 

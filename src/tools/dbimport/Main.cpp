@@ -21,8 +21,11 @@
 #include "DatabaseLoader.h"
 #include "IoContext.h"
 #include "Log.h"
+#include "ModulesScriptLoader.h"
 #include "MySQLThreading.h"
 #include "OpenSSLCrypto.h"
+#include "ScriptLoader.h"
+#include "ScriptMgr.h"
 #include "Util.h"
 #include <boost/program_options.hpp>
 #include <boost/version.hpp>
@@ -89,6 +92,12 @@ int main(int argc, char** argv)
 
     std::shared_ptr<void> opensslHandle(nullptr, [](void*) { OpenSSLCrypto::threadsCleanup(); });
 
+    // Load module scripts so that module-owned databases can register themselves
+    // through DatabaseScript::OnDatabasesLoading(), exactly like the worldserver.
+    sScriptMgr->SetScriptLoader(AddScripts);
+    sScriptMgr->SetModulesLoader(AddModulesScripts);
+    sScriptMgr->Initialize();
+
     // Initialize the database connection
     if (!StartDB())
         return 1;
@@ -98,37 +107,6 @@ int main(int argc, char** argv)
     LOG_INFO("dbimport", "Halting process...");
 
     return 0;
-}
-
-/// Registers module-owned databases based on their configuration entries.
-/// A module database declares itself with a "<Namespace>.Updates.EnableDatabases"
-/// option and provides its connection string through "<Namespace>DatabaseInfo".
-void RegisterModuleDatabases(DatabaseLoader& loader)
-{
-    std::vector<std::string> const namespaces = sConfigMgr->GetConfigNamespaces("Updates.EnableDatabases");
-
-    for (std::string const& dbNamespace : namespaces)
-    {
-        if (dbNamespace.empty())
-            continue;
-
-#ifdef MOD_SHADOWS
-        if (dbNamespace == "shadows")
-        {
-            if (sConfigMgr->GetOption<std::string>("ShadowsDatabaseInfo", "", false).empty())
-            {
-                LOG_WARN("dbimport", "Shadows database updates are configured but ShadowsDatabaseInfo is not set, skipping.");
-                continue;
-            }
-
-            loader.SetUpdateFlags(DatabaseLoader::DATABASE_SHADOWS);
-            loader.AddDatabase(ShadowsDatabase, "Shadows");
-            continue;
-        }
-#endif
-
-        LOG_WARN("dbimport", "Ignoring database namespace '{}': no database is registered for it.", dbNamespace);
-    }
 }
 
 /// Initialize connection to the database
@@ -150,9 +128,12 @@ bool StartDB()
         .AddDatabase(CharacterDatabase, "Character")
         .AddDatabase(WorldDatabase, "World");
 
-    RegisterModuleDatabases(loader);
-
     if (!loader.Load())
+        return false;
+
+    // Module-owned databases self-register through their DatabaseScript hooks,
+    // mirroring the worldserver startup sequence.
+    if (!sScriptMgr->OnDatabasesLoading())
         return false;
 
     LOG_INFO("dbimport", "Started database connection pool.");
@@ -165,6 +146,9 @@ void StopDB()
     CharacterDatabase.Close();
     WorldDatabase.Close();
     LoginDatabase.Close();
+
+    sScriptMgr->OnDatabasesClosing();
+
     MySQL::Library_End();
 }
 

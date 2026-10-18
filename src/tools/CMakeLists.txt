@@ -124,6 +124,7 @@ foreach(TOOL_NAME ${TOOLS_BUILD_LIST})
       PRIVATE
         modules
         scripts
+        game
         acore-core-interface)
 
     # Install config
