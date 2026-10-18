@@ -238,7 +238,7 @@ VOLUME /azerothcore/env/dist/data
 
 USER $DOCKER_USER
 
-CMD ["bash",  "-c", "source /azerothcore/apps/installer/includes/functions.sh && inst_download_client_data" ]
+CMD ["bash", "/azerothcore/apps/docker/download-client-data.sh" ]
 
 ##################
 # Map Extractors #
