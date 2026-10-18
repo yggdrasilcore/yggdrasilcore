@@ -149,7 +149,7 @@ runs:
     - name: get dbc files
       shell: bash
       run: |
-        git clone --depth 1 --branch master --single-branch https://github.com/ac-data/ac-data.git "$YC_DATA_DIR"
+        git clone --depth 1 --branch master --single-branch https://github.com/yggdrasilcore/client-data.git "$YC_DATA_DIR"
 
     - name: Start MySQL container
       shell: bash

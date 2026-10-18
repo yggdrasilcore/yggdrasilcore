@@ -27,7 +27,7 @@ if [ "$VERSION" == "$INSTALLED_VERSION" ]; then
 fi
 
 echo "Downloading client data in: $zipPath ..."
-curl -L https://github.com/wowgaming/client-data/releases/download/$VERSION/data.zip > "$zipPath" \
+curl -L https://github.com/yggdrasilcore/client-data/releases/download/$VERSION/data.zip > "$zipPath" \
     && echo "unzip downloaded file in $path..." && unzip -q -o "$zipPath" -d "$path/" \
     && echo "Remove downloaded file" && rm "$zipPath" \
     && echo "INSTALLED_VERSION=$VERSION" > "$dataVersionFile"
