@@ -52,6 +52,12 @@ runs:
           ccache:${{ runner.os }}:${{ inputs.CC }}_${{ inputs.CXX }}:${{ inputs.modules }}
           ccache:${{ runner.os }}:${{ inputs.CC }}_${{ inputs.CXX }}
 
+    # This script moves sql files from "data/sql/updates/pending_$DB" to the
+    # proper folder for the db
+    - name: Process pending sql
+      shell: bash
+      run: bash apps/ci/ci-pending-sql.sh
+
     - name: Install build dependencies
       shell: bash
       run: |
