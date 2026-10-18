@@ -720,7 +720,7 @@ enum SMART_ACTION
 
     SMART_ACTION_CUSTOM_CAST                        = 218,    // spellId, castflag, bp0, bp1, bp2
     SMART_ACTION_CONE_SUMMON                        = 219,    // entry, duration (0 = perm), dist between rings, dist between earch summon in a row, length of cone, width of cone (angle)
-    SMART_ACTION_PLAYER_TALK                        = 220,    // acore_string.entry, yell? (0/1)
+    SMART_ACTION_PLAYER_TALK                        = 220,    // ycore_string.entry, yell? (0/1)
     SMART_ACTION_VORTEX_SUMMON                      = 221,    // entry, duration (0 = perm), spiral scaling, spiral appearance, range max, phi_delta     <-- yes confusing math, try it ingame and see, my lovely YC boys!
     SMART_ACTION_CU_ENCOUNTER_START                 = 222,    // Resets cooldowns on all targets and removes Heroism debuff(s)
     SMART_ACTION_DO_ACTION                          = 223,    // ActionId

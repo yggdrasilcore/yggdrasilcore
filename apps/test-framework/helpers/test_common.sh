@@ -85,12 +85,12 @@ create_ycore_binaries() {
 
 # Create AzerothCore specific test configs
 create_ycore_configs() {
-    create_test_config "authserver.conf" 'Database.Info = "127.0.0.1;3306;acore;acore;ycore_auth"
-LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;ycore_auth"'
+    create_test_config "authserver.conf" 'Database.Info = "127.0.0.1;3306;ycore;ycore;ycore_auth"
+LoginDatabaseInfo = "127.0.0.1;3306;ycore;ycore;ycore_auth"'
     
-    create_test_config "worldserver.conf" 'Database.Info = "127.0.0.1;3306;acore;acore;ycore_world"
-LoginDatabaseInfo = "127.0.0.1;3306;acore;acore;ycore_auth"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;ycore_characters"'
+    create_test_config "worldserver.conf" 'Database.Info = "127.0.0.1;3306;ycore;ycore;ycore_world"
+LoginDatabaseInfo = "127.0.0.1;3306;ycore;ycore;ycore_auth"
+CharacterDatabaseInfo = "127.0.0.1;3306;ycore;ycore;ycore_characters"'
     
     create_test_config "config.sh" "export BUILDPATH=\"$TEST_DIR/build\"
 export SRCPATH=\"$YC_TEST_ROOT\"

@@ -112,13 +112,13 @@ BindIP = "0.0.0.0"
 #                                                                 section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database" - (use Unix sockets on
 #                                                                           Unix/Linux)
-#        Default:     "127.0.0.1;3306;acore;acore;ycore_auth"       - (LoginDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;ycore_world"      - (WorldDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;ycore_characters" - (CharacterDatabaseInfo)
+#        Default:     "127.0.0.1;3306;ycore;ycore;ycore_auth"       - (LoginDatabaseInfo)
+#                     "127.0.0.1;3306;ycore;ycore;ycore_world"      - (WorldDatabaseInfo)
+#                     "127.0.0.1;3306;ycore;ycore;ycore_characters" - (CharacterDatabaseInfo)
 
-LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;ycore_auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;ycore_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;ycore_characters"
+LoginDatabaseInfo     = "127.0.0.1;3306;ycore;ycore;ycore_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;ycore;ycore;ycore_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;ycore;ycore;ycore_characters"
 
 #
 #    LoginDatabase.WorkerThreads
@@ -3299,8 +3299,8 @@ DungeonAccessRequirements.PortalAvgIlevelCheck = 0
 #
 #    DungeonAccessRequirements.OptionalStringID
 #
-#        Description: Display an extra message from acore_strings in the chat after printing the dungeon access requirements.
-#                     To enable it set the ID of your desired string from the table acore_strings
+#        Description: Display an extra message from ycore_strings in the chat after printing the dungeon access requirements.
+#                     To enable it set the ID of your desired string from the table ycore_strings
 #        Default:     0 - (Disabled)
 #                     1+ - (Enabled)
 

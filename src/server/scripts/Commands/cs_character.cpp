@@ -865,7 +865,7 @@ public:
         }
 
         // Original TC Notes from Refactor vvv
-        //ToDo: use a new acore_string for this commands
+        //ToDo: use a new ycore_string for this commands
         handler->PSendSysMessage(LANG_COMMAND_IMPORT_SUCCESS);
 
         return true;

@@ -8942,10 +8942,10 @@ bool ObjectMgr::LoadYcoreStrings()
     uint32 oldMSTime = getMSTime();
 
     _ycoreStringStore.clear(); // for reload case
-    QueryResult result = WorldDatabase.Query("SELECT entry, content_default, locale_koKR, locale_frFR, locale_deDE, locale_zhCN, locale_zhTW, locale_esES, locale_esMX, locale_ruRU FROM acore_string");
+    QueryResult result = WorldDatabase.Query("SELECT entry, content_default, locale_koKR, locale_frFR, locale_deDE, locale_zhCN, locale_zhTW, locale_esES, locale_esMX, locale_ruRU FROM ycore_string");
     if (!result)
     {
-        LOG_WARN("server.loading", ">> Loaded 0 ycore strings. DB table `acore_strings` is empty.");
+        LOG_WARN("server.loading", ">> Loaded 0 ycore strings. DB table `ycore_strings` is empty.");
         LOG_INFO("server.loading", " ");
         return false;
     }
@@ -8981,7 +8981,7 @@ std::string ObjectMgr::GetYcoreString(uint32 entry, LocaleConstant locale) const
         return as->Content[DEFAULT_LOCALE];
     }
 
-    std::string msg = Ycore::StringFormat("No entry for acore_string ({}) in DB.", entry);
+    std::string msg = Ycore::StringFormat("No entry for ycore_string ({}) in DB.", entry);
     LOG_ERROR("sql.sql", msg);
     return msg;
 }

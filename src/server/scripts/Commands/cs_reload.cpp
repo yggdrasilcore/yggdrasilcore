@@ -164,7 +164,7 @@ public:
             { "spell_group_stack_rules",       HandleReloadSpellGroupStackRulesCommand,       SEC_ADMINISTRATOR, Console::Yes },
             { "player_loot_template",          HandleReloadLootTemplatesPlayerCommand,        SEC_ADMINISTRATOR, Console::Yes },
             { "module_string",                 HandleReloadModuleStringCommand,               SEC_ADMINISTRATOR, Console::Yes },
-            { "acore_string",                  HandleReloadYcoreStringCommand,                SEC_ADMINISTRATOR, Console::Yes },
+            { "ycore_string",                  HandleReloadYcoreStringCommand,                SEC_ADMINISTRATOR, Console::Yes },
             { "warden_action",                 HandleReloadWardenactionCommand,               SEC_ADMINISTRATOR, Console::Yes },
             { "waypoint_scripts",              HandleReloadWpScriptsCommand,                  SEC_ADMINISTRATOR, Console::Yes },
             { "waypoint_data",                 HandleReloadWpCommand,                         SEC_ADMINISTRATOR, Console::Yes },
@@ -726,9 +726,9 @@ public:
 
     static bool HandleReloadYcoreStringCommand(ChatHandler* handler)
     {
-        LOG_INFO("server.loading", "Reloading acore_string Table!");
+        LOG_INFO("server.loading", "Reloading ycore_string Table!");
         sObjectMgr->LoadYcoreStrings();
-        handler->SendGlobalGMSysMessage("DB table `acore_string` reloaded.");
+        handler->SendGlobalGMSysMessage("DB table `ycore_string` reloaded.");
         return true;
     }
 
