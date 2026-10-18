@@ -33,8 +33,6 @@ CREATE TABLE `warden_action` (
 
 LOCK TABLES `warden_action` WRITE;
 /*!40000 ALTER TABLE `warden_action` DISABLE KEYS */;
-INSERT INTO `warden_action` VALUES
-(437,0);
 /*!40000 ALTER TABLE `warden_action` ENABLE KEYS */;
 UNLOCK TABLES;
 
