@@ -25615,9 +25615,9 @@
   }
  },
  "Player::ToggleMetaGemsActive@ee7a3e1f:qwen3-5-4b": {
-  "hash": "dde2817239ae",
-  "desc": "Iterates through all equipped items in the bag slot, skipping a specified slot, and activates or deactivates metagems (enchants with conditions) based on the provided boolean flag. Side effects: Modifies enchantment states for metagems on equipped items; no persistent side effects beyond the immediate state change.",
-  "raw": "{\"what\": \"Iterates through all equipped items in the bag slot, skipping a specified slot, and activates or deactivates metagems (enchants with conditions) based on the provided boolean flag.\", \"effects\": \"Modifies enchantment states for metagems on equipped items; no persistent side effects beyond the immediate state change.\"}",
+  "hash": "bdb088308fc0",
+  "desc": "Iterates through all equipped items in the bag slot, skipping a specified slot, and activates or deactivates only those enchantments that are metagems (have a condition) based on the provided boolean flag. Side effects: Modifies the state of specific item enchantments by applying them or removing them; no other side effects.",
+  "raw": "{\"what\": \"Iterates through all equipped items in the bag slot, skipping a specified slot, and activates or deactivates only those enchantments that are metagems (have a condition) based on the provided boolean flag.\", \"effects\": \"Modifies the state of specific item enchantments by applying them or removing them; no other side effects.\"}",
   "entry": {
    "class": "Player",
    "name": "ToggleMetaGemsActive",
@@ -25627,10 +25627,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 11305
+    "line": 11313
    },
-   "hash": "dde2817239ae",
-   "desc": "Iterates through all equipped items in the bag slot, skipping a specified slot, and activates or deactivates metagems (enchants with conditions) based on the provided boolean flag. Side effects: Modifies enchantment states for metagems on equipped items; no persistent side effects beyond the immediate state change.",
+   "hash": "bdb088308fc0",
+   "desc": "Iterates through all equipped items in the bag slot, skipping a specified slot, and activates or deactivates only those enchantments that are metagems (have a condition) based on the provided boolean flag. Side effects: Modifies the state of specific item enchantments by applying them or removing them; no other side effects.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -28405,22 +28405,22 @@
   }
  },
  "Player::GetAverageItemLevelForDF@c222903c:qwen3-5-4b": {
-  "hash": "92919b976817",
-  "desc": "Calculates the average item level for a player's equipment slots, excluding specific slot types (tabard, ranged, offhand, body), by summing item levels or applying a quality multiplier for heirloom items and dividing by the count of checked slots.",
-  "raw": "{\"what\": \"Calculates the average item level for a player's equipment slots, excluding specific slot types (tabard, ranged, offhand, body), by summing item levels or applying a quality multiplier for heirloom items and dividing by the count of checked slots.\", \"effects\": \"none\"}",
+  "hash": "fb589655a8ea",
+  "desc": "Calculates the average item level for a player's equipment slots, excluding specific slot types (tabard, ranged, offhand, body) and only counting equipped items with valid templates.",
+  "raw": "{\"what\": \"Calculates the average item level for a player's equipment slots, excluding specific slot types (tabard, ranged, offhand, body) and only counting equipped items with valid templates.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "GetAverageItemLevelForDF",
    "sig": "float GetAverageItemLevelForDF()",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2553,
+   "line": 2561,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 15896
+    "line": 15937
    },
-   "hash": "92919b976817",
-   "desc": "Calculates the average item level for a player's equipment slots, excluding specific slot types (tabard, ranged, offhand, body), by summing item levels or applying a quality multiplier for heirloom items and dividing by the count of checked slots.",
+   "hash": "fb589655a8ea",
+   "desc": "Calculates the average item level for a player's equipment slots, excluding specific slot types (tabard, ranged, offhand, body) and only counting equipped items with valid templates.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -42103,7 +42103,7 @@
   }
  },
  "Unit::SetCannotReachTargetUnit@3eea62e8:qwen3-5-4b": {
-  "hash": "f01cf238e8ed",
+  "hash": "fd20adcdd794",
   "desc": "Updates the internal flag indicating whether the unit can no longer reach its target, skipping execution if the value hasn't changed.",
   "raw": "{\"what\": \"Updates the internal flag indicating whether the unit can no longer reach its target, skipping execution if the value hasn't changed.\", \"effects\": \"none\"}",
   "entry": {
@@ -42115,9 +42115,9 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 21306
+    "line": 21338
    },
-   "hash": "f01cf238e8ed",
+   "hash": "fd20adcdd794",
    "desc": "Updates the internal flag indicating whether the unit can no longer reach its target, skipping execution if the value hasn't changed.",
    "ai": true,
    "model": "qwen3.5:4b"
