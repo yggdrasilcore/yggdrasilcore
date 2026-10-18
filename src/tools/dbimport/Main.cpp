@@ -21,8 +21,11 @@
 #include "DatabaseLoader.h"
 #include "IoContext.h"
 #include "Log.h"
+#include "ModulesScriptLoader.h"
 #include "MySQLThreading.h"
 #include "OpenSSLCrypto.h"
+#include "ScriptLoader.h"
+#include "ScriptMgr.h"
 #include "Util.h"
 #include <boost/program_options.hpp>
 #include <boost/version.hpp>
@@ -57,10 +60,12 @@ int main(int argc, char** argv)
         return 0;
 
     // Add file and args in config
-    sConfigMgr->Configure(configFile.generic_string(), std::vector<std::string>(argv, argv + argc));
+    sConfigMgr->Configure(configFile.generic_string(), std::vector<std::string>(argv, argv + argc), CONFIG_FILE_LIST);
 
     if (!sConfigMgr->LoadAppConfigs())
         return 1;
+
+    sConfigMgr->LoadModulesConfigs();
 
     std::vector<std::string> overriddenKeys = sConfigMgr->OverrideWithEnvVariablesIfAny();
 
@@ -86,6 +91,12 @@ int main(int argc, char** argv)
     OpenSSLCrypto::threadsSetup();
 
     std::shared_ptr<void> opensslHandle(nullptr, [](void*) { OpenSSLCrypto::threadsCleanup(); });
+
+    // Load module scripts so that module-owned databases can register themselves
+    // through DatabaseScript::OnDatabasesLoading(), exactly like the worldserver.
+    sScriptMgr->SetScriptLoader(AddScripts);
+    sScriptMgr->SetModulesLoader(AddModulesScripts);
+    sScriptMgr->Initialize();
 
     // Initialize the database connection
     if (!StartDB())
@@ -120,6 +131,11 @@ bool StartDB()
     if (!loader.Load())
         return false;
 
+    // Module-owned databases self-register through their DatabaseScript hooks,
+    // mirroring the worldserver startup sequence.
+    if (!sScriptMgr->OnDatabasesLoading())
+        return false;
+
     LOG_INFO("dbimport", "Started database connection pool.");
     return true;
 }
@@ -130,6 +146,9 @@ void StopDB()
     CharacterDatabase.Close();
     WorldDatabase.Close();
     LoginDatabase.Close();
+
+    sScriptMgr->OnDatabasesClosing();
+
     MySQL::Library_End();
 }
 
