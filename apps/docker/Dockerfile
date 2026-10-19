@@ -81,13 +81,23 @@ ARG CACHEBUST=1
 
 WORKDIR /yggdrasilcore/build
 
+# BuildKit keys a RUN on the contents of the contexts it binds, and the checkout
+# rewrites `.git` on every run. Stage the checkout metadata into a cache mount
+# first (this writes nothing to the image), then compile with only cache mounts
+# attached. Cache mounts are excluded from the cache key and persist between
+# builds, so an unchanged revision reuses the compile layer instead of rebuilding.
+RUN --mount=type=bind,source=.git,target=/git-seed \
+    --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=locked \
+    find /yggdrasilcore/.git -mindepth 1 -delete 2>/dev/null || true; \
+    cp -a /git-seed/. /yggdrasilcore/.git/
+
 RUN --mount=type=cache,target=/ccache,sharing=locked \
                                                                             
                                                                            
                                                                                 
                                                                                
                                      
-    --mount=type=bind,target=/yggdrasilcore/.git,source=.git \
+    --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=locked \
     git config --global --add safe.directory /yggdrasilcore \
     && cmake /yggdrasilcore \
        -G Ninja \
