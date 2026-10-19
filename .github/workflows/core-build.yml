@@ -82,10 +82,23 @@ jobs:
         # The images run as uid/gid 1000 (see docker-compose build args).
         sudo chown -R 1000:1000 env/dist
 
+    - name: Set up Docker Buildx
+      if: steps.changes.outputs.code == 'true'
+      uses: docker/setup-buildx-action@v3
+
+    - name: Expose GitHub Actions cache runtime
+      if: steps.changes.outputs.code == 'true'
+      uses: crazy-max/ghaction-github-runtime@v3
+
     - name: Build Docker images
       if: steps.changes.outputs.code == 'true'
       run: |
-        docker compose build yggdrasilcore-db-import yggdrasilcore-authserver yggdrasilcore-worldserver
+        docker buildx bake --load \
+          -f docker-compose.yml \
+          -f .github/ci/docker-compose.ci.yml \
+          yggdrasilcore-db-import \
+          yggdrasilcore-authserver \
+          yggdrasilcore-worldserver
 
     - name: Start database
       if: steps.changes.outputs.code == 'true'
@@ -139,8 +152,10 @@ jobs:
       run: |
         set -euo pipefail
 
-        # The worldserver console is the container's stdin. Send the commands,
-        # then detach with Ctrl-P Ctrl-Q. Verification is done against the DB.
+        # The worldserver console is the container's stdin. `script` gives
+        # `docker attach` a TTY while we feed it the commands, then we detach
+        # with Ctrl-P Ctrl-Q. Verification is done against the DB.
+        attach_log="$RUNNER_TEMP/attach.log"
         {
           sleep 5
           printf '.account create docker docker\n'
@@ -148,7 +163,7 @@ jobs:
           printf '.account set gmlevel docker 3 -1\n'
           sleep 5
           printf '\020\021'
-        } | timeout 45 docker attach yggdrasilcore-worldserver >/dev/null 2>&1 || true
+        } | timeout 45 script -qec "docker attach yggdrasilcore-worldserver" /dev/null >"$attach_log" 2>&1 || true
 
         for _ in $(seq 1 12); do
           if docker compose exec -T yggdrasilcore-database sh -c \
@@ -159,6 +174,8 @@ jobs:
           fi
           sleep 5
         done
+        echo "=== worldserver attach log ==="
+        tail -80 "$attach_log" || true
         echo "::error::test account was not created"
         exit 1
 
