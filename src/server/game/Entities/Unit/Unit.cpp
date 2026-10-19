@@ -19139,7 +19139,7 @@ void Unit::CorrectPhaseMask()
         if (player->IsGameMaster())
             newPhase = PHASEMASK_ANYWHERE;
 
-        player->SetPhaseMask(newPhase, true);
+        SetPhaseMaskInternal(newPhase, true, false);
         player->GetSession()->SendSetPhaseShift(newPhase);
     }
     else
@@ -19152,12 +19152,23 @@ void Unit::CorrectPhaseMask()
                     newPhase = data->phaseMask;
         }
 
-        SetPhaseMask(newPhase, true);
+        SetPhaseMaskInternal(newPhase, true, false);
     }
 }
 
 void Unit::SetPhaseMask(uint32 newPhaseMask, bool update)
 {
+    SetPhaseMaskInternal(newPhaseMask, update, true);
+}
+
+void Unit::SetPhaseMaskInternal(uint32 newPhaseMask, bool update, bool overrideVehicle)
+{
+    if (overrideVehicle)
+    {
+        if (Unit* base = GetVehicleBase())
+            newPhaseMask = base->GetPhaseMask();
+    }
+
     if (newPhaseMask == GetPhaseMask())
         return;
 
