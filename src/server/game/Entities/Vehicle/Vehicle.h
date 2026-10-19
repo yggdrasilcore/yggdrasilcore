@@ -46,7 +46,7 @@ public:
 
     bool AddPassenger(Unit* passenger, int8 seatId = -1);
     void EjectPassenger(Unit* passenger, Unit* controller);
-    void RemovePassenger(Unit* passenger);
+    void RemovePassenger(Unit* passenger, bool correctPhase = true);
     void RelocatePassengers();
     void RemoveAllPassengers();
     void Dismiss();

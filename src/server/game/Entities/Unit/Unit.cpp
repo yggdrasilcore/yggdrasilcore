@@ -19127,6 +19127,35 @@ uint32 Unit::GetPhaseByAuras() const
     return currentPhase;
 }
 
+void Unit::CorrectPhaseMask()
+{
+    uint32 newPhase = GetPhaseByAuras();
+
+    if (Player* player = ToPlayer())
+    {
+        if (!newPhase)
+            newPhase = PHASEMASK_NORMAL;
+
+        if (player->IsGameMaster())
+            newPhase = PHASEMASK_ANYWHERE;
+
+        player->SetPhaseMask(newPhase, true);
+        player->GetSession()->SendSetPhaseShift(newPhase);
+    }
+    else
+    {
+        if (!newPhase)
+        {
+            newPhase = PHASEMASK_NORMAL;
+            if (Creature* creature = ToCreature())
+                if (CreatureData const* data = sObjectMgr->GetCreatureData(creature->GetSpawnId()))
+                    newPhase = data->phaseMask;
+        }
+
+        SetPhaseMask(newPhase, true);
+    }
+}
+
 void Unit::SetPhaseMask(uint32 newPhaseMask, bool update)
 {
     if (newPhaseMask == GetPhaseMask())
@@ -19552,7 +19581,7 @@ void Unit::ChangeSeat(int8 seatId, bool next)
     else if (seatId == GetTransSeat() || !m_vehicle->HasEmptySeat(seatId))
         return;
 
-    m_vehicle->RemovePassenger(this);
+    m_vehicle->RemovePassenger(this, false);
     if (!m_vehicle->AddPassenger(this, seatId))
         ABORT();
 }

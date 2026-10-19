@@ -601,7 +601,7 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
     return true;
 }
 
-void Vehicle::RemovePassenger(Unit* unit)
+void Vehicle::RemovePassenger(Unit* unit, bool correctPhase)
 {
     if (!unit)
         return;
@@ -675,6 +675,9 @@ void Vehicle::RemovePassenger(Unit* unit)
 
     // Salvaged siege engines: keep blocker stalkers in sync with occupancy.
     SyncSalvagedSiegeBlockers(this);
+
+    if (correctPhase)
+        unit->CorrectPhaseMask();
 }
 
 void Vehicle::RelocatePassengers()

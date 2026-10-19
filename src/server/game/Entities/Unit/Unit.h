@@ -1970,6 +1970,7 @@ public:
     void SetVisible(bool x);
     void SetModelVisible(bool on);
     [[nodiscard]] uint32 GetPhaseByAuras() const;
+    void CorrectPhaseMask();
     void SetPhaseMask(uint32 newPhaseMask, bool update) override;// overwrite WorldObject::SetPhaseMask
     void UpdateObjectVisibility(bool forced = true, bool fromUpdate = false) override;
 
