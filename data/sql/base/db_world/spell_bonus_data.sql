@@ -1272,7 +1272,7 @@ INSERT INTO `spell_bonus_data` VALUES
 (59885,0.0299,0.0299,0.0175,0.0175,'Pet Skills - Rake'),
 (59886,0.0299,0.0299,0.0175,0.0175,'Pet Skills - Rake'),
 (60043,0.571,0,0,0,'Shaman - Lava Burst'),
-(60089,0,0,0.15,0,'Druid - Faerie Fire (feral),\n damage'),
+(60089,0,0,0.15,0,'Druid - Faerie Fire (feral), damage'),
 (61193,0.333,0.333,0,0,'Pet Skills - Spirit Strike'),
 (61194,0.333,0.333,0,0,'Pet Skills - Spirit Strike'),
 (61195,0.333,0.333,0,0,'Pet Skills - Spirit Strike'),
@@ -1319,4 +1319,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:39
+-- Dump completed on 2026-10-19  5:16:10

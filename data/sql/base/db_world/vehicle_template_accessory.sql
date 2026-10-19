@@ -41,13 +41,13 @@ LOCK TABLES `vehicle_template_accessory` WRITE;
 INSERT INTO `vehicle_template_accessory` VALUES
 (24083,24082,0,0,'Proto-Drake Handler',6,120000),
 (24750,24751,0,1,'Excelsior rides Hidalgo the Master Falconer',6,30000),
-(25762,25760,0,1,'Kvaldir Raider',8,0),
-(25762,25760,1,1,'Kvaldir Raider',8,0),
-(25762,25760,2,1,'Kvaldir Raider',8,0),
-(25762,25760,3,1,'Kvaldir Raider',8,0),
-(25762,25760,4,1,'Kvaldir Raider',8,0),
-(25762,25760,5,1,'Kvaldir Raider',8,0),
-(25762,25760,6,1,'Kvaldir Raider',8,0),
+(25762,25760,0,0,'Kvaldir Raider',8,0),
+(25762,25760,1,0,'Kvaldir Raider',8,0),
+(25762,25760,2,0,'Kvaldir Raider',8,0),
+(25762,25760,3,0,'Kvaldir Raider',8,0),
+(25762,25760,4,0,'Kvaldir Raider',8,0),
+(25762,25760,5,0,'Kvaldir Raider',8,0),
+(25762,25760,6,0,'Kvaldir Raider',8,0),
 (25968,25801,0,0,'Nedar, Lord of Rhinos',6,30000),
 (27213,27206,0,0,'Onslaught Warhorse - Onslaught Knight',8,30000),
 (27241,27268,0,0,'Risen Gryphon',6,30000),
@@ -82,11 +82,12 @@ INSERT INTO `vehicle_template_accessory` VALUES
 (29625,29694,1,1,'Hyldsmeet Proto-Drake',6,30000),
 (29698,29699,0,0,'Drakuru Raptor',6,30000),
 (29708,29805,0,1,'Captive Proto-Drake',8,0),
+(29736,30401,0,1,'Stormcrest Eagle (Scripted)',8,0),
 (29838,29836,0,0,'Drakkari Battle Rider on Drakkari Rhino, not minion',6,30000),
 (29863,28518,0,1,'Persistence',8,0),
-(29931,29982,0,0,'Drakkari Rider on Drakkari Rhino',6,300),
-(29931,29982,1,0,'Drakkari Rider on Drakkari Rhino',6,300),
-(29931,29982,2,0,'Drakkari Rider on Drakkari Rhino',6,300),
+(29931,29982,0,0,'Drakkari Raider',7,0),
+(29931,29982,1,0,'Drakkari Raider',7,0),
+(29931,29982,2,0,'Drakkari Raider',7,0),
 (30013,29730,0,0,'Frostborn Stormrider',6,30000),
 (30134,30107,0,1,'Brann Bronzebeard',8,0),
 (30174,30175,0,1,'Hyldsmeet Bear Rider',8,0),
@@ -243,4 +244,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:51
+-- Dump completed on 2026-10-19  5:16:13

@@ -8644,7 +8644,7 @@ INSERT INTO `quest_request_items_locale` VALUES
 (4295,'deDE','Oh, Bier! Was würde ich nicht für etwas Dunkeleisenbier geben! Schnell, ich werde langsam nüchtern! Das weiß ich, weil mir die Nüchternheit die Sinne trübt... außerdem lässt es Euch wie jemand aussehen - $Gein:eine:r; $R übrigens -, den ich letzte Woche erschlagen habe!',18019),
 (4295,'esES','¡Oh, cerveza! ¡¡Mataría por algo de cerveza Hierro Negro!! ¡Rápido, que me estoy poniendo sobrio! Lo sé porque la sobriedad me nubla la vista... ¡y eso hace que te parezcas $gal:a la; $r que maté la semana pasada!',0),
 (4295,'esMX','¡Oh, cerveza! ¡¡Mataría por algo de cerveza Hierro Negro!! ¡Rápido, que me estoy poniendo sobrio! Lo sé porque la sobriedad me nubla la vista... ¡y eso hace que te parezcas $gal:a la; $r que maté la semana pasada!',0),
-(4295,'ruRU','Кружечка доброго эля Черного Железа была бы сейчас очень кстати! Быстрее, а то я уже начинаю трезветь! А когда я трезвею, у меня сразу мутится зрение... и все расплывается... и ты почему-то становишься очень $Gпохожим:похожей; на того |3-6($R),\n\n которого я грохнул на прошлой неделе.',0),
+(4295,'ruRU','Кружечка доброго эля Черного Железа была бы сейчас очень кстати! Быстрее, а то я уже начинаю трезветь! А когда я трезвею, у меня сразу мутится зрение... и все расплывается... и ты почему-то становишься очень $Gпохожим:похожей; на того |3-6($R),\n которого я грохнул на прошлой неделе.',0),
 (4295,'zhCN','哦，麦芽酒！为了黑铁啤酒，我甚至愿意去杀人！快点，我的酒劲正在消退！我的视线越来越模糊了……你看起来越来越像上个星期我干掉的那个$r了！',0),
 (4296,'deDE','Habt Ihr die Schriften der Sieben, $N? Kennt Ihr jetzt die Geheimnisse dieser Schrifttafel?',18019),
 (4296,'esES','¿Tienes los textos de los Siete, $n? ¿Has averiguado los secretos de su tablilla?',0),
@@ -22099,7 +22099,7 @@ INSERT INTO `quest_request_items_locale` VALUES
 (10749,'esES','$c, ¿has vuelto tan pronto? ¿Tienes el veneno?',0),
 (10749,'esMX','$c, ¿has vuelto tan pronto? ¿Tienes el veneno?',0),
 (10749,'frFR','$C, vous êtes déjà de retour ? Vous avez le poison  ?',18019),
-(10749,'ruRU','|3-6($C),\n\n ты так быстро $Gвернулся:вернулась;? Яд при тебе?',0),
+(10749,'ruRU','|3-6($C),\n ты так быстро $Gвернулся:вернулась;? Яд при тебе?',0),
 (10749,'zhCN','$C，你这么快就回来了喔？有拿到毒药吗？',0),
 (10750,'esES','¿Qué tienes que informar, soldado?',0),
 (10750,'esMX','¿Qué tienes que informar, soldado?',0),
@@ -22411,7 +22411,7 @@ INSERT INTO `quest_request_items_locale` VALUES
 (10825,'esES','$c, ¿sientes eso? Noto algo sobrenatural y maligno cerca.',0),
 (10825,'esMX','$c, ¿sientes eso? Noto algo sobrenatural y maligno cerca.',0),
 (10825,'frFR','$C, le sentez-vous aussi ? Je perçois quelque chose de contre-nature et maléfique tout près d\'ici.',18019),
-(10825,'ruRU','|3-6($C),\n\n ты тоже чувствуешь это? Что-то неестественное и злое совсем рядом!',0),
+(10825,'ruRU','|3-6($C),\n ты тоже чувствуешь это? Что-то неестественное и злое совсем рядом!',0),
 (10825,'zhCN','$C，你感觉到了吗？我感觉到附近有反常和邪恶的东西。',0),
 (10826,'deDE','Tragt Ihr irgendwelche Insignien des Feindes bei Euch, $N?',26972),
 (10826,'esES','¿Tienes alguna insignia de nuestros enemigos, $n?',0),
@@ -28379,7 +28379,7 @@ INSERT INTO `quest_request_items_locale` VALUES
 (13276,'zhCN','怎么了，$C？',0),
 (13277,'deDE','Hattet Ihr Erfolg gegen die Riesen, $R?',18019),
 (13277,'frFR','Comment cela se passe-t-il avec les géants, mort-vivant ?',18019),
-(13277,'ruRU','Ну что, |3-6($R),\n\n удалось ли тебе одолеть великанов?',0),
+(13277,'ruRU','Ну что, |3-6($R),\n удалось ли тебе одолеть великанов?',0),
 (13277,'zhCN','对抗巨人的进度顺利吗，$r？',0),
 (13278,'ruRU','Тебе удалось найти зомби, $C?',0),
 (13278,'zhCN','你找得到那僵尸吗，$C？',0),
@@ -28409,7 +28409,7 @@ INSERT INTO `quest_request_items_locale` VALUES
 (13292,'zhCN','什么事，朋友？',0),
 (13294,'deDE','Hattet Ihr Erfolg gegen die Riesen, $R?',18019),
 (13294,'frFR','Comment cela se passe-t-il avec les géants, $r ?',18019),
-(13294,'ruRU','Ну что, |3-6($R),\n\n удалось ли тебе одолеть великанов?',0),
+(13294,'ruRU','Ну что, |3-6($R),\n удалось ли тебе одолеть великанов?',0),
 (13294,'zhCN','对抗巨人的进度顺利吗，$r？',0),
 (13295,'deDE','Habt Ihr eine Ladung Seuche neutralisieren können, $C?',18019),
 (13295,'ruRU','Тебе удалось нейтрализовать чуму, $C?',0),
@@ -28466,7 +28466,7 @@ INSERT INTO `quest_request_items_locale` VALUES
 (13319,'zhCN','怎么了，$C？',0),
 (13320,'deDE','Was habt Ihr da, $R?',18019),
 (13320,'frFR','Qu\'est-ce que vous avez là, $r ?',18019),
-(13320,'ruRU','Ну-ка, |3-6($R),\n\n что тут у тебя?',0),
+(13320,'ruRU','Ну-ка, |3-6($R),\n что тут у тебя?',0),
 (13320,'zhCN','什么好事说来听听，$r？',0),
 (13321,'deDE','Nun, $C?$B$BHaben wir ein paar Kultisten weniger, um die wir uns sorgen müssen?',18019),
 (13321,'ruRU','Что ж, $C?$B$BУ нас меньше сектантов, о которых нужно беспокоиться?',0),
@@ -29676,7 +29676,7 @@ INSERT INTO `quest_request_items_locale` VALUES
 (24880,'zhCN','你手里拿着什么，凡人？',0),
 (24915,'zhCN','你拿的是什么，$c？$B$B它在呼唤我，唤起了我以为早已死去的感觉。',0),
 (24916,'zhCN','好，$c？我该怎么协助你？',0),
-(24917,'ruRU','Ну-ка, |3-6($R),\n\n что тут у тебя?',0),
+(24917,'ruRU','Ну-ка, |3-6($R),\n что тут у тебя?',0),
 (24917,'zhCN','你怎么去那儿呢，$R？',0),
 (24918,'zhCN','这是什么，$R？',0),
 (24919,'zhCN','我能帮你什么，$R？',0),
@@ -29733,4 +29733,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:32
+-- Dump completed on 2026-10-19  5:16:08

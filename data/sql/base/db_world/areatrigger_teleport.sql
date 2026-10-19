@@ -238,11 +238,11 @@ INSERT INTO `areatrigger_teleport` VALUES
 (4983,'The Nexus (entrance)',576,145.87,-10.554,-16.636,1.528),
 (4998,'Drak\'Tharon Keep (entrance)',600,-517.343,-487.976,11.01,4.831),
 (5000,'Drak\'Tharon Keep (exit)',571,4774.47,-2028.04,229.373,4.645),
-(5001,'The Oculus (exit)',571,3876.16,6984.44,106.32,6.279),
 (5010,'Ulduar, Halls of Stone (entrance)',599,1153.24,806.164,195.937,4.715),
 (5012,'Ulduar, Halls of Stone (exit)',571,8921.93,-970.399,1039.2,4.726),
 (5051,'Zul\'drak - Voltarus, base floor -> middle',571,6159.16,-2028.6,408.168,3.74088),
 (5061,'Zul\'drak - Voltarus, middle floor -> base',571,6175.6,-2008.78,245.255,1.49857),
+(5079,'Zul\'drak - Voltarus, middle floor -> top',571,6242.67,-1972.1,484.783,0.6),
 (5080,'Zul\'drak - Voltarus, upper floor -> middle',571,6159.16,-2028.6,408.168,3.74088),
 (5091,'Ulduar, Halls of Lightning (exit)',571,9182.91,-1384.73,1110.21,2.431),
 (5093,'Ulduar, Halls of Lightning (entrance)',602,1331.47,259.619,53.398,4.772),
@@ -295,6 +295,7 @@ INSERT INTO `areatrigger_teleport` VALUES
 (5329,'Arena - Dalaran Arena - Teleport Target',617,1291.57,792.965,8.11463,0),
 (5330,'Arena - Dalaran Arena - Teleport Target',617,1291.57,792.965,8.11463,0),
 (5331,'Arena - Dalaran Arena - Teleport Target',617,1291.57,792.965,8.11463,0),
+(5338,'Last Rites Top -> Down',571,3800,3585,49.64,1.1),
 (5379,'Ulduar Raid entrance',603,-914.041,-148.98,463.137,6.28),
 (5381,'Ulduar Raid exit',571,9345.56,-1114.88,1245.09,3.11),
 (5447,'Arena - Orgrimmar - Teleport Target 3',618,763.365,-284.29,28.2767,0),
@@ -325,4 +326,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:08:38
+-- Dump completed on 2026-10-19  5:15:56

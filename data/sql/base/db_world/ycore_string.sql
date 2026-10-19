@@ -14,13 +14,13 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `acore_string`
+-- Table structure for table `ycore_string`
 --
 
-DROP TABLE IF EXISTS `acore_string`;
+DROP TABLE IF EXISTS `ycore_string`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `acore_string` (
+CREATE TABLE `ycore_string` (
   `entry` int unsigned NOT NULL DEFAULT '0',
   `content_default` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `locale_koKR` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
@@ -36,12 +36,12 @@ CREATE TABLE `acore_string` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `acore_string`
+-- Dumping data for table `ycore_string`
 --
 
-LOCK TABLES `acore_string` WRITE;
-/*!40000 ALTER TABLE `acore_string` DISABLE KEYS */;
-INSERT INTO `acore_string` VALUES
+LOCK TABLES `ycore_string` WRITE;
+/*!40000 ALTER TABLE `ycore_string` DISABLE KEYS */;
+INSERT INTO `ycore_string` VALUES
 (1,'You should select a character or a creature.',NULL,NULL,'Ihr solltet einen Charakter oder eine Kreatur auswählen.','你必须选择一个目标或者生物。',NULL,'Debes seleccionar un personaje o una criatura.','Debes seleccionar un personaje o una criatura.',NULL),
 (2,'You should select a creature.',NULL,NULL,'Ihr solltet eine Kreatur auswählen.','你必须选择一个生物。',NULL,'Debes seleccionar una criatura.','Debes seleccionar una criatura.',NULL),
 (3,'[SERVER] {}',NULL,NULL,'[SERVER]: {}','[服务器] {}',NULL,'[SERVIDOR] {}','[SERVIDOR] {}',NULL),
@@ -216,6 +216,7 @@ INSERT INTO `acore_string` VALUES
 (176,'Invalid gameobject type, must be a destructible building.',NULL,NULL,NULL,'游戏对象类型无效，必须是一个可被破坏的建筑。',NULL,'Tipo de objeto de juego no inválido, debe ser un edificio destructible.','Tipo de objeto de juego no inválido, debe ser un edificio destructible.',NULL),
 (177,'Gameobject {} (GUID: {}) damaged {} (actual health: {}).',NULL,NULL,NULL,'游戏的对象 {} (GUID: {}) 损坏 {} (实际: {}).',NULL,'Objeto de juego {} (GUID: {}) dañado {} (salud real: {}).','Objeto de juego {} (GUID: {}) dañado {} (salud real: {}).',NULL),
 (178,'grid[{},{}]cell[{},{}] InstanceID: {}\n ZoneX: {} ZoneY: {}\nGroundZ: {} FloorZ: {} Have height data (Map: {} VMap: {} MMap: {})',NULL,NULL,NULL,NULL,NULL,'grid[{},{}]cell[{},{}] ID de la instancia: {}\n ZonaX: {} ZonaY: {}\nGroundZ: {} FloorZ: {} Tiene datos de altura (Map: {} VMap: {} MMap: {})','grid[{},{}]cell[{},{}] ID de la instancia: {}\n ZonaX: {} ZonaY: {}\nGroundZ: {} FloorZ: {} Tiene datos de altura (Map: {} VMap: {} MMap: {})',NULL),
+(179,'| AccountFlags:',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (186,'TransMapID: {} TransOffsetX: {} TransOffsetY: {} TransOffsetZ: {} TransOffsetO: {} (Transport ID: {} {})',NULL,NULL,NULL,NULL,NULL,'TransMapID: {} TransOffsetX: {} TransOffsetY: {} TransOffsetZ: {} TransOffsetO: {} (ID de transporte: {} {})','TransMapID: {} TransOffsetX: {} TransOffsetY: {} TransOffsetZ: {} TransOffsetO: {} (ID de transporte: {} {})',NULL),
 (187,'This name is profane, choose another one',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (188,'The provided two-factor authentication secret is too long.',NULL,NULL,NULL,NULL,NULL,'El secreto de autenticación de dos factores proporcionado es demasiado largo.','El secreto de autenticación de dos factores proporcionado es demasiado largo.',NULL),
@@ -284,7 +285,7 @@ INSERT INTO `acore_string` VALUES
 (251,'Text{} (ID: {}): {}',NULL,NULL,'Text {} (ID: {}): {}','文本{} (ID: {}): {}',NULL,'Texto {} (ID: {}): {}','Texto {} (ID: {}): {}',NULL),
 (252,'AIScript: {}',NULL,NULL,'AIScript: {}','AI脚本: {}',NULL,'AIScript: {}','AIScript: {}',NULL),
 (253,'Forced rename for player {} will be requested at next login.',NULL,NULL,'Spieler {} muss beim nächsten Login umbenannt werden.','强制修改玩家名 {}, 将于下次登录时生效.',NULL,'Se solicitará un cambio de nombre forzado para el jugador {} en el próximo inicio de sesión.','Se solicitará un cambio de nombre forzado para el jugador {} en el próximo inicio de sesión.',NULL),
-(254,'Forced rename for player {} (GUID #{}) will be requested at next login.',NULL,NULL,'Spieler {} (GUID #{}) muss beim nächsten Login umbenannt werden.','强制修改玩家名 {} (GUID #{}),\n\n 将于下次登录时生效.',NULL,'Se solicitará un cambio de nombre forzado para el jugador {} (GUID #{}) en el próximo inicio de sesión.','Se solicitará un cambio de nombre forzado para el jugador {} (GUID #{}) en el próximo inicio de sesión.',NULL),
+(254,'Forced rename for player {} (GUID #{}) will be requested at next login.',NULL,NULL,'Spieler {} (GUID #{}) muss beim nächsten Login umbenannt werden.','强制修改玩家名 {} (GUID #{}),\n 将于下次登录时生效.',NULL,'Se solicitará un cambio de nombre forzado para el jugador {} (GUID #{}) en el próximo inicio de sesión.','Se solicitará un cambio de nombre forzado para el jugador {} (GUID #{}) en el próximo inicio de sesión.',NULL),
 (255,'Waypoint-Creature (GUID: {}) Not found',NULL,NULL,'Wegpunkt-Kreatur (GUID: {}) Nicht gefunden','飞行点-生物 (GUID: {}) 没有找到.',NULL,'Criatura de la ruta (GUID: {}) no encontrada','Criatura de la ruta (GUID: {}) no encontrada',NULL),
 (256,'Could not find NPC...',NULL,NULL,'Konnte den NPC nicht finden...','不能查找NPC...',NULL,'No se ha podido encontrar el NPC...','No se ha podido encontrar el NPC...',NULL),
 (257,'Creature movement type set to \'{}\', waypoints removed (if any).',NULL,NULL,'Bewegungsart der Kreatur wurde auf \'{}\' gesetzt, Wegpunkte wurde entfernt (falls sie vorhanden waren).','生物运动方式设置为 \'{}\', 飞行点去除 (如果任何).',NULL,'El tipo de movimiento de la criatura se ha establecido en \'{}\', los waypoints se han eliminado (si los hay).','El tipo de movimiento de la criatura se ha establecido en \'{}\', los waypoints se han eliminado (si los hay).',NULL),
@@ -615,10 +616,10 @@ INSERT INTO `acore_string` VALUES
 (708,'{} is Away from Keyboard: {}',NULL,NULL,'{} ist abwesend von der Tastatur: {}','{} 不在机器旁: {}',NULL,NULL,NULL,NULL),
 (709,'Do not Disturb',NULL,NULL,'Bitte nicht stören.','请勿打扰',NULL,NULL,NULL,NULL),
 (710,'Away from Keyboard',NULL,NULL,'Abwesend von der Tastatur','不在机器旁',NULL,NULL,NULL,NULL),
-(711,'Queue status for {} (Lvl: {} to {})\nQueued alliances: {} (Need at least {} more)\nQueued hordes: {} (Need at least {} more)',NULL,NULL,'Warteschlangenstatus für {} (Lvl: {} to {})\n Warteschlange Allianz: {} (Brauchen noch mindestens {} mehr)\n Warteschlange Horde: {} (Brauchen noch mindestens {} mehr)','|cffff0000[战场公告]:|r {} -- [{}-{}] 联盟: 目前{}人 (需要: {}人),\n\n 部落: 目前{}人 (需要: {}人)|r',NULL,NULL,NULL,NULL),
-(712,'|cffff0000[BG Queue Announcer]:|r {} -- [{}-{}] [{}/{}]|r',NULL,NULL,'|cffff0000[BG Ansager für Warteschlange]:|r {} -- [{}-{}] A: {}/{}, H: {}/{}|r','|cffff0000[战场公告]:|r {} -- [{}-{}] 联盟: 目前{}人 (需要: {}人),\n\n 部落: 目前{}人 (需要: {}人)|r',NULL,NULL,NULL,NULL),
+(711,'Queue status for {} (Lvl: {} to {})\nQueued alliances: {} (Need at least {} more)\nQueued hordes: {} (Need at least {} more)',NULL,NULL,'Warteschlangenstatus für {} (Lvl: {} to {})\n Warteschlange Allianz: {} (Brauchen noch mindestens {} mehr)\n Warteschlange Horde: {} (Brauchen noch mindestens {} mehr)','|cffff0000[战场公告]:|r {} -- [{}-{}] 联盟: 目前{}人 (需要: {}人),\n 部落: 目前{}人 (需要: {}人)|r',NULL,NULL,NULL,NULL),
+(712,'|cffff0000[BG Queue Announcer]:|r {} -- [{}-{}] [{}/{}]|r',NULL,NULL,'|cffff0000[BG Ansager für Warteschlange]:|r {} -- [{}-{}] A: {}/{}, H: {}/{}|r','|cffff0000[战场公告]:|r {} -- [{}-{}] 联盟: 目前{}人 (需要: {}人),\n 部落: 目前{}人 (需要: {}人)|r',NULL,NULL,NULL,NULL),
 (713,'Queue status for {} (skirmish {}) (Lvl: {} to {})\nQueued: {} (Need at least {} more)',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
-(714,'Map: {}, Area: {}, Zone: {}, Phase: {}',NULL,NULL,'¦ Account: {} (ID: {}),\n\n GMLevel: {}','│ 帐号: {} (ID: {}),\n\n GM等级: {}',NULL,NULL,NULL,NULL),
+(714,'Map: {}, Area: {}, Zone: {}, Phase: {}',NULL,NULL,'¦ Account: {} (ID: {}),\n GMLevel: {}','│ 帐号: {} (ID: {}),\n GM等级: {}',NULL,NULL,NULL,NULL),
 (715,'You don\'t meet Battleground level requirements',NULL,NULL,'Ihr erfüllt die Vorraussetzungen für das Schlachtfeld nicht','不能达到进入战场的要求.',NULL,NULL,NULL,NULL),
 (716,'Map: {}, Area: {}',NULL,NULL,'¦ Letzter Login: {} (Falsche Logins: {})','│最後登录： ％s（登录失败： ％u ）',NULL,NULL,NULL,NULL),
 (717,'|cffff0000[BG Queue Announcer]:|r {} -- [{}-{}] Started!|r',NULL,NULL,'|cffff0000[BG Ansager für Warteschlange]:|r {} -- [{}-{}] beginnt!|r','|cffff0000[战场列队公告]:|r {} -- [{}-{}] 开始！|r',NULL,NULL,NULL,NULL),
@@ -835,10 +836,10 @@ INSERT INTO `acore_string` VALUES
 (1147,'{} is not in a group!',NULL,NULL,NULL,'{} 没有在一个队伍中！',NULL,NULL,NULL,NULL),
 (1148,'Group is full!',NULL,NULL,NULL,'队伍人数已经满了。',NULL,NULL,NULL,NULL),
 (1149,'Group type: {} and consists of {} players.',NULL,NULL,NULL,'队伍类型: 由{} 和 {} 的玩家组成。',NULL,NULL,NULL,NULL),
-(1150,'Name: {} ({}),\n\n Zone: {}, Phase: {}, GUID: {}, Flags: {}, Roles: {}',NULL,NULL,NULL,'名称: {} ({}),\n\n 空间: {}, 层面: {}, 唯一码: {}, 标识: {}, 角色: {}',NULL,NULL,NULL,NULL),
+(1150,'Name: {} ({}),\n Zone: {}, Phase: {}, GUID: {}, Flags: {}, Roles: {}',NULL,NULL,NULL,'名称: {} ({}),\n 空间: {}, 层面: {}, 唯一码: {}, 标识: {}, 角色: {}',NULL,NULL,NULL,NULL),
 (1151,'Mail List Info: # of mails: {}, Player: {}({})',NULL,NULL,NULL,'邮件信息: # 邮件: {}， 玩家: {}({})',NULL,NULL,NULL,NULL),
 (1152,'Mail Id: {} Title: \"{}\" Money: {}g{}s{}c',NULL,NULL,NULL,'邮箱ID: {} 标题: \"{}\" 金钱: {}g{}s{}c',NULL,NULL,NULL,NULL),
-(1153,'Sender: {}({}),\n\n Receiver: {}({})',NULL,NULL,NULL,'发件人: {}({})， 收件人: {}({})',NULL,NULL,NULL,NULL),
+(1153,'Sender: {}({}),\n Receiver: {}({})',NULL,NULL,NULL,'发件人: {}({})， 收件人: {}({})',NULL,NULL,NULL,NULL),
 (1154,'Time deliver: {}, Time expire: {}',NULL,NULL,NULL,'邮寄时间: {}， 到期时间: {}',NULL,NULL,NULL,NULL),
 (1155,'Item: {}[Entry:{} Guid:{} Count:{}]',NULL,NULL,NULL,'物品: {}[编号:{} Guid:{} 数量:{}]',NULL,NULL,NULL,NULL),
 (1156,'Mail List Info: No mail found for this character.',NULL,NULL,NULL,'邮件信息：目前没有这个角色的邮件。',NULL,NULL,NULL,NULL),
@@ -871,6 +872,7 @@ INSERT INTO `acore_string` VALUES
 (1183,'| Guild Information: {}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (1184,'| Guild Ranks:',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (1185,'| {} - {}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
+(1186,'Beastmaster mode is {}',NULL,NULL,'Der Beastmaster mode ist an ({})!','兽王模式：{}',NULL,NULL,NULL,NULL),
 (1200,'You try to view cinematic {} but it doesn\'t exist.',NULL,NULL,'Ihr versucht den Film {} anzusehen, dieser existiert jedoch nicht.','你尝试播放动画{}，这个动画不存在。',NULL,NULL,NULL,NULL),
 (1201,'You try to view movie {} but it doesn\'t exist.',NULL,NULL,'Ihr versucht den Film {} anzusehen, dieser existiert jedoch nicht.','你尝试播放电影{}，这个电影不存在。',NULL,NULL,NULL,NULL),
 (1202,'Areatrigger debugging turned on.',NULL,NULL,'Areatrigger debugging eingeschaltet.','区域触发调试：开启。',NULL,NULL,NULL,NULL),
@@ -1030,7 +1032,7 @@ INSERT INTO `acore_string` VALUES
 (6618,'GM Spectator is OFF',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (7523,'WORLD: Denying connections.',NULL,NULL,'Welt: Verweigere Verbindungen','世界：拒绝连接。',NULL,NULL,NULL,NULL),
 (7524,'WORLD: Accepting connections.',NULL,NULL,'Welt: Akzeptiere Verbindungen','世界：允许连接。',NULL,NULL,NULL,NULL),
-(9980,'Player name: {}, State: {}, Dungeons: {} ({}),\n\n Roles: {}, Comment: {}',NULL,NULL,NULL,'玩家名称: {}， 状态: {}， 地下城: {} ({})， 角色: {}， 备注: {}',NULL,NULL,NULL,NULL),
+(9980,'Player name: {}, State: {}, Dungeons: {} ({}),\n Roles: {}, Comment: {}',NULL,NULL,NULL,'玩家名称: {}， 状态: {}， 地下城: {} ({})， 角色: {}， 备注: {}',NULL,NULL,NULL,NULL),
 (9981,'LfgGroup?: {}, State: {}, Dungeon: {}',NULL,NULL,NULL,'组队: {}， 状态: {}， 地下城: {}',NULL,NULL,NULL,NULL),
 (9982,'Not in group',NULL,NULL,NULL,'不在队伍中。',NULL,NULL,NULL,NULL),
 (9983,'Queues cleared',NULL,NULL,NULL,'清理排列的队伍',NULL,NULL,NULL,NULL),
@@ -1194,13 +1196,13 @@ INSERT INTO `acore_string` VALUES
 (35401,'¦ GM Mode active, Phase: -1',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (35402,'├─ Banned: (Type: {}, Reason: {}, Time: {}, By: {})',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (35403,'├─ Muted: (Reason: {}, Time: {}, By: {})',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
-(35404,'¦ Account: {} (ID: {}),\n\n GMLevel: {}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
+(35404,'¦ Account: {} (ID: {}),\n GMLevel: {}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (35405,'¦ Last Login: {} (Failed Logins: {})',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (35406,'¦ Registration Email: {} - Email: {}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (35407,'No reason given.',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (35408,'<unauthorized>',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL),
 (35409,'¦ Map: {}, Zone: {}, Area: {}',NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
-/*!40000 ALTER TABLE `acore_string` ENABLE KEYS */;
+/*!40000 ALTER TABLE `ycore_string` ENABLE KEYS */;
 UNLOCK TABLES;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -1211,4 +1213,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:08:36
+-- Dump completed on 2026-10-19  5:16:13
