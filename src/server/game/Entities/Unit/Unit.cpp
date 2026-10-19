@@ -19202,6 +19202,17 @@ void Unit::SetPhaseMask(uint32 newPhaseMask, bool update)
         }
     }
 
+    if (Vehicle* vehicle = GetVehicleKit())
+    {
+        for (SeatMap::const_iterator itr = vehicle->Seats.begin(); itr != vehicle->Seats.end(); ++itr)
+        {
+            if (Unit* passenger = ObjectAccessor::GetUnit(*this, itr->second.Passenger.Guid))
+            {
+                passenger->SetPhaseMask(newPhaseMask, true);
+            }
+        }
+    }
+
     if (update)
     {
         UpdateObjectVisibility();
