@@ -119,7 +119,7 @@ class ObjectGuid
     public:
         static ObjectGuid const Empty;
 
-        typedef uint32 LowType;
+        typedef uint64 LowType;
 
         template<HighGuid type>
         static typename std::enable_if<ObjectGuidTraits<type>::Global, ObjectGuid>::type Create(LowType counter) { return Global(type, counter); }
@@ -129,8 +129,8 @@ class ObjectGuid
 
         ObjectGuid()  = default;
         explicit ObjectGuid(uint64 guid) : _guid(guid) { }
-        ObjectGuid(HighGuid hi, uint32 entry, LowType counter) : _guid(counter ? uint64(counter) | (uint64(entry) << 24) | (uint64(hi) << 48) : 0) { }
-        ObjectGuid(HighGuid hi, LowType counter) : _guid(counter ? uint64(counter) | (uint64(hi) << 48) : 0) { }
+        ObjectGuid(HighGuid hi, uint32 entry, LowType counter) : _guid(counter ? (uint64(counter) & UI64LIT(0x0000000000FFFFFF)) | (uint64(entry) << 24) | (uint64(hi) << 48) : 0) { }
+        ObjectGuid(HighGuid hi, LowType counter) : _guid(counter ? (uint64(counter) & UI64LIT(0x0000FFFFFFFFFFFF)) | (uint64(hi) << 48) : 0) { }
 
         PackedGuidReader ReadAsPacked() { return PackedGuidReader(*this); }
 
@@ -144,16 +144,20 @@ class ObjectGuid
         [[nodiscard]] uint32   GetEntry() const { return HasEntry() ? uint32((_guid >> 24) & UI64LIT(0x0000000000FFFFFF)) : 0; }
         [[nodiscard]] LowType  GetCounter()  const
         {
-            return HasEntry()
-                   ? LowType(_guid & UI64LIT(0x0000000000FFFFFF))
-                   : LowType(_guid & UI64LIT(0x00000000FFFFFFFF));
+            if (HasEntry())
+                return LowType(_guid & UI64LIT(0x0000000000FFFFFF));
+            if (IsItem())
+                return LowType(_guid & UI64LIT(0x0000FFFFFFFFFFFF));
+            return LowType(_guid & UI64LIT(0x00000000FFFFFFFF));
         }
 
         static LowType GetMaxCounter(HighGuid high)
         {
-            return HasEntry(high)
-                   ? LowType(0x00FFFFFF)
-                   : LowType(0xFFFFFFFF);
+            if (HasEntry(high))
+                return LowType(0x00FFFFFF);
+            if (high == HighGuid::Item)
+                return LowType(0x0000FFFFFFFFFFFF);
+            return LowType(0xFFFFFFFF);
         }
 
         [[nodiscard]] ObjectGuid::LowType GetMaxCounter() const { return GetMaxCounter(GetHigh()); }
@@ -240,8 +244,6 @@ class ObjectGuid
         static ObjectGuid MapSpecific(HighGuid type, uint32 entry, LowType counter);
 
         explicit ObjectGuid(uint32 const&) = delete;                // no implementation, used to catch wrong type assignment
-        ObjectGuid(HighGuid, uint32, uint64 counter) = delete;      // no implementation, used to catch wrong type assignment
-        ObjectGuid(HighGuid, uint64 counter) = delete;              // no implementation, used to catch wrong type assignment
 
         // used to catch wrong type assignment
         operator int64() const = delete;

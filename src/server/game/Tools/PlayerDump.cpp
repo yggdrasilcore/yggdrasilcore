@@ -614,7 +614,7 @@ void PlayerDumpWriter::PopulateGuids(ObjectGuid::LowType guid)
             switch (baseTable.StoredType)
             {
             case GUID_TYPE_ITEM:
-                if (ObjectGuid::LowType itemLowGuid = (*result)[0].Get<uint32>())
+                if (ObjectGuid::LowType itemLowGuid = (*result)[0].Get<uint64>())
                     _items.insert(itemLowGuid);
                 break;
             case GUID_TYPE_MAIL:

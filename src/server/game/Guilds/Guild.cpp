@@ -412,7 +412,7 @@ bool Guild::BankTab::LoadItemFromDB(Field* fields)
 {
     std::lock_guard<std::recursive_mutex> lock(*sGuildMgr->GetGuildLock());
     uint8 slotId = fields[13].Get<uint8>();
-    ObjectGuid::LowType itemGuid = fields[14].Get<uint32>();
+    ObjectGuid::LowType itemGuid = fields[14].Get<uint64>();
     uint32 itemEntry = fields[15].Get<uint32>();
     if (slotId >= GUILD_BANK_MAX_SLOTS)
     {
@@ -2227,7 +2227,7 @@ bool Guild::LoadBankItemFromDB(Field* fields)
     if (tabId >= _GetPurchasedTabsSize())
     {
         LOG_ERROR("guild", "Invalid tab for item (GUID: {}, id: #{}) in guild bank, skipped.",
-                       fields[14].Get<uint32>(), fields[15].Get<uint32>());
+                       fields[14].Get<uint64>(), fields[15].Get<uint32>());
         return false;
     }
     return m_bankTabs[tabId].LoadItemFromDB(fields);

@@ -174,7 +174,7 @@ struct Mail
     std::string subject;
     std::string body;
     std::vector<MailItemInfo> items;
-    std::vector<uint32> removedItems;
+    std::vector<ObjectGuid::LowType> removedItems;
     time_t expire_time;
     time_t deliver_time;
     uint32 money;
