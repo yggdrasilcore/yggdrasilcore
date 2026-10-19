@@ -16,6 +16,9 @@
  */
 
 #include "MapMgr.h"
+#include "AreaDefines.h"
+#include "Battlefield.h"
+#include "BattlefieldMgr.h"
 #include "Chat.h"
 #include "DatabaseEnv.h"
 #include "GridDefines.h"
@@ -158,6 +161,20 @@ Map::EnterState MapMgr::PlayerCannotEnter(uint32 mapid, Player* player, bool log
     //Bypass checks for GMs
     if (player->IsGameMaster())
         return Map::CAN_ENTER;
+
+    // The Vault of Archavon is only enterable while Wintergrasp is not in battle and is
+    // not about to start one. Veto here, before the transfer is started, so the player is
+    // denied in place instead of being ported to their homebind on the worldport ack.
+    // Mirrors instance_vault_of_archavon::IsEncounterInProgress.
+    if (entry->MapID == MAP_VAULT_OF_ARCHAVON)
+    {
+        Battlefield* battlefield = sBattlefieldMgr->GetBattlefieldByBattleId(BATTLEFIELD_BATTLEID_WG);
+        if (!battlefield || battlefield->IsWarTime() || battlefield->GetTimer() <= 10 * MINUTE * IN_MILLISECONDS)
+        {
+            player->SendTransferAborted(mapid, TRANSFER_ABORT_ZONE_IN_COMBAT);
+            return Map::CANNOT_ENTER_ZONE_IN_COMBAT;
+        }
+    }
 
     char const* mapName = entry->name[player->GetSession()->GetSessionDbcLocale()];
 
