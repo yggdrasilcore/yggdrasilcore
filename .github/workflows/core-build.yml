@@ -1,4 +1,4 @@
-name: ubuntu-build
+name: docker-build
 
 on:
   push:
@@ -11,17 +11,23 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: "core-build-${{ github.ref }}"
+  group: "docker-build-${{ github.ref }}"
   cancel-in-progress: true
 
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  COMPOSE_FILE: "docker-compose.yml:.github/ci/docker-compose.ci.yml"
+  # Project client data (dbc, maps, vmaps, mmaps, Cameras).
+  CLIENT_DATA_URL: "https://github.com/yggdrasilcore/client-data/releases/download/v1/Data.zip"
+  WORLD_STARTUP_TIMEOUT: 900
+  WORLD_UPTIME_SECONDS: 60
+
 jobs:
-  build:
+  docker-build:
     runs-on: ubuntu-24.04
-    name: ubuntu-24.04-g++
-    env:
-      CCACHE_DIR: ${{ github.workspace }}/var/ccache
-      CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime
-      CCACHE_CPP2: "true"
+    name: ubuntu-24.04-docker
+    timeout-minutes: 240
 
     steps:
     - name: Detect source changes
@@ -43,6 +49,14 @@ jobs:
           echo "No source changes; skipping build."
         fi
 
+    - name: Free disk space
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc "$AGENT_TOOLSDIRECTORY" || true
+        sudo apt-get clean
+        docker system prune -af || true
+        df -h
+
     - name: Checkout YggdrasilCore
       if: steps.changes.outputs.code == 'true'
       uses: actions/checkout@v4
@@ -50,43 +64,93 @@ jobs:
         submodules: 'recursive'
         fetch-depth: 1
 
-    - name: Set reusable strings
+    - name: Download client data
       if: steps.changes.outputs.code == 'true'
-      id: strings
-      shell: bash
       run: |
-        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+        set -euo pipefail
+        cd "$RUNNER_TEMP"
+        curl -fL "$CLIENT_DATA_URL" -o client-data.zip
+        mkdir -p client-data
+        unzip -q client-data.zip -d client-data
+        rm client-data.zip
+        ls -1 client-data
 
-    - name: Ccache
+    - name: Prepare runtime directories
       if: steps.changes.outputs.code == 'true'
-      uses: hendrikmuhs/ccache-action@v1
-      with:
-        key: yggdrasilcore-ubuntu-24.04-gcc-${{ github.ref_name }}
-        restore-keys: |
-          yggdrasilcore-ubuntu-24.04-gcc-
-        max-size: 1000M
+      run: |
+        mkdir -p env/dist/etc env/dist/logs
+        # The images run as uid/gid 1000 (see docker-compose build args).
+        sudo chown -R 1000:1000 env/dist
 
-    - name: Install Requirements
+    - name: Build Docker images
       if: steps.changes.outputs.code == 'true'
-      run: >
-        sudo apt-get update &&
-        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends
-        ccache ninja-build
-        libmysqlclient-dev libssl-dev libbz2-dev libreadline-dev libncurses-dev libboost-all-dev
+      run: |
+        docker compose build yggdrasilcore-db-import yggdrasilcore-authserver yggdrasilcore-worldserver
 
-    - name: Configure CMake
+    - name: Start database
       if: steps.changes.outputs.code == 'true'
-      run: >
-        cmake -G Ninja -B ${{ steps.strings.outputs.build-output-dir }}
-        -DCMAKE_CXX_COMPILER=g++
-        -DCMAKE_C_COMPILER=gcc
-        -DCMAKE_BUILD_TYPE=Release
-        -DCMAKE_C_FLAGS="-DMOD_SHADOWS"
-        -DCMAKE_CXX_FLAGS="-DMOD_SHADOWS"
-        -DCMAKE_C_COMPILER_LAUNCHER="ccache"
-        -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"
-        -S ${{ github.workspace }}
+      run: docker compose up -d yggdrasilcore-database
 
-    - name: Build
+    - name: Wait for database
       if: steps.changes.outputs.code == 'true'
-      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release --parallel $(nproc)
+      run: |
+        set -euo pipefail
+        timeout 180 bash -c '
+          until [ "$(docker inspect -f "{{.State.Health.Status}}" yggdrasilcore-database 2>/dev/null)" = "healthy" ]; do
+            sleep 2
+          done
+        '
+        docker inspect -f 'database health: {{.State.Health.Status}}' yggdrasilcore-database
+
+    - name: Import SQL
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        docker compose run --rm --no-deps yggdrasilcore-db-import
+
+    - name: Start auth and world servers
+      if: steps.changes.outputs.code == 'true'
+      env:
+        DOCKER_VOL_DATA: ${{ runner.temp }}/client-data
+      run: |
+        docker compose up -d --no-deps yggdrasilcore-authserver yggdrasilcore-worldserver
+
+    - name: Wait for world startup
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        set -euo pipefail
+        deadline=$((SECONDS + WORLD_STARTUP_TIMEOUT))
+        while (( SECONDS < deadline )); do
+          if docker compose logs --no-color yggdrasilcore-worldserver 2>/dev/null | grep -q "World Initialized"; then
+            echo "World initialization complete."
+            exit 0
+          fi
+          running=$(docker inspect -f '{{.State.Running}}' yggdrasilcore-worldserver 2>/dev/null || echo false)
+          if [ "$running" != "true" ]; then
+            echo "::error::worldserver stopped before completing startup"
+            exit 1
+          fi
+          sleep 5
+        done
+        echo "::error::worldserver did not complete startup within ${WORLD_STARTUP_TIMEOUT}s"
+        exit 1
+
+    - name: Verify servers stay up
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        set -euo pipefail
+        sleep "$WORLD_UPTIME_SECONDS"
+        for container in yggdrasilcore-authserver yggdrasilcore-worldserver; do
+          running=$(docker inspect -f '{{.State.Running}}' "$container")
+          restarts=$(docker inspect -f '{{.RestartCount}}' "$container")
+          echo "$container: running=$running restarts=$restarts"
+          [ "$running" = "true" ]
+          [ "$restarts" = "0" ]
+        done
+
+    - name: Dump logs
+      if: failure()
+      run: docker compose logs --no-color
+
+    - name: Tear down
+      if: always()
+      run: docker compose down -v --remove-orphans

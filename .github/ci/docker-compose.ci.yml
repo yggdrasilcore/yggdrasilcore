@@ -1,0 +1,24 @@
+# CI-only overlay: keep the build lean enough for a GitHub-hosted runner.
+# The default Dockerfile builds every tool in RelWithDebInfo with warnings on;
+# the smoke test only needs the servers and dbimport.
+services:
+  yggdrasilcore-db-import:
+    build:
+      args:
+        CTYPE: Release
+        CTOOLS_BUILD: db-only
+        CWITH_WARNINGS: "OFF"
+
+  yggdrasilcore-authserver:
+    build:
+      args:
+        CTYPE: Release
+        CTOOLS_BUILD: db-only
+        CWITH_WARNINGS: "OFF"
+
+  yggdrasilcore-worldserver:
+    build:
+      args:
+        CTYPE: Release
+        CTOOLS_BUILD: db-only
+        CWITH_WARNINGS: "OFF"
