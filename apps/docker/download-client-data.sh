@@ -4,7 +4,7 @@
 # server. Invoked by the `client-data` Docker target.
 
 # change the following version when needed
-VERSION=v17
+VERSION=v1
 
 echo "#######################"
 echo "Client data downloader"
