@@ -1629,52 +1629,64 @@
   }
  },
  "Creature::DoFleeToGetAssistance@22504dcb:qwen3-5-4b": {
-  "hash": "d6c78ad8ecbb",
-  "desc": "Checks if the creature has a victim and is not prevented from fleeing; if valid, calculates a flee assistance radius and initiates a search for the nearest assisting creature within that range.",
-  "raw": "{\"what\": \"Checks if the creature has a victim and is not prevented from fleeing; if valid, calculates a flee assistance radius and initiates a search for the nearest assisting creature within that range.\", \"effects\": \"none\"}",
+  "hash": "25f19ef43ca5",
+  "desc": "Checks if the creature has a victim and is not prevented from fleeing; if valid, calculates a configured radius and searches for the nearest assisting creature within that range.",
+  "raw": "{\"what\": \"Checks if the creature has a victim and is not prevented from fleeing; if valid, calculates a configured radius and searches for the nearest assisting creature within that range.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Creature",
    "name": "DoFleeToGetAssistance",
    "sig": "void DoFleeToGetAssistance()",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 273,
+   "line": 284,
    "access": "public",
-   "hash": "d6c78ad8ecbb",
-   "desc": "Checks if the creature has a victim and is not prevented from fleeing; if valid, calculates a flee assistance radius and initiates a search for the nearest assisting creature within that range.",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 1122
+   },
+   "hash": "25f19ef43ca5",
+   "desc": "Checks if the creature has a victim and is not prevented from fleeing; if valid, calculates a configured radius and searches for the nearest assisting creature within that range.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Creature::CallForHelp@6702cf95:qwen3-5-4b": {
-  "hash": "ac303e8a93e7",
-  "desc": "Initiates a 'Call for Help' effect targeting the specified unit (or the creature's victim if none is provided), subject to conditions such as positive radius and non-pet/non-charmed status. Side effects: Sets the m_alreadyCallForHelp flag to true to prevent recursive calls; triggers the Acore::CallOfHelpCreatureInRangeDo worker task.",
-  "raw": "{\"what\": \"Initiates a 'Call for Help' effect targeting the specified unit (or the creature's victim if none is provided), subject to conditions such as positive radius and non-pet/non-charmed status.\", \"effects\": \"Sets the m_alreadyCallForHelp flag to true to prevent recursive calls; triggers the Acore::CallOfHelpCreatureInRangeDo worker task.\"}",
+  "hash": "0382b46332c0",
+  "desc": "Initiates a call for help by broadcasting the request to nearby units within a specified radius, targeting a specific unit or the current victim if none is provided. Side effects: Sets the internal flag m_alreadyCallForHelp to true to prevent recursive calls; may trigger additional logic in worker threads.",
+  "raw": "{\"what\": \"Initiates a call for help by broadcasting the request to nearby units within a specified radius, targeting a specific unit or the current victim if none is provided.\", \"effects\": \"Sets the internal flag m_alreadyCallForHelp to true to prevent recursive calls; may trigger additional logic in worker threads.\"}",
   "entry": {
    "class": "Creature",
    "name": "CallForHelp",
    "sig": "void CallForHelp(float fRadius, Unit* target = nullptr)",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 274,
+   "line": 285,
    "access": "public",
-   "hash": "ac303e8a93e7",
-   "desc": "Initiates a 'Call for Help' effect targeting the specified unit (or the creature's victim if none is provided), subject to conditions such as positive radius and non-pet/non-charmed status. Side effects: Sets the m_alreadyCallForHelp flag to true to prevent recursive calls; triggers the Acore::CallOfHelpCreatureInRangeDo worker task.",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 2539
+   },
+   "hash": "0382b46332c0",
+   "desc": "Initiates a call for help by broadcasting the request to nearby units within a specified radius, targeting a specific unit or the current victim if none is provided. Side effects: Sets the internal flag m_alreadyCallForHelp to true to prevent recursive calls; may trigger additional logic in worker threads.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Creature::CallAssistance@80c070f1:qwen3-5-4b": {
-  "hash": "6283f811b3bc",
-  "desc": "Checks if a target unit is provided; if not, sets the target to the creature's current victim. If no target exists or the creature is already calling assistance, is a pet, or is charmed, it returns early. Otherwise, it prevents future assistance calls and begins searching for nearby creatures within a configured radius to assist. Side effects: Sets m_AlreadyCallAssistance flag, sets SetNoCallAssistance(true), and initiates a search for assisting creatures in range.",
-  "raw": "{\"what\": \"Checks if a target unit is provided; if not, sets the target to the creature's current victim. If no target exists or the creature is already calling assistance, is a pet, or is charmed, it returns early. Otherwise, it prevents future assistance calls and begins searching for nearby creatures within a configured radius to assist.\", \"effects\": \"Sets m_AlreadyCallAssistance flag, sets SetNoCallAssistance(true), and initiates a search for assisting creatures in range.\"}",
+  "hash": "4a96b4724d78",
+  "desc": "Initiates an assistance call for the creature by setting a flag to prevent repeated calls and searching for nearby creatures within a configured radius that can assist. Side effects: Sets the 'no call assistance' flag on the creature, potentially modifies the target if none was provided, and begins a search for assisting creatures in range.",
+  "raw": "{\"what\": \"Initiates an assistance call for the creature by setting a flag to prevent repeated calls and searching for nearby creatures within a configured radius that can assist.\", \"effects\": \"Sets the 'no call assistance' flag on the creature, potentially modifies the target if none was provided, and begins a search for assisting creatures in range.\"}",
   "entry": {
    "class": "Creature",
    "name": "CallAssistance",
    "sig": "void CallAssistance(Unit* target = nullptr)",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 275,
+   "line": 286,
    "access": "public",
-   "hash": "6283f811b3bc",
-   "desc": "Checks if a target unit is provided; if not, sets the target to the creature's current victim. If no target exists or the creature is already calling assistance, is a pet, or is charmed, it returns early. Otherwise, it prevents future assistance calls and begins searching for nearby creatures within a configured radius to assist. Side effects: Sets m_AlreadyCallAssistance flag, sets SetNoCallAssistance(true), and initiates a search for assisting creatures in range.",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 2503
+   },
+   "hash": "4a96b4724d78",
+   "desc": "Initiates an assistance call for the creature by setting a flag to prevent repeated calls and searching for nearby creatures within a configured radius that can assist. Side effects: Sets the 'no call assistance' flag on the creature, potentially modifies the target if none was provided, and begins a search for assisting creatures in range.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -2101,7 +2113,7 @@
   }
  },
  "Creature::SetPosition@5dd3bcc4:qwen3-5-4b": {
-  "hash": "5b323eaca157",
+  "hash": "1b7edd73e8a6",
   "desc": "Validates the provided coordinates and then relocates the creature to the specified position on the map. Side effects: The creature's position is updated if valid; otherwise, no changes occur.",
   "raw": "{\"what\": \"Validates the provided coordinates and then relocates the creature to the specified position on the map.\", \"effects\": \"The creature's position is updated if valid; otherwise, no changes occur.\"}",
   "entry": {
@@ -2109,16 +2121,20 @@
    "name": "SetPosition",
    "sig": "void SetPosition(float x, float y, float z, float o)",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 342,
+   "line": 353,
    "access": "public",
-   "hash": "5b323eaca157",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 3394
+   },
+   "hash": "1b7edd73e8a6",
    "desc": "Validates the provided coordinates and then relocates the creature to the specified position on the map. Side effects: The creature's position is updated if valid; otherwise, no changes occur.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Creature::SetPosition@d9ffc3ab:qwen3-5-4b": {
-  "hash": "734e84871f3f",
+  "hash": "9ef8829a754a",
   "desc": "Validates the provided coordinates and orientation against map boundaries, then relocates the creature to the new position if valid. Side effects: The creature's position is updated; no side effects beyond the relocation.",
   "raw": "{\"what\": \"Validates the provided coordinates and orientation against map boundaries, then relocates the creature to the new position if valid.\", \"effects\": \"The creature's position is updated; no side effects beyond the relocation.\"}",
   "entry": {
@@ -2126,9 +2142,13 @@
    "name": "SetPosition",
    "sig": "void SetPosition(const Position& pos)",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 343,
+   "line": 354,
    "access": "public",
-   "hash": "734e84871f3f",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 3394
+   },
+   "hash": "9ef8829a754a",
    "desc": "Validates the provided coordinates and orientation against map boundaries, then relocates the creature to the new position if valid. Side effects: The creature's position is updated; no side effects beyond the relocation.",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -3192,9 +3212,9 @@
   }
  },
  "CreatureTemplate::GetModelByIdx@2b1ecbe3:qwen3-5-4b": {
-  "hash": "c1ddbabd95da",
-  "desc": "Returns a pointer to the first valid CreatureModel in the list that matches the specified display ID, or nullptr if no match is found.",
-  "raw": "{\"what\": \"Returns a pointer to the first valid CreatureModel in the list that matches the specified display ID, or nullptr if no match is found.\", \"effects\": \"none\"}",
+  "hash": "d6d7243e2b3f",
+  "desc": "Returns a pointer to the creature model at the specified index, or nullptr if the index is out of bounds.",
+  "raw": "{\"what\": \"Returns a pointer to the creature model at the specified index, or nullptr if the index is out of bounds.\", \"effects\": \"none\"}",
   "entry": {
    "class": "CreatureTemplate",
    "name": "GetModelByIdx",
@@ -3202,16 +3222,20 @@
    "file": "src/server/game/Entities/Creature/CreatureData.h",
    "line": 249,
    "access": "public",
-   "hash": "c1ddbabd95da",
-   "desc": "Returns a pointer to the first valid CreatureModel in the list that matches the specified display ID, or nullptr if no match is found.",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 144
+   },
+   "hash": "d6d7243e2b3f",
+   "desc": "Returns a pointer to the creature model at the specified index, or nullptr if the index is out of bounds.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "CreatureTemplate::GetRandomValidModel@4869fe4a:qwen3-5-4b": {
-  "hash": "3d9e0752c2f8",
-  "desc": "Returns a pointer to a randomly selected valid CreatureModel from the Models list, using weighted selection based on each model's Probability field. If no models exist, returns nullptr. If only one model exists, it is returned directly without weighting.",
-  "raw": "{\"what\": \"Returns a pointer to a randomly selected valid CreatureModel from the Models list, using weighted selection based on each model's Probability field. If no models exist, returns nullptr. If only one model exists, it is returned directly without weighting.\", \"effects\": \"none\"}",
+  "hash": "ae3074264e30",
+  "desc": "Returns a pointer to a randomly selected valid creature model from the template's model list, using weighted selection based on each model's probability. If no models exist or only one exists, it returns nullptr or that single model respectively.",
+  "raw": "{\"what\": \"Returns a pointer to a randomly selected valid creature model from the template's model list, using weighted selection based on each model's probability. If no models exist or only one exists, it returns nullptr or that single model respectively.\", \"effects\": \"none\"}",
   "entry": {
    "class": "CreatureTemplate",
    "name": "GetRandomValidModel",
@@ -3219,8 +3243,12 @@
    "file": "src/server/game/Entities/Creature/CreatureData.h",
    "line": 250,
    "access": "public",
-   "hash": "3d9e0752c2f8",
-   "desc": "Returns a pointer to a randomly selected valid CreatureModel from the Models list, using weighted selection based on each model's Probability field. If no models exist, returns nullptr. If only one model exists, it is returned directly without weighting.",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 149
+   },
+   "hash": "ae3074264e30",
+   "desc": "Returns a pointer to a randomly selected valid creature model from the template's model list, using weighted selection based on each model's probability. If no models exist or only one exists, it returns nullptr or that single model respectively.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -4958,7 +4986,7 @@
   }
  },
  "GameObject::RemoveFromWorld@2b9699e1:qwen3-5-4b": {
-  "hash": "095883e3e3fa",
+  "hash": "aaeb390aeffd",
   "desc": "Removes the game object from the world by unlinking it from global stores, notifying scripts and owners, removing associated models, detaching from transport, and deleting any linked trap.",
   "raw": "{\"what\": \"Removes the game object from the world by unlinking it from global stores, notifying scripts and owners, removing associated models, detaching from transport, and deleting any linked trap.\", \"effects\": \"none\"}",
   "entry": {
@@ -4972,7 +5000,7 @@
     "file": "src/server/game/Entities/GameObject/GameObject.cpp",
     "line": 169
    },
-   "hash": "095883e3e3fa",
+   "hash": "aaeb390aeffd",
    "desc": "Removes the game object from the world by unlinking it from global stores, notifying scripts and owners, removing associated models, detaching from transport, and deleting any linked trap.",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -5932,9 +5960,9 @@
   }
  },
  "GameObject::LookupFishingHoleAround@4a0a9b06:qwen3-5-4b": {
-  "hash": "c2c7f0e60161",
-  "desc": "Returns the nearest fishing hole within a specified range from the current game object.",
-  "raw": "{\"what\": \"Returns the nearest fishing hole within a specified range from the current game object.\", \"effects\": \"none\"}",
+  "hash": "e55662d4487e",
+  "desc": "Returns a pointer to the nearest fishing hole within the specified range from the current GameObject.",
+  "raw": "{\"what\": \"Returns a pointer to the nearest fishing hole within the specified range from the current GameObject.\", \"effects\": \"none\"}",
   "entry": {
    "class": "GameObject",
    "name": "LookupFishingHoleAround",
@@ -5942,8 +5970,12 @@
    "file": "src/server/game/Entities/GameObject/GameObject.h",
    "line": 283,
    "access": "public",
-   "hash": "c2c7f0e60161",
-   "desc": "Returns the nearest fishing hole within a specified range from the current game object.",
+   "impl": {
+    "file": "src/server/game/Entities/GameObject/GameObject.cpp",
+    "line": 1392
+   },
+   "hash": "e55662d4487e",
+   "desc": "Returns a pointer to the nearest fishing hole within the specified range from the current GameObject.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -6086,7 +6118,7 @@
   }
  },
  "GameObject::SetPosition@5dd3bcc4:qwen3-5-4b": {
-  "hash": "48763b218347",
+  "hash": "77e4b4b58c79",
   "desc": "Validates the provided coordinates against map rules and relocates the GameObject to the new position if valid. Side effects: The GameObject's position is updated; a side effect of invalid coordinates is an early return with no change.",
   "raw": "{\n  \"what\": \"Validates the provided coordinates against map rules and relocates the GameObject to the new position if valid.\",\n  \"effects\": \"The GameObject's position is updated; a side effect of invalid coordinates is an early return with no change.\"\n}",
   "entry": {
@@ -6096,16 +6128,20 @@
    "file": "src/server/game/Entities/GameObject/GameObject.h",
    "line": 314,
    "access": "public",
-   "hash": "48763b218347",
+   "impl": {
+    "file": "src/server/game/Entities/GameObject/GameObject.cpp",
+    "line": 2862
+   },
+   "hash": "77e4b4b58c79",
    "desc": "Validates the provided coordinates against map rules and relocates the GameObject to the new position if valid. Side effects: The GameObject's position is updated; a side effect of invalid coordinates is an early return with no change.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "GameObject::SetPosition@d9ffc3ab:qwen3-5-4b": {
-  "hash": "88ce156c4c0b",
-  "desc": "Validates map coordinates and relocates the GameObject to the specified position if valid.",
-  "raw": "{\"what\": \"Validates map coordinates and relocates the GameObject to the specified position if valid.\", \"effects\": \"none\"}",
+  "hash": "d1236c390451",
+  "desc": "Validates the provided coordinates and, if valid, relocates the GameObject to the new position within the map. Side effects: The GameObject's position is updated; no side effects are explicitly mentioned other than the relocation.",
+  "raw": "{\"what\": \"Validates the provided coordinates and, if valid, relocates the GameObject to the new position within the map.\", \"effects\": \"The GameObject's position is updated; no side effects are explicitly mentioned other than the relocation.\"}",
   "entry": {
    "class": "GameObject",
    "name": "SetPosition",
@@ -6113,8 +6149,12 @@
    "file": "src/server/game/Entities/GameObject/GameObject.h",
    "line": 315,
    "access": "public",
-   "hash": "88ce156c4c0b",
-   "desc": "Validates map coordinates and relocates the GameObject to the specified position if valid.",
+   "impl": {
+    "file": "src/server/game/Entities/GameObject/GameObject.cpp",
+    "line": 2862
+   },
+   "hash": "d1236c390451",
+   "desc": "Validates the provided coordinates and, if valid, relocates the GameObject to the new position within the map. Side effects: The GameObject's position is updated; no side effects are explicitly mentioned other than the relocation.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -8852,9 +8892,9 @@
   }
  },
  "WorldObject::MovePosition@322408fd:qwen3-5-4b": {
-  "hash": "1f8cd8429985",
-  "desc": "Moves the object to a new position based on distance and angle relative to its current orientation, ensuring coordinates remain valid and adjusting vertical height to match the terrain or floor. Side effects: Modifies the position of the passed Position reference; logs a fatal error if invalid map coordinates are calculated.",
-  "raw": "{\"what\": \"Moves the object to a new position based on distance and angle relative to its current orientation, ensuring coordinates remain valid and adjusting vertical height to match the terrain or floor.\", \"effects\": \"Modifies the position of the passed Position reference; logs a fatal error if invalid map coordinates are calculated.\"}",
+  "hash": "b79d22a26530",
+  "desc": "Moves an entity to a new position by calculating the target coordinates based on distance and angle relative to its current orientation, validates the coordinates against map boundaries, determines the appropriate floor height at the destination, and performs a step-by-step relocation while preventing excessive vertical movement. Side effects: modifies the position of the passed Position object (pos)",
+  "raw": "{\"what\": \"Moves an entity to a new position by calculating the target coordinates based on distance and angle relative to its current orientation, validates the coordinates against map boundaries, determines the appropriate floor height at the destination, and performs a step-by-step relocation while preventing excessive vertical movement.\", \"effects\": \"modifies the position of the passed Position object (pos)\"}",
   "entry": {
    "class": "WorldObject",
    "name": "MovePosition",
@@ -8862,8 +8902,12 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 490,
    "access": "public",
-   "hash": "1f8cd8429985",
-   "desc": "Moves the object to a new position based on distance and angle relative to its current orientation, ensuring coordinates remain valid and adjusting vertical height to match the terrain or floor. Side effects: Modifies the position of the passed Position reference; logs a fatal error if invalid map coordinates are calculated.",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2796
+   },
+   "hash": "b79d22a26530",
+   "desc": "Moves an entity to a new position by calculating the target coordinates based on distance and angle relative to its current orientation, validates the coordinates against map boundaries, determines the appropriate floor height at the destination, and performs a step-by-step relocation while preventing excessive vertical movement. Side effects: modifies the position of the passed Position object (pos)",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -9398,9 +9442,9 @@
   }
  },
  "WorldObject::SendMessageToSetInRange@0824641b:qwen3-5-4b": {
-  "hash": "cca80fa796ef",
-  "desc": "Notifies all visible players within a specified distance that the WorldObject has sent a message.",
-  "raw": "{\"what\": \"Notifies all visible players within a specified distance that the WorldObject has sent a message.\", \"effects\": \"none\"}",
+  "hash": "868a3c9e1fdd",
+  "desc": "Notifies all visible players within a specified distance that the object has sent a message.",
+  "raw": "{\"what\": \"Notifies all visible players within a specified distance that the object has sent a message.\", \"effects\": \"none\"}",
   "entry": {
    "class": "WorldObject",
    "name": "SendMessageToSetInRange",
@@ -9408,8 +9452,12 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 562,
    "access": "public",
-   "hash": "cca80fa796ef",
-   "desc": "Notifies all visible players within a specified distance that the WorldObject has sent a message.",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2098
+   },
+   "hash": "868a3c9e1fdd",
+   "desc": "Notifies all visible players within a specified distance that the object has sent a message.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -9484,7 +9532,7 @@
   }
  },
  "WorldObject::PlayRadiusSound@54eea362:qwen3-5-4b": {
-  "hash": "49e1b3e97ae7",
+  "hash": "8b0c1c856aef",
   "desc": "Identifies and collects all players within a specified radius of the calling object into a vector.",
   "raw": "{\"what\": \"Identifies and collects all players within a specified radius of the calling object into a vector.\", \"effects\": \"none\"}",
   "entry": {
@@ -9494,7 +9542,11 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 569,
    "access": "public",
-   "hash": "49e1b3e97ae7",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2918
+   },
+   "hash": "8b0c1c856aef",
    "desc": "Identifies and collects all players within a specified radius of the calling object into a vector.",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -9518,7 +9570,7 @@
   }
  },
  "WorldObject::PlayRadiusMusic@888437a1:qwen3-5-4b": {
-  "hash": "ff67053faf07",
+  "hash": "eeabbffad978",
   "desc": "Identifies and collects all players within a specified radius of the calling object into a vector.",
   "raw": "{\"what\": \"Identifies and collects all players within a specified radius of the calling object into a vector.\", \"effects\": \"none\"}",
   "entry": {
@@ -9528,7 +9580,11 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 571,
    "access": "public",
-   "hash": "ff67053faf07",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2937
+   },
+   "hash": "eeabbffad978",
    "desc": "Identifies and collects all players within a specified radius of the calling object into a vector.",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -9825,7 +9881,7 @@
   }
  },
  "WorldObject::GetGameObjectListWithEntryInGrid@0ceeec8b:qwen3-5-4b": {
-  "hash": "483114f9f30d",
+  "hash": "44389c5ea049",
   "desc": "Retrieves a list of GameObjects that contain the specified entry within the given maximum search range from the current world object.",
   "raw": "{\"what\": \"Retrieves a list of GameObjects that contain the specified entry within the given maximum search range from the current world object.\", \"effects\": \"none\"}",
   "entry": {
@@ -9835,14 +9891,18 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 640,
    "access": "public",
-   "hash": "483114f9f30d",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2499
+   },
+   "hash": "44389c5ea049",
    "desc": "Retrieves a list of GameObjects that contain the specified entry within the given maximum search range from the current world object.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "WorldObject::GetGameObjectListWithEntryInGrid@66868b0d:qwen3-5-4b": {
-  "hash": "81ea989688bb",
+  "hash": "1825b909ca73",
   "desc": "Retrieves a list of game objects that contain the specified entry within the given search range",
   "raw": "{\"what\": \"Retrieves a list of game objects that contain the specified entry within the given search range\", \"effects\": \"none\"}",
   "entry": {
@@ -9852,14 +9912,18 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 641,
    "access": "public",
-   "hash": "81ea989688bb",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2499
+   },
+   "hash": "1825b909ca73",
    "desc": "Retrieves a list of game objects that contain the specified entry within the given search range",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "WorldObject::GetCreatureListWithEntryInGrid@8cd11bfa:qwen3-5-4b": {
-  "hash": "2814fe2cce5f",
+  "hash": "1fe6815a4216",
   "desc": "Retrieves a list of all creatures within the specified maximum search range that have the given entry ID.",
   "raw": "{\"what\": \"Retrieves a list of all creatures within the specified maximum search range that have the given entry ID.\", \"effects\": \"none\"}",
   "entry": {
@@ -9869,16 +9933,20 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 642,
    "access": "public",
-   "hash": "2814fe2cce5f",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2513
+   },
+   "hash": "1fe6815a4216",
    "desc": "Retrieves a list of all creatures within the specified maximum search range that have the given entry ID.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "WorldObject::GetCreatureListWithEntryInGrid@af56782f:qwen3-5-4b": {
-  "hash": "66992af97fe1",
-  "desc": "Retrieves a list of creatures within the specified maximum search range that have an entry matching one of the provided entries.",
-  "raw": "{\"what\": \"Retrieves a list of creatures within the specified maximum search range that have an entry matching one of the provided entries.\", \"effects\": \"None\"}",
+  "hash": "86b48a7b529c",
+  "desc": "Retrieves a list of all creatures within the specified maximum search range that have the given entry ID.",
+  "raw": "{\"what\": \"Retrieves a list of all creatures within the specified maximum search range that have the given entry ID.\", \"effects\": \"none\"}",
   "entry": {
    "class": "WorldObject",
    "name": "GetCreatureListWithEntryInGrid",
@@ -9886,14 +9954,18 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 643,
    "access": "public",
-   "hash": "66992af97fe1",
-   "desc": "Retrieves a list of creatures within the specified maximum search range that have an entry matching one of the provided entries.",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2513
+   },
+   "hash": "86b48a7b529c",
+   "desc": "Retrieves a list of all creatures within the specified maximum search range that have the given entry ID.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "WorldObject::GetDeadCreatureListInGrid@e4b8774a:qwen3-5-4b": {
-  "hash": "92987ebb00c1",
+  "hash": "af19d433874a",
   "desc": "Retrieves a list of dead creatures within a specified range from the current object's grid.",
   "raw": "{\"what\": \"Retrieves a list of dead creatures within a specified range from the current object's grid.\", \"effects\": \"none\"}",
   "entry": {
@@ -9903,16 +9975,20 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 644,
    "access": "public",
-   "hash": "92987ebb00c1",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2527
+   },
+   "hash": "af19d433874a",
    "desc": "Retrieves a list of dead creatures within a specified range from the current object's grid.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "WorldObject::UpdateObjectVisibility@75077408:qwen3-5-4b": {
-  "hash": "0e7106891deb",
-  "desc": "Updates the object's visibility status for nearby players by notifying observers of any changes.",
-  "raw": "{\"what\": \"Updates the object's visibility status for nearby players by notifying observers of any changes.\", \"effects\": \"none\"}",
+  "hash": "2eec8e367ab7",
+  "desc": "Updates the visibility of the current object for nearby players by notifying observers of any changes.",
+  "raw": "{\"what\": \"Updates the visibility of the current object for nearby players by notifying observers of any changes.\", \"effects\": \"none\"}",
   "entry": {
    "class": "WorldObject",
    "name": "UpdateObjectVisibility",
@@ -9920,8 +9996,12 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 646,
    "access": "public",
-   "hash": "0e7106891deb",
-   "desc": "Updates the object's visibility status for nearby players by notifying observers of any changes.",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 2966
+   },
+   "hash": "2eec8e367ab7",
+   "desc": "Updates the visibility of the current object for nearby players by notifying observers of any changes.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -9962,9 +10042,9 @@
   }
  },
  "WorldObject::GetCreaturesWithEntryInRange@1dd689ed:qwen3-5-4b": {
-  "hash": "531c42ec5c41",
-  "desc": "Finds all creatures within a specified radius of the current object that have a matching entry ID and populates the provided list with their pointers. Side effects: modifies the passed-in creatureList by adding matching creatures",
-  "raw": "{\"what\": \"Finds all creatures within a specified radius of the current object that have a matching entry ID and populates the provided list with their pointers.\", \"effects\": \"modifies the passed-in creatureList by adding matching creatures\"}",
+  "hash": "7a32f90349d2",
+  "desc": "Retrieves all creatures within a specified radius of the current object that have a matching entry ID.",
+  "raw": "{\"what\": \"Retrieves all creatures within a specified radius of the current object that have a matching entry ID.\", \"effects\": \"none\"}",
   "entry": {
    "class": "WorldObject",
    "name": "GetCreaturesWithEntryInRange",
@@ -9972,8 +10052,12 @@
    "file": "src/server/game/Entities/Object/Object.h",
    "line": 649,
    "access": "public",
-   "hash": "531c42ec5c41",
-   "desc": "Finds all creatures within a specified radius of the current object that have a matching entry ID and populates the provided list with their pointers. Side effects: modifies the passed-in creatureList by adding matching creatures",
+   "impl": {
+    "file": "src/server/game/Entities/Object/Object.cpp",
+    "line": 3014
+   },
+   "hash": "7a32f90349d2",
+   "desc": "Retrieves all creatures within a specified radius of the current object that have a matching entry ID.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -23701,9 +23785,9 @@
   }
  },
  "Player::SendMessageToSetInRange@0824641b:qwen3-5-4b": {
-  "hash": "a3295b18dea1",
-  "desc": "Sends a message to the player if it is the sender's own message, and then delivers the message to all visible players within a specified distance.",
-  "raw": "{\"what\": \"Sends a message to the player if it is the sender's own message, and then delivers the message to all visible players within a specified distance.\", \"effects\": \"none\"}",
+  "hash": "e73bf2a0718c",
+  "desc": "Sends a message to the player if it is from themselves, and then delivers the message to all visible players within a specified distance.",
+  "raw": "{\"what\": \"Sends a message to the player if it is from themselves, and then delivers the message to all visible players within a specified distance.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "SendMessageToSetInRange",
@@ -23713,10 +23797,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 5721
+    "line": 5727
    },
-   "hash": "a3295b18dea1",
-   "desc": "Sends a message to the player if it is the sender's own message, and then delivers the message to all visible players within a specified distance.",
+   "hash": "e73bf2a0718c",
+   "desc": "Sends a message to the player if it is from themselves, and then delivers the message to all visible players within a specified distance.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -24454,7 +24538,7 @@
   }
  },
  "Player::UpdateCombatSkills@e146fcdf:qwen3-5-4b": {
-  "hash": "07de0d8b8a44",
+  "hash": "ab13542273c2",
   "desc": "Calculates the probability of increasing a combat skill based on the player's level, the target's level (or gray level in defense mode), and the difference between the current skill value and the maximum possible skill for that level.",
   "raw": "{\"what\": \"Calculates the probability of increasing a combat skill based on the player's level, the target's level (or gray level in defense mode), and the difference between the current skill value and the maximum possible skill for that level.\", \"effects\": \"none\"}",
   "entry": {
@@ -24468,7 +24552,7 @@
     "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
     "line": 1050
    },
-   "hash": "07de0d8b8a44",
+   "hash": "ab13542273c2",
    "desc": "Calculates the probability of increasing a combat skill based on the player's level, the target's level (or gray level in defense mode), and the difference between the current skill value and the maximum possible skill for that level.",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -24799,7 +24883,7 @@
   }
  },
  "Player::isHonorOrXPTarget@8b4b122f:qwen3-5-4b": {
-  "hash": "234c08d87bc7",
+  "hash": "4aa0e3673abb",
   "desc": "Checks if the specified unit is a valid target for gaining honor or XP by verifying its level exceeds the player's gray level and excluding specific creature types like totems, critters, pets, or creatures with the NO_XP flag.",
   "raw": "{\n  \"what\": \"Checks if the specified unit is a valid target for gaining honor or XP by verifying its level exceeds the player's gray level and excluding specific creature types like totems, critters, pets, or creatures with the NO_XP flag.\",\n  \"effects\": \"none\"\n}",
   "entry": {
@@ -24811,9 +24895,9 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 12754
+    "line": 12776
    },
-   "hash": "234c08d87bc7",
+   "hash": "4aa0e3673abb",
    "desc": "Checks if the specified unit is a valid target for gaining honor or XP by verifying its level exceeds the player's gray level and excluding specific creature types like totems, critters, pets, or creatures with the NO_XP flag.",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -24937,7 +25021,7 @@
   }
  },
  "Player::CalculateReputationGain@811dadb4:qwen3-5-4b": {
-  "hash": "7932374fc5da",
+  "hash": "775c57b7d7de",
   "desc": "Calculates the reputation gain percentage based on the source of reputation, creature/quest level, and applicable modifiers like auras or faction-specific rates.",
   "raw": "{\"what\": \"Calculates the reputation gain percentage based on the source of reputation, creature/quest level, and applicable modifiers like auras or faction-specific rates.\", \"effects\": \"none\"}",
   "entry": {
@@ -24949,9 +25033,9 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 5916
+    "line": 5922
    },
-   "hash": "7932374fc5da",
+   "hash": "775c57b7d7de",
    "desc": "Calculates the reputation gain percentage based on the source of reputation, creature/quest level, and applicable modifiers like auras or faction-specific rates.",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -26812,9 +26896,9 @@
   }
  },
  "Player::UpdateVisibilityForPlayer@d451e01a:qwen3-5-4b": {
-  "hash": "bc10e3294110",
-  "desc": "Updates the visibility state for the player by setting the seer to itself if a map change occurred and the previous seer was different, then notifies all visible entities of the update. Side effects: Sets m_seer to this if mapChange is true and m_seer was not previously this; triggers visibility updates via Acore::VisibleNotifier.",
-  "raw": "{\"what\": \"Updates the visibility state for the player by setting the seer to itself if a map change occurred and the previous seer was different, then notifies all visible entities of the update.\", \"effects\": \"Sets m_seer to this if mapChange is true and m_seer was not previously this; triggers visibility updates via Acore::VisibleNotifier.\"}",
+  "hash": "198b58903bdc",
+  "desc": "Updates the visibility state for the player by setting the seer to themselves if a map change occurred and they were previously not the seer, then notifies observers of any visibility changes. Side effects: Sets m_seer to this if mapChange is true and m_seer was different; triggers Ycore::VisibleNotifier",
+  "raw": "{\"what\": \"Updates the visibility state for the player by setting the seer to themselves if a map change occurred and they were previously not the seer, then notifies observers of any visibility changes.\", \"effects\": \"Sets m_seer to this if mapChange is true and m_seer was different; triggers Ycore::VisibleNotifier\"}",
   "entry": {
    "class": "Player",
    "name": "UpdateVisibilityForPlayer",
@@ -26826,8 +26910,8 @@
     "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
     "line": 1644
    },
-   "hash": "bc10e3294110",
-   "desc": "Updates the visibility state for the player by setting the seer to itself if a map change occurred and the previous seer was different, then notifies all visible entities of the update. Side effects: Sets m_seer to this if mapChange is true and m_seer was not previously this; triggers visibility updates via Acore::VisibleNotifier.",
+   "hash": "198b58903bdc",
+   "desc": "Updates the visibility state for the player by setting the seer to themselves if a map change occurred and they were previously not the seer, then notifies observers of any visibility changes. Side effects: Sets m_seer to this if mapChange is true and m_seer was different; triggers Ycore::VisibleNotifier",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -27286,9 +27370,9 @@
   }
  },
  "Player::PrettyPrintRequirementsAchievementsList@84fb38bc:qwen3-5-4b": {
-  "hash": "0384c3c7db0d",
-  "desc": "Iterates through a list of missing progression requirements to display them in the game chat using formatted text with specific color codes and achievement links.",
-  "raw": "{\n  \"what\": \"Iterates through a list of missing progression requirements to display them in the game chat using formatted text with specific color codes and achievement links.\",\n  \"effects\": \"None\"\n}",
+  "hash": "292bfa177870",
+  "desc": "Iterates through a list of missing progression requirements to display their names and optional notes in the game chat using formatted chat messages.",
+  "raw": "{\n  \"what\": \"Iterates through a list of missing progression requirements to display their names and optional notes in the game chat using formatted chat messages.\",\n  \"effects\": \"None\"\n}",
   "entry": {
    "class": "Player",
    "name": "PrettyPrintRequirementsAchievementsList",
@@ -27298,10 +27382,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerStorage.cpp",
-    "line": 6675
+    "line": 6677
    },
-   "hash": "0384c3c7db0d",
-   "desc": "Iterates through a list of missing progression requirements to display them in the game chat using formatted text with specific color codes and achievement links.",
+   "hash": "292bfa177870",
+   "desc": "Iterates through a list of missing progression requirements to display their names and optional notes in the game chat using formatted chat messages.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -27328,9 +27412,9 @@
   }
  },
  "Player::Satisfy@91e6d1e4:qwen3-5-4b": {
-  "hash": "c52647bf10bc",
-  "desc": "Checks if the dungeon progression requirements are met by verifying map entry existence, level constraints (if not ignoring instance levels), and whether the map is disabled for the player. It also identifies the party leader to use for reporting. Side effects: Returns false if the map entry is missing, the player's level violates the min/max requirements (unless ignored), or the map is disabled; otherwise returns true. May send an area trigger message if the map is closed.",
-  "raw": "{\"what\": \"Checks if the dungeon progression requirements are met by verifying map entry existence, level constraints (if not ignoring instance levels), and whether the map is disabled for the player. It also identifies the party leader to use for reporting.\", \"effects\": \"Returns false if the map entry is missing, the player's level violates the min/max requirements (unless ignored), or the map is disabled; otherwise returns true. May send an area trigger message if the map is closed.\"}",
+  "hash": "39b86e888ad9",
+  "desc": "Checks if the player is the game master and returns false immediately if not. If the game master, it retrieves dungeon progression requirements for a specific map, validates level restrictions based on configuration, checks if the map is disabled for the player, and identifies the party leader. Side effects: May send an area trigger message indicating the instance is closed if the map is disabled; otherwise, returns false if the map entry is missing or level requirements are not met.",
+  "raw": "{\"what\": \"Checks if the player is the game master and returns false immediately if not. If the game master, it retrieves dungeon progression requirements for a specific map, validates level restrictions based on configuration, checks if the map is disabled for the player, and identifies the party leader.\", \"effects\": \"May send an area trigger message indicating the instance is closed if the map is disabled; otherwise, returns false if the map entry is missing or level requirements are not met.\"}",
   "entry": {
    "class": "Player",
    "name": "Satisfy",
@@ -27340,10 +27424,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerStorage.cpp",
-    "line": 6746
+    "line": 6748
    },
-   "hash": "c52647bf10bc",
-   "desc": "Checks if the dungeon progression requirements are met by verifying map entry existence, level constraints (if not ignoring instance levels), and whether the map is disabled for the player. It also identifies the party leader to use for reporting. Side effects: Returns false if the map entry is missing, the player's level violates the min/max requirements (unless ignored), or the map is disabled; otherwise returns true. May send an area trigger message if the map is closed.",
+   "hash": "39b86e888ad9",
+   "desc": "Checks if the player is the game master and returns false immediately if not. If the game master, it retrieves dungeon progression requirements for a specific map, validates level restrictions based on configuration, checks if the map is disabled for the player, and identifies the party leader. Side effects: May send an area trigger message indicating the instance is closed if the map is disabled; otherwise, returns false if the map entry is missing or level requirements are not met.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -29434,9 +29518,9 @@
   }
  },
  "PlayerTaxi::LoadTaxiMask@52803b0e:qwen3-5-4b": {
-  "hash": "08f29e6e704d",
-  "desc": "Parses a space-separated string of hexadecimal taxi mask values and updates the internal `m_taximask` array by applying bitwise AND with pre-defined node masks, returning false if any parsing error or mismatch occurs. Side effects: modifies m_taximask",
-  "raw": "{\"what\": \"Parses a space-separated string of hexadecimal taxi mask values and updates the internal `m_taximask` array by applying bitwise AND with pre-defined node masks, returning false if any parsing error or mismatch occurs.\", \"effects\": \"modifies m_taximask\"}",
+  "hash": "522651c25dfd",
+  "desc": "Parses a space-separated string of hexadecimal taxi mask values and updates the internal `m_taximask` array by bitwise AND-ing each input value with the corresponding pre-defined node mask (`sTaxiNodesMask`). It returns true only if all parsed inputs were valid hex numbers; otherwise, it sets a warning flag and returns false. Side effects: Modifies the member variable `m_taximask` for indices within the loop range. Sets the internal `warn` flag to true if any input is invalid or differs from the expected node mask.",
+  "raw": "{\"what\": \"Parses a space-separated string of hexadecimal taxi mask values and updates the internal `m_taximask` array by bitwise AND-ing each input value with the corresponding pre-defined node mask (`sTaxiNodesMask`). It returns true only if all parsed inputs were valid hex numbers; otherwise, it sets a warning flag and returns false.\", \"effects\": \"Modifies the member variable `m_taximask` for indices within the loop range. Sets the internal `warn` flag to true if any input is invalid or differs from the expected node mask.\"}",
   "entry": {
    "class": "PlayerTaxi",
    "name": "LoadTaxiMask",
@@ -29448,8 +29532,8 @@
     "file": "src/server/game/Entities/Player/PlayerTaxi.cpp",
     "line": 89
    },
-   "hash": "08f29e6e704d",
-   "desc": "Parses a space-separated string of hexadecimal taxi mask values and updates the internal `m_taximask` array by applying bitwise AND with pre-defined node masks, returning false if any parsing error or mismatch occurs. Side effects: modifies m_taximask",
+   "hash": "522651c25dfd",
+   "desc": "Parses a space-separated string of hexadecimal taxi mask values and updates the internal `m_taximask` array by bitwise AND-ing each input value with the corresponding pre-defined node mask (`sTaxiNodesMask`). It returns true only if all parsed inputs were valid hex numbers; otherwise, it sets a warning flag and returns false. Side effects: Modifies the member variable `m_taximask` for indices within the loop range. Sets the internal `warn` flag to true if any input is invalid or differs from the expected node mask.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -29476,9 +29560,9 @@
   }
  },
  "PlayerTaxi::LoadTaxiDestinationsFromString@c5aede3d:qwen3-5-4b": {
-  "hash": "727843d206a7",
-  "desc": "Parses a string containing a faction ID and a list of taxi destination IDs, storing the parsed values in member variables. Side effects: Clears existing taxi destinations; updates m_flightMasterFactionId if valid; adds new taxi destinations via AddTaxiDestination; returns false on invalid input or insufficient data.",
-  "raw": "{\"what\": \"Parses a string containing a faction ID and a list of taxi destination IDs, storing the parsed values in member variables.\", \"effects\": \"Clears existing taxi destinations; updates m_flightMasterFactionId if valid; adds new taxi destinations via AddTaxiDestination; returns false on invalid input or insufficient data.\"}",
+  "hash": "7e97edda6733",
+  "desc": "Parses a string containing a faction ID and a list of taxi destination IDs, storing the parsed values in member variables. Side effects: Clears existing taxi destinations; updates m_flightMasterFactionId and m_TaxiDestinations if parsing succeeds; returns false on invalid input or insufficient data.",
+  "raw": "{\"what\": \"Parses a string containing a faction ID and a list of taxi destination IDs, storing the parsed values in member variables.\", \"effects\": \"Clears existing taxi destinations; updates m_flightMasterFactionId and m_TaxiDestinations if parsing succeeds; returns false on invalid input or insufficient data.\"}",
   "entry": {
    "class": "PlayerTaxi",
    "name": "LoadTaxiDestinationsFromString",
@@ -29490,8 +29574,8 @@
     "file": "src/server/game/Entities/Player/PlayerTaxi.cpp",
     "line": 130
    },
-   "hash": "727843d206a7",
-   "desc": "Parses a string containing a faction ID and a list of taxi destination IDs, storing the parsed values in member variables. Side effects: Clears existing taxi destinations; updates m_flightMasterFactionId if valid; adds new taxi destinations via AddTaxiDestination; returns false on invalid input or insufficient data.",
+   "hash": "7e97edda6733",
+   "desc": "Parses a string containing a faction ID and a list of taxi destination IDs, storing the parsed values in member variables. Side effects: Clears existing taxi destinations; updates m_flightMasterFactionId and m_TaxiDestinations if parsing succeeds; returns false on invalid input or insufficient data.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30886,9 +30970,9 @@
   }
  },
  "StaticTransport::RelocateToProgress@8bef522e:qwen3-5-4b": {
-  "hash": "95126a2fe3c4",
-  "desc": "Calculates the current position and orientation of a transport entity by interpolating between animation nodes based on progress, applying path rotation, stationary offsets, and segment-specific rotation adjustments. Side effects: modifies local variables; no persistent side effects",
-  "raw": "{\"what\": \"Calculates the current position and orientation of a transport entity by interpolating between animation nodes based on progress, applying path rotation, stationary offsets, and segment-specific rotation adjustments.\", \"effects\": \"modifies local variables; no persistent side effects\"}",
+  "hash": "26e2a38e4c6d",
+  "desc": "Calculates the current position and orientation of a transport entity by interpolating between animation nodes based on progress, applying path rotation, stationary offset, and segment-specific rotation. Side effects: modifies local variables; no persistent side effects",
+  "raw": "{\"what\": \"Calculates the current position and orientation of a transport entity by interpolating between animation nodes based on progress, applying path rotation, stationary offset, and segment-specific rotation.\", \"effects\": \"modifies local variables; no persistent side effects\"}",
   "entry": {
    "class": "StaticTransport",
    "name": "RelocateToProgress",
@@ -30898,10 +30982,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 932
+    "line": 963
    },
-   "hash": "95126a2fe3c4",
-   "desc": "Calculates the current position and orientation of a transport entity by interpolating between animation nodes based on progress, applying path rotation, stationary offsets, and segment-specific rotation adjustments. Side effects: modifies local variables; no persistent side effects",
+   "hash": "26e2a38e4c6d",
+   "desc": "Calculates the current position and orientation of a transport entity by interpolating between animation nodes based on progress, applying path rotation, stationary offset, and segment-specific rotation. Side effects: modifies local variables; no persistent side effects",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30928,9 +31012,9 @@
   }
  },
  "StaticTransport::UpdatePassengerPositions@754d60bc:qwen3-5-4b": {
-  "hash": "e2aeee1bbca3",
-  "desc": "Updates the in-world positions of all passengers on a transport vehicle by retrieving their coordinates from the transport's movement info and relocating them to the map.",
-  "raw": "{\"what\": \"Updates the in-world positions of all passengers on a transport vehicle by retrieving their coordinates from the transport's movement info and relocating them to the map.\", \"effects\": \"none\"}",
+  "hash": "1003e8ecc285",
+  "desc": "Updates the in-world positions of all passengers belonging to static transport vehicles by retrieving their coordinates from the vehicle's movement info and relocating them on the game map.",
+  "raw": "{\"what\": \"Updates the in-world positions of all passengers belonging to static transport vehicles by retrieving their coordinates from the vehicle's movement info and relocating them on the game map.\", \"effects\": \"none\"}",
   "entry": {
    "class": "StaticTransport",
    "name": "UpdatePassengerPositions",
@@ -30942,8 +31026,8 @@
     "file": "src/server/game/Entities/Transport/Transport.cpp",
     "line": 1021
    },
-   "hash": "e2aeee1bbca3",
-   "desc": "Updates the in-world positions of all passengers on a transport vehicle by retrieving their coordinates from the transport's movement info and relocating them to the map.",
+   "hash": "1003e8ecc285",
+   "desc": "Updates the in-world positions of all passengers belonging to static transport vehicles by retrieving their coordinates from the vehicle's movement info and relocating them on the game map.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -31231,9 +31315,9 @@
   }
  },
  "CharmInfo::LoadPetActionBar@2adc547d:qwen3-5-4b": {
-  "hash": "3ada3797fc50",
-  "desc": "Parses a space-separated string containing pairs of action IDs and their corresponding active states (e.g., '1 2 3 4') to populate the pet's action bar. It validates that the input contains exactly the expected number of entries, converts strings to integers, and sets the action type for each slot. For spell-based actions, it verifies if the spell exists in the database and whether it is autocastable, adjusting the action state accordingly. Side effects: Modifies the internal PetActionBar data structure by setting action IDs and types for specific indices; may reset an action to PASSIVE or ACT_PASSIVE based on spell validity and autocast properties.",
-  "raw": "{\n  \"what\": \"Parses a space-separated string containing pairs of action IDs and their corresponding active states (e.g., '1 2 3 4') to populate the pet's action bar. It validates that the input contains exactly the expected number of entries, converts strings to integers, and sets the action type for each slot. For spell-based actions, it verifies if the spell exists in the database and whether it is autocastable, adjusting the action state accordingly.\",\n  \"effects\": \"Modifies the internal PetActionBar data structure by setting action IDs and types for specific indices; may reset an action to PASSIVE or ACT_PASSIVE based on spell validity and autocast properties.\"\n}",
+  "hash": "7d024e3ffea9",
+  "desc": "Parses a space-separated string containing pairs of action IDs and their types to populate the pet's action bar. It validates that the input contains exactly the expected number of entries, iterates through each pair, converts them to integers, and sets the corresponding action in the PetActionBar array. For spell-based actions, it verifies if the spell exists and is autocastable, resetting or adjusting the action state accordingly. Side effects: Modifies the internal PetActionBar state by setting action IDs and types for specific indices; may reset an action to PASSIVE if a required spell is missing or not autocastable.",
+  "raw": "{\n  \"what\": \"Parses a space-separated string containing pairs of action IDs and their types to populate the pet's action bar. It validates that the input contains exactly the expected number of entries, iterates through each pair, converts them to integers, and sets the corresponding action in the PetActionBar array. For spell-based actions, it verifies if the spell exists and is autocastable, resetting or adjusting the action state accordingly.\",\n  \"effects\": \"Modifies the internal PetActionBar state by setting action IDs and types for specific indices; may reset an action to PASSIVE if a required spell is missing or not autocastable.\"\n}",
   "entry": {
    "class": "CharmInfo",
    "name": "LoadPetActionBar",
@@ -31245,8 +31329,8 @@
     "file": "src/server/game/Entities/Unit/CharmInfo.cpp",
     "line": 249
    },
-   "hash": "3ada3797fc50",
-   "desc": "Parses a space-separated string containing pairs of action IDs and their corresponding active states (e.g., '1 2 3 4') to populate the pet's action bar. It validates that the input contains exactly the expected number of entries, converts strings to integers, and sets the action type for each slot. For spell-based actions, it verifies if the spell exists in the database and whether it is autocastable, adjusting the action state accordingly. Side effects: Modifies the internal PetActionBar data structure by setting action IDs and types for specific indices; may reset an action to PASSIVE or ACT_PASSIVE based on spell validity and autocast properties.",
+   "hash": "7d024e3ffea9",
+   "desc": "Parses a space-separated string containing pairs of action IDs and their types to populate the pet's action bar. It validates that the input contains exactly the expected number of entries, iterates through each pair, converts them to integers, and sets the corresponding action in the PetActionBar array. For spell-based actions, it verifies if the spell exists and is autocastable, resetting or adjusting the action state accordingly. Side effects: Modifies the internal PetActionBar state by setting action IDs and types for specific indices; may reset an action to PASSIVE if a required spell is missing or not autocastable.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -33292,9 +33376,9 @@
   }
  },
  "Unit::SelectNearbyTarget@f8d90e56:qwen3-5-4b": {
-  "hash": "ca00fb1b3ebb",
-  "desc": "Selects a list of nearby unfriendly units within a specified distance from the calling unit, excluding any unit passed in the exclude parameter.",
-  "raw": "{\"what\": \"Selects a list of nearby unfriendly units within a specified distance from the calling unit, excluding any unit passed in the exclude parameter.\", \"effects\": \"none\"}",
+  "hash": "7886a63aac88",
+  "desc": "Selects a nearby target unit within a specified distance, excluding the provided unit if necessary",
+  "raw": "{\"what\": \"Selects a nearby target unit within a specified distance, excluding the provided unit if necessary\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "SelectNearbyTarget",
@@ -33304,18 +33388,18 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 17020
+    "line": 17031
    },
-   "hash": "ca00fb1b3ebb",
-   "desc": "Selects a list of nearby unfriendly units within a specified distance from the calling unit, excluding any unit passed in the exclude parameter.",
+   "hash": "7886a63aac88",
+   "desc": "Selects a nearby target unit within a specified distance, excluding the provided unit if necessary",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Unit::SelectNearbyNoTotemTarget@43918beb:qwen3-5-4b": {
-  "hash": "fcaddff5bb5d",
-  "desc": "Selects a list of nearby enemy units that do not have totems, excluding the specified unit if provided.",
-  "raw": "{\"what\": \"Selects a list of nearby enemy units that do not have totems, excluding the specified unit if provided.\", \"effects\": \"none\"}",
+  "hash": "1fab7842e1f7",
+  "desc": "Selects a nearby unit target that is not friendly and does not have a totem, excluding the specified unit if provided.",
+  "raw": "{\"what\": \"Selects a nearby unit target that is not friendly and does not have a totem, excluding the specified unit if provided.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "SelectNearbyNoTotemTarget",
@@ -33325,10 +33409,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 17055
+    "line": 17066
    },
-   "hash": "fcaddff5bb5d",
-   "desc": "Selects a list of nearby enemy units that do not have totems, excluding the specified unit if provided.",
+   "hash": "1fab7842e1f7",
+   "desc": "Selects a nearby unit target that is not friendly and does not have a totem, excluding the specified unit if provided.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -34414,9 +34498,9 @@
   }
  },
  "Unit::SetContestedPvP@8107c047:qwen3-5-4b": {
-  "hash": "fcf56cbcd413",
-  "desc": "Sets the contested PvP flag on a player by retrieving their owner or charmer and verifying they are not in a battleground or already involved in a duel with the attacked player.",
-  "raw": "{\"what\": \"Sets the contested PvP flag on a player by retrieving their owner or charmer and verifying they are not in a battleground or already involved in a duel with the attacked player.\", \"effects\": \"none\"}",
+  "hash": "3d106bc267b2",
+  "desc": "Sets the contested PvP flag on a player by retrieving their character or owner and validating that they are not in a battleground or already involved in a duel with the attacked player.",
+  "raw": "{\"what\": \"Sets the contested PvP flag on a player by retrieving their character or owner and validating that they are not in a battleground or already involved in a duel with the attacked player.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "SetContestedPvP",
@@ -34426,10 +34510,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 17284
+    "line": 17295
    },
-   "hash": "fcf56cbcd413",
-   "desc": "Sets the contested PvP flag on a player by retrieving their owner or charmer and verifying they are not in a battleground or already involved in a duel with the attacked player.",
+   "hash": "3d106bc267b2",
+   "desc": "Sets the contested PvP flag on a player by retrieving their character or owner and validating that they are not in a battleground or already involved in a duel with the attacked player.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -40588,9 +40672,9 @@
   }
  },
  "Unit::Talk@be3c7ae6:qwen3-5-4b": {
-  "hash": "4ab4b8d6fcc0",
-  "desc": "Constructs a localized chat packet containing the provided text and message type for the specified target within the given range.",
-  "raw": "{\"what\": \"Constructs a localized chat packet containing the provided text and message type for the specified target within the given range.\", \"effects\": \"none\"}",
+  "hash": "e6241dc16a93",
+  "desc": "Constructs a localized chat packet containing the provided text and message type for the target unit, scoped to a specific distance range.",
+  "raw": "{\"what\": \"Constructs a localized chat packet containing the provided text and message type for the target unit, scoped to a specific distance range.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "Talk",
@@ -40600,10 +40684,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 21035
+    "line": 21067
    },
-   "hash": "4ab4b8d6fcc0",
-   "desc": "Constructs a localized chat packet containing the provided text and message type for the specified target within the given range.",
+   "hash": "e6241dc16a93",
+   "desc": "Constructs a localized chat packet containing the provided text and message type for the target unit, scoped to a specific distance range.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -40693,9 +40777,9 @@
   }
  },
  "Unit::Talk@0c25d923:qwen3-5-4b": {
-  "hash": "7be5299280b3",
-  "desc": "Constructs a localized chat packet containing the specified text and message type, then distributes it to players within the defined range targeting the given object.",
-  "raw": "{\"what\": \"Constructs a localized chat packet containing the specified text and message type, then distributes it to players within the defined range targeting the given object.\", \"effects\": \"none\"}",
+  "hash": "1afce002400b",
+  "desc": "Constructs a localized chat packet containing the specified text and message type, scoped to the target unit's language, and distributes it to players within the defined range.",
+  "raw": "{\"what\": \"Constructs a localized chat packet containing the specified text and message type, scoped to the target unit's language, and distributes it to players within the defined range.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "Talk",
@@ -40705,10 +40789,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 21035
+    "line": 21067
    },
-   "hash": "7be5299280b3",
-   "desc": "Constructs a localized chat packet containing the specified text and message type, then distributes it to players within the defined range targeting the given object.",
+   "hash": "1afce002400b",
+   "desc": "Constructs a localized chat packet containing the specified text and message type, scoped to the target unit's language, and distributes it to players within the defined range.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -41188,9 +41272,9 @@
   }
  },
  "Unit::UpdatePosition@136608fe:qwen3-5-4b": {
-  "hash": "5fc00dd97c06",
-  "desc": "Validates map coordinates and updates the unit's position or orientation, handling vehicle-specific interrupts and player/creature relocation logic. Side effects: Removes active auras if turning or relocating while in a vehicle; triggers server-side player or creature relocation; updates orientation and visibility for players with far sight.",
-  "raw": "{\n  \"what\": \"Validates map coordinates and updates the unit's position or orientation, handling vehicle-specific interrupts and player/creature relocation logic.\",\n  \"effects\": \"Removes active auras if turning or relocating while in a vehicle; triggers server-side player or creature relocation; updates orientation and visibility for players with far sight.\"\n}",
+  "hash": "5c27ab37e1d9",
+  "desc": "Validates map coordinates and updates the unit's position or orientation based on input parameters, handling teleportation logic, aura interruptions, player/creature relocation, and visibility updates. Side effects: Removes auras with specific interrupt flags if applicable, relocations the entity on the map (broadcasting to clients), updates internal orientation, and potentially modifies object visibility for players.",
+  "raw": "{\n  \"what\": \"Validates map coordinates and updates the unit's position or orientation based on input parameters, handling teleportation logic, aura interruptions, player/creature relocation, and visibility updates.\",\n  \"effects\": \"Removes auras with specific interrupt flags if applicable, relocations the entity on the map (broadcasting to clients), updates internal orientation, and potentially modifies object visibility for players.\"\n}",
   "entry": {
    "class": "Unit",
    "name": "UpdatePosition",
@@ -41200,18 +41284,18 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 19813
+    "line": 19844
    },
-   "hash": "5fc00dd97c06",
-   "desc": "Validates map coordinates and updates the unit's position or orientation, handling vehicle-specific interrupts and player/creature relocation logic. Side effects: Removes active auras if turning or relocating while in a vehicle; triggers server-side player or creature relocation; updates orientation and visibility for players with far sight.",
+   "hash": "5c27ab37e1d9",
+   "desc": "Validates map coordinates and updates the unit's position or orientation based on input parameters, handling teleportation logic, aura interruptions, player/creature relocation, and visibility updates. Side effects: Removes auras with specific interrupt flags if applicable, relocations the entity on the map (broadcasting to clients), updates internal orientation, and potentially modifies object visibility for players.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Unit::UpdatePosition@690ef82a:qwen3-5-4b": {
-  "hash": "360df783469e",
-  "desc": "Validates map coordinates and updates the unit's position or orientation based on input parameters; handles aura interruptions for turning or moving, manages player/creature relocation with the game map, and optionally updates object visibility for players using far sight. Side effects: Removes auras with specific interrupt flags if the unit has a vehicle, relocations the entity in the game map (broadcasting to clients), updates orientation, and may update object visibility.",
-  "raw": "{\n  \"what\": \"Validates map coordinates and updates the unit's position or orientation based on input parameters; handles aura interruptions for turning or moving, manages player/creature relocation with the game map, and optionally updates object visibility for players using far sight.\",\n  \"effects\": \"Removes auras with specific interrupt flags if the unit has a vehicle, relocations the entity in the game map (broadcasting to clients), updates orientation, and may update object visibility.\"\n}",
+  "hash": "5b4c80d3d2d9",
+  "desc": "Validates map coordinates and updates the unit's position or orientation based on input parameters, handling vehicle-specific interrupts and player/creature relocations. Side effects: Removes active auras if turning or relocating; triggers server-side relocation logic for players or creatures; updates orientation and visibility for non-relocated turns.",
+  "raw": "{\n  \"what\": \"Validates map coordinates and updates the unit's position or orientation based on input parameters, handling vehicle-specific interrupts and player/creature relocations.\",\n  \"effects\": \"Removes active auras if turning or relocating; triggers server-side relocation logic for players or creatures; updates orientation and visibility for non-relocated turns.\"\n}",
   "entry": {
    "class": "Unit",
    "name": "UpdatePosition",
@@ -41221,10 +41305,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 19813
+    "line": 19844
    },
-   "hash": "360df783469e",
-   "desc": "Validates map coordinates and updates the unit's position or orientation based on input parameters; handles aura interruptions for turning or moving, manages player/creature relocation with the game map, and optionally updates object visibility for players using far sight. Side effects: Removes auras with specific interrupt flags if the unit has a vehicle, relocations the entity in the game map (broadcasting to clients), updates orientation, and may update object visibility.",
+   "hash": "5b4c80d3d2d9",
+   "desc": "Validates map coordinates and updates the unit's position or orientation based on input parameters, handling vehicle-specific interrupts and player/creature relocations. Side effects: Removes active auras if turning or relocating; triggers server-side relocation logic for players or creatures; updates orientation and visibility for non-relocated turns.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -42001,9 +42085,9 @@
   }
  },
  "Unit::ExecuteDelayedUnitRelocationEvent@2c88fc0e:qwen3-5-4b": {
-  "hash": "02865c53efff",
-  "desc": "Removes the unit from visibility change notifications, checks if it is still in the world, and iterates through its shared vision list to notify players about the unit's relocation based on distance thresholds.",
-  "raw": "{\"what\": \"Removes the unit from visibility change notifications, checks if it is still in the world, and iterates through its shared vision list to notify players about the unit's relocation based on distance thresholds.\", \"effects\": \"none\"}",
+  "hash": "d80a67149906",
+  "desc": "Removes the unit from visibility change notifications, checks if it is still in the world, and iterates through all players sharing vision with this unit to notify them of the relocation event (skipping players on vehicles or not in the world).",
+  "raw": "{\"what\": \"Removes the unit from visibility change notifications, checks if it is still in the world, and iterates through all players sharing vision with this unit to notify them of the relocation event (skipping players on vehicles or not in the world).\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "ExecuteDelayedUnitRelocationEvent",
@@ -42013,18 +42097,18 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 20191
+    "line": 20222
    },
-   "hash": "02865c53efff",
-   "desc": "Removes the unit from visibility change notifications, checks if it is still in the world, and iterates through its shared vision list to notify players about the unit's relocation based on distance thresholds.",
+   "hash": "d80a67149906",
+   "desc": "Removes the unit from visibility change notifications, checks if it is still in the world, and iterates through all players sharing vision with this unit to notify them of the relocation event (skipping players on vehicles or not in the world).",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Unit::ExecuteDelayedUnitAINotifyEvent@56e2019f:qwen3-5-4b": {
-  "hash": "878a438e9787",
-  "desc": "Removes the unit from AI relocation notifications, checks if it is still in the world and not being removed, then initializes an AI Relocation Notifier with a 60-unit radius.",
-  "raw": "{\"what\": \"Removes the unit from AI relocation notifications, checks if it is still in the world and not being removed, then initializes an AI Relocation Notifier with a 60-unit radius.\", \"effects\": \"none\"}",
+  "hash": "0fe0c9118598",
+  "desc": "Removes the unit from AI relocation notifications, checks if it is still in the world and not being removed, then initializes an AIRelocationNotifier with a 60.0f radius.",
+  "raw": "{\"what\": \"Removes the unit from AI relocation notifications, checks if it is still in the world and not being removed, then initializes an AIRelocationNotifier with a 60.0f radius.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "ExecuteDelayedUnitAINotifyEvent",
@@ -42034,10 +42118,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 20292
+    "line": 20323
    },
-   "hash": "878a438e9787",
-   "desc": "Removes the unit from AI relocation notifications, checks if it is still in the world and not being removed, then initializes an AI Relocation Notifier with a 60-unit radius.",
+   "hash": "0fe0c9118598",
+   "desc": "Removes the unit from AI relocation notifications, checks if it is still in the world and not being removed, then initializes an AIRelocationNotifier with a 60.0f radius.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
