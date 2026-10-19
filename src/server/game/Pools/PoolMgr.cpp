@@ -235,14 +235,14 @@ void PoolGroup<GameObject>::Despawn1Object(ObjectGuid::LowType guid)
 
 // Same on one pool
 template<>
-void PoolGroup<Pool>::Despawn1Object(uint32 child_pool_id)
+void PoolGroup<Pool>::Despawn1Object(ObjectGuid::LowType child_pool_id)
 {
     sPoolMgr->DespawnPool(child_pool_id);
 }
 
 // Same on one quest
 template<>
-void PoolGroup<Quest>::Despawn1Object(uint32 quest_id)
+void PoolGroup<Quest>::Despawn1Object(ObjectGuid::LowType quest_id)
 {
     // Creatures
     QuestRelations* questMap = sObjectMgr->GetCreatureQuestRelationMap();
