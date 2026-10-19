@@ -87,11 +87,14 @@ WORKDIR /yggdrasilcore/build
 # attached. Cache mounts are excluded from the cache key and persist between
 # builds, so an unchanged revision reuses the compile layer instead of rebuilding.
 RUN --mount=type=bind,source=.git,target=/git-seed \
+    --mount=type=bind,source=var/docker/ccache,target=/ccache-seed \
     --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=locked \
+    --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=locked \
     find /yggdrasilcore/.git -mindepth 1 -delete 2>/dev/null || true; \
-    cp -a /git-seed/. /yggdrasilcore/.git/
+    cp -a /git-seed/. /yggdrasilcore/.git/; \
+    cp -an /ccache-seed/. /ccache/ 2>/dev/null || true
 
-RUN --mount=type=cache,target=/ccache,sharing=locked \
+RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=locked \
                                                                             
                                                                            
                                                                                 
@@ -116,6 +119,22 @@ RUN --mount=type=cache,target=/ccache,sharing=locked \
        -DLUA_VERSION="luajit"                          \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
+
+###################################
+# Compiler cache export (CI only) #
+###################################
+# Republishes the ccache cache mount into the stage filesystem so the workflow
+# can extract it with `--output type=local` and cache it between jobs. Never
+# part of a normal image build.
+FROM alpine:3.20 AS ccache-export
+
+ARG CACHEBUST=1
+
+RUN --mount=type=bind,source=var/docker/ccache,target=/ccache-seed \
+    --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=locked \
+    cp -an /ccache-seed/. /ccache/ 2>/dev/null || true; \
+    echo "$CACHEBUST"; \
+    rm -rf /out && mkdir -p /out && cp -a /ccache/. /out/
 
 #############################
 # Base runtime for services #
