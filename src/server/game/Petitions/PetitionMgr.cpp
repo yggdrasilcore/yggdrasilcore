@@ -57,7 +57,7 @@ void PetitionMgr::LoadPetitions()
     do
     {
         Field* fields = result->Fetch();
-        uint32 itemLow = fields[1].Get<uint32>();
+        ObjectGuid::LowType itemLow = fields[1].Get<uint64>();
         uint32 petitionId = fields[4].Get<uint32>();
         ObjectGuid itemGuid = ObjectGuid::Create<HighGuid::Item>(itemLow);
         ObjectGuid ownerGuid = ObjectGuid::Create<HighGuid::Player>(fields[0].Get<uint32>());

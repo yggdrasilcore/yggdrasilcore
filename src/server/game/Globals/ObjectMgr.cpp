@@ -6341,7 +6341,7 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
         do
         {
             Field* fields = items->Fetch();
-            item.item_guid = fields[0].Get<uint32>();
+            item.item_guid = fields[0].Get<uint64>();
             item.item_template = fields[1].Get<uint32>();
             uint32 mailId = fields[2].Get<uint32>();
             itemsCache[mailId].push_back(item);
@@ -7210,7 +7210,7 @@ void ObjectMgr::SetHighestGuids()
 
     result = CharacterDatabase.Query("SELECT MAX(guid) FROM item_instance");
     if (result)
-        GetGuidSequenceGenerator<HighGuid::Item>().Set((*result)[0].Get<uint32>() + 1);
+        GetGuidSequenceGenerator<HighGuid::Item>().Set((*result)[0].Get<uint64>() + 1);
 
     // Cleanup other tables from not existed guids ( >= _hiItemGuid)
     CharacterDatabase.Execute("DELETE FROM character_inventory WHERE item >= '{}'", GetGuidSequenceGenerator<HighGuid::Item>().GetNextAfterMaxUsed());     // One-time query

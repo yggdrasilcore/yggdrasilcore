@@ -335,7 +335,7 @@ void AuctionHouseMgr::LoadAuctionItems()
     {
         Field* fields = result->Fetch();
 
-        ObjectGuid::LowType item_guid = fields[11].Get<uint32>();
+        ObjectGuid::LowType item_guid = fields[11].Get<uint64>();
         uint32 item_template = fields[12].Get<uint32>();
 
         ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item_template);
@@ -595,7 +595,7 @@ bool AuctionEntry::LoadFromDB(Field* fields)
 {
     Id = fields[0].Get<uint32>();
     houseId = AuctionHouseId(fields[1].Get<uint8>());
-    item_guid = ObjectGuid::Create<HighGuid::Item>(fields[2].Get<uint32>());
+    item_guid = ObjectGuid::Create<HighGuid::Item>(fields[2].Get<uint64>());
     item_template = fields[3].Get<uint32>();
     itemCount = fields[4].Get<uint32>();
     owner = ObjectGuid::Create<HighGuid::Player>(fields[5].Get<uint32>());
