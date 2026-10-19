@@ -7286,7 +7286,7 @@ uint32 ObjectMgr::GenerateMailID()
     return _mailId++;
 }
 
-uint32 ObjectMgr::GenerateCreatureSpawnId()
+ObjectGuid::LowType ObjectMgr::GenerateCreatureSpawnId()
 {
     if (_creatureSpawnId >= uint32(0xFFFFFF))
     {
@@ -7296,7 +7296,7 @@ uint32 ObjectMgr::GenerateCreatureSpawnId()
     return _creatureSpawnId++;
 }
 
-uint32 ObjectMgr::GenerateGameObjectSpawnId()
+ObjectGuid::LowType ObjectMgr::GenerateGameObjectSpawnId()
 {
     if (_gameObjectSpawnId >= uint32(0xFFFFFF))
     {
