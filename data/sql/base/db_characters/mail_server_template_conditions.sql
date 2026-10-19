@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.4.3, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.46, for Linux (x86_64)
 --
--- Host: localhost    Database: acore_characters
+-- Host: localhost    Database: ycore_characters
 -- ------------------------------------------------------
--- Server version	8.4.3
+-- Server version	8.0.46-0ubuntu0.24.04.4
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS `mail_server_template_conditions`;
 CREATE TABLE `mail_server_template_conditions` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `templateID` int unsigned NOT NULL,
-  `conditionType` enum('Level','PlayTime','Quest','Achievement','Reputation','Faction','Race','Class') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `conditionType` enum('Level','PlayTime','Quest','Achievement','Reputation','Faction','Race','Class','AccountFlags') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `conditionValue` int unsigned NOT NULL,
   `conditionState` int unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
@@ -49,4 +49,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:10:14
+-- Dump completed on 2026-10-19 15:24:43
