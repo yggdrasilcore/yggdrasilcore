@@ -32,6 +32,8 @@ CREATE TABLE `active_arena_season` (
 
 LOCK TABLES `active_arena_season` WRITE;
 /*!40000 ALTER TABLE `active_arena_season` DISABLE KEYS */;
+INSERT INTO `active_arena_season` VALUES
+(8,1);
 /*!40000 ALTER TABLE `active_arena_season` ENABLE KEYS */;
 UNLOCK TABLES;
 
