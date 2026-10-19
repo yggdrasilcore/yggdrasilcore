@@ -4056,6 +4056,12 @@ public:
             if ((area && canFly && (area->flags & AREA_FLAG_NO_FLY_ZONE)) || (Bf && !Bf->CanFlyIn()))
                 canFly = false;
 
+            // These skill/location-scaling mounts resolve to their ground version in water,
+            // the same way they do in non-flying areas.
+            // https://wowpedia.fandom.com/wiki/The_Horseman%27s_Reins
+            if (target->IsInWater())
+                canFly = false;
+
             uint32 mount = 0;
             switch (target->GetBaseSkillValue(SKILL_RIDING))
             {
