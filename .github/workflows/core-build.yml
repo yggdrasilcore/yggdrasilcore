@@ -134,6 +134,98 @@ jobs:
         echo "::error::worldserver did not complete startup within ${WORLD_STARTUP_TIMEOUT}s"
         exit 1
 
+    - name: Create test account
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        set -euo pipefail
+
+        # The worldserver console is the container's stdin. Send the commands,
+        # then detach with Ctrl-P Ctrl-Q. Verification is done against the DB.
+        {
+          sleep 5
+          printf '.account create docker docker\n'
+          sleep 5
+          printf '.account set gmlevel docker 3 -1\n'
+          sleep 5
+          printf '\020\021'
+        } | timeout 45 docker attach yggdrasilcore-worldserver >/dev/null 2>&1 || true
+
+        for _ in $(seq 1 12); do
+          if docker compose exec -T yggdrasilcore-database sh -c \
+            'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -e "SELECT 1 FROM ycore_auth.account WHERE username = \"DOCKER\""' \
+            | grep -q 1; then
+            echo "test account ready"
+            exit 0
+          fi
+          sleep 5
+        done
+        echo "::error::test account was not created"
+        exit 1
+
+    - name: Create test character
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        set -euo pipefail
+        docker compose exec -T yggdrasilcore-database sh -c \
+          'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" ycore_characters' <<'SQL'
+        INSERT INTO characters
+          (guid, account, name, race, class, gender, level, xp, money,
+           position_x, position_y, position_z, map, zone, orientation,
+           taximask, exploredZones, equipmentCache, knownTitles,
+           health, power1, power2, power3, power4, power5, power6, power7,
+           innTriggerId)
+        SELECT 1, a.id, 'Docker', 1, 1, 0, 1, 0, 0,
+               -8949.95, -132.493, 83.5312, 0, 12, 0,
+               '', '', '', '',
+               100, 0, 0, 0, 0, 0, 0, 0,
+               0
+        FROM ycore_auth.account AS a
+        WHERE a.username = 'DOCKER';
+        SQL
+        docker compose exec -T yggdrasilcore-database sh -c \
+          'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -e "SELECT name FROM ycore_characters.characters WHERE name = \"Docker\""' \
+          | grep -qx Docker
+
+    - name: Headless character login
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        set -euo pipefail
+        git clone --depth 1 https://github.com/mostlynick3/WoW-Chat-Client.git "$RUNNER_TEMP/wow-chat-client"
+        cd "$RUNNER_TEMP/wow-chat-client"
+        python3 - <<'PY'
+        import sys
+        import time
+
+        sys.path.insert(0, ".")
+        from app.wow_client import WoWChatManager
+
+        client = WoWChatManager()
+        try:
+            result = client.fetch_realms("127.0.0.1", 3724, "docker", "docker")
+            assert result["ok"], result
+
+            result = client.fetch_characters(client.realms[0]["id"])
+            assert result["ok"], result
+
+            result = client.enter_world("Docker")
+            assert result["ok"], result
+            assert client.state == "online", client.state
+
+            for command in (
+                ".tele dalaran",
+                ".tele stormwind",
+                "I am chatting",
+                ".npc add temp 36853",
+            ):
+                result = client.send("say", command)
+                assert result["ok"], (command, result)
+                time.sleep(5)
+        finally:
+            client.disconnect()
+
+        print("headless login and GM commands OK")
+        PY
+
     - name: Verify servers stay up
       if: steps.changes.outputs.code == 'true'
       run: |
