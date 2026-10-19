@@ -42,7 +42,7 @@ jobs:
         elif [ "${{ github.event_name }}" = "push" ]; then
           files=$(gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' || true)
         fi
-        if [ -z "$files" ] || printf '%s\n' "$files" | grep -qiE '\.(c|cc|cpp|cxx|h|hh|hpp|sql)$|(^|/)CMakeLists\.txt$|\.cmake$'; then
+        if [ -z "$files" ] || printf '%s\n' "$files" | grep -qiE '\.(c|cc|cpp|cxx|h|hh|hpp|sql|sh)$|(^|/)CMakeLists\.txt$|\.cmake$|(^|/)Dockerfile$|(^|/)docker-compose[^/]*\.ya?ml$|^\.github/'; then
           echo "code=true" >> "$GITHUB_OUTPUT"
         else
           echo "code=false" >> "$GITHUB_OUTPUT"
@@ -148,9 +148,9 @@ jobs:
         done
 
     - name: Dump logs
-      if: failure()
+      if: failure() && steps.changes.outputs.code == 'true'
       run: docker compose logs --no-color
 
     - name: Tear down
-      if: always()
+      if: always() && steps.changes.outputs.code == 'true'
       run: docker compose down -v --remove-orphans
