@@ -115,7 +115,7 @@ public:
                     auto const creBounds = thisMap->GetCreatureBySpawnIdStore().equal_range(guid);
                     if (creBounds.first != creBounds.second)
                     {
-                        for (std::unordered_multimap<uint32, Creature*>::const_iterator itr = creBounds.first; itr != creBounds.second;)
+                        for (std::unordered_multimap<ObjectGuid::LowType, Creature*>::const_iterator itr = creBounds.first; itr != creBounds.second;)
                         {
                             if (handler->GetSession())
                                 handler->PSendSysMessage(LANG_CREATURE_LIST_CHAT, guid, cInfo->Entry, guid, cInfo->Name, x, y, z, mapId, itr->second->GetGUID().ToString(), itr->second->IsAlive() ? "*" : " ");
@@ -402,7 +402,7 @@ public:
                     auto const goBounds = thisMap->GetGameObjectBySpawnIdStore().equal_range(guid);
                     if (goBounds.first != goBounds.second)
                     {
-                        for (std::unordered_multimap<uint32, GameObject*>::const_iterator itr = goBounds.first; itr != goBounds.second;)
+                        for (std::unordered_multimap<ObjectGuid::LowType, GameObject*>::const_iterator itr = goBounds.first; itr != goBounds.second;)
                         {
                             if (handler->GetSession())
                                 handler->PSendSysMessage(LANG_GO_LIST_CHAT, guid, entry, guid, gInfo->name, x, y, z, mapId, itr->second->GetGUID().ToString(), itr->second->isSpawned() ? "*" : " ");

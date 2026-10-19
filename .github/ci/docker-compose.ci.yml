@@ -8,6 +8,8 @@ services:
         CTYPE: Release
         CTOOLS_BUILD: db-only
         CWITH_WARNINGS: "OFF"
+      cache_from:
+        - type=gha,scope=yggdrasilcore-build
 
   yggdrasilcore-authserver:
     build:
@@ -15,6 +17,8 @@ services:
         CTYPE: Release
         CTOOLS_BUILD: db-only
         CWITH_WARNINGS: "OFF"
+      cache_from:
+        - type=gha,scope=yggdrasilcore-build
 
   yggdrasilcore-worldserver:
     build:
@@ -22,3 +26,7 @@ services:
         CTYPE: Release
         CTOOLS_BUILD: db-only
         CWITH_WARNINGS: "OFF"
+      cache_from:
+        - type=gha,scope=yggdrasilcore-build
+      cache_to:
+        - type=gha,mode=max,scope=yggdrasilcore-build
