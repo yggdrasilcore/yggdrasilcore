@@ -6521,9 +6521,9 @@
   }
  },
  "Item::CreateItem@d3ce1733:qwen3-5-4b": {
-  "hash": "b7626eda13c4",
-  "desc": "Creates a new item instance based on the provided item ID and count, applying stack limits, generating unique identifiers (unless temporary), setting initial counts, and optionally assigning random properties. Side effects: Allocates memory for a new Item object, potentially modifies the count to respect stack limits, generates or uses an existing GUID, sets item properties including random properties if not cloning, and may delete the temporary object if creation fails.",
-  "raw": "{\"what\": \"Creates a new item instance based on the provided item ID and count, applying stack limits, generating unique identifiers (unless temporary), setting initial counts, and optionally assigning random properties.\", \"effects\": \"Allocates memory for a new Item object, potentially modifies the count to respect stack limits, generates or uses an existing GUID, sets item properties including random properties if not cloning, and may delete the temporary object if creation fails.\"}",
+  "hash": "4e8e433b08e2",
+  "desc": "Creates a new item instance based on the provided item ID and count, applying stack limits, assigning unique or temporary GUIDs, setting ownership to the specified player, and optionally applying random properties.",
+  "raw": "{\"what\": \"Creates a new item instance based on the provided item ID and count, applying stack limits, assigning unique or temporary GUIDs, setting ownership to the specified player, and optionally applying random properties.\", \"effects\": \"Allocates memory for a new Item object, potentially modifies the count to respect stack limits, assigns a GUID (either 0xFFFFFFFF if temp is true or a generated one), sets the item's owner to the provided player, applies random properties unless cloning, and may delete the temporary object if creation fails.\"}",
   "entry": {
    "class": "Item",
    "name": "CreateItem",
@@ -6531,8 +6531,12 @@
    "file": "src/server/game/Entities/Item/Item.h",
    "line": 222,
    "access": "public",
-   "hash": "b7626eda13c4",
-   "desc": "Creates a new item instance based on the provided item ID and count, applying stack limits, generating unique identifiers (unless temporary), setting initial counts, and optionally assigning random properties. Side effects: Allocates memory for a new Item object, potentially modifies the count to respect stack limits, generates or uses an existing GUID, sets item properties including random properties if not cloning, and may delete the temporary object if creation fails.",
+   "impl": {
+    "file": "src/server/game/Entities/Item/Item.cpp",
+    "line": 1087
+   },
+   "hash": "4e8e433b08e2",
+   "desc": "Creates a new item instance based on the provided item ID and count, applying stack limits, assigning unique or temporary GUIDs, setting ownership to the specified player, and optionally applying random properties.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43184,6 +43188,114 @@
    },
    "hash": "f573c55722e8",
    "desc": "Resumes the movement of a creature after an interaction has ended by releasing any frozen state, restoring its home position, and relaunching point motion generators if applicable. Side effects: Sets the internal interaction stop resume flag to invalid, updates the creature's home position, logs debug information regarding unfreezing status, and potentially relaunches motion slots for point-based movement.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "ObjectGuid::LowType@42d8f66a:qwen3-5-4b": {
+  "hash": "3c9a56704ccd",
+  "desc": "",
+  "raw": "",
+  "entry": {
+   "class": "ObjectGuid",
+   "name": "LowType",
+   "sig": "return LowType(_guid & UI64LIT(0x0000000000FFFFFF))",
+   "file": "src/server/game/Entities/Object/ObjectGuid.h",
+   "line": 148,
+   "access": "public",
+   "impl": null,
+   "hash": "3c9a56704ccd",
+   "desc": "",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "ObjectGuid::LowType@3a591580:qwen3-5-4b": {
+  "hash": "61d92d97faff",
+  "desc": "",
+  "raw": "",
+  "entry": {
+   "class": "ObjectGuid",
+   "name": "LowType",
+   "sig": "return LowType(_guid & UI64LIT(0x0000FFFFFFFFFFFF))",
+   "file": "src/server/game/Entities/Object/ObjectGuid.h",
+   "line": 150,
+   "access": "public",
+   "impl": null,
+   "hash": "61d92d97faff",
+   "desc": "",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "ObjectGuid::LowType@31ed35c6:qwen3-5-4b": {
+  "hash": "0eb4d59b0834",
+  "desc": "",
+  "raw": "",
+  "entry": {
+   "class": "ObjectGuid",
+   "name": "LowType",
+   "sig": "return LowType(_guid & UI64LIT(0x00000000FFFFFFFF))",
+   "file": "src/server/game/Entities/Object/ObjectGuid.h",
+   "line": 151,
+   "access": "public",
+   "impl": null,
+   "hash": "0eb4d59b0834",
+   "desc": "",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "ObjectGuid::LowType@fd1549df:qwen3-5-4b": {
+  "hash": "bec7bc582833",
+  "desc": "",
+  "raw": "",
+  "entry": {
+   "class": "ObjectGuid",
+   "name": "LowType",
+   "sig": "return LowType(0x00FFFFFF)",
+   "file": "src/server/game/Entities/Object/ObjectGuid.h",
+   "line": 157,
+   "access": "public",
+   "impl": null,
+   "hash": "bec7bc582833",
+   "desc": "",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "ObjectGuid::LowType@9dfbf572:qwen3-5-4b": {
+  "hash": "d94de7df14ab",
+  "desc": "",
+  "raw": "",
+  "entry": {
+   "class": "ObjectGuid",
+   "name": "LowType",
+   "sig": "return LowType(0x0000FFFFFFFFFFFF)",
+   "file": "src/server/game/Entities/Object/ObjectGuid.h",
+   "line": 159,
+   "access": "public",
+   "impl": null,
+   "hash": "d94de7df14ab",
+   "desc": "",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "ObjectGuid::LowType@e109e22b:qwen3-5-4b": {
+  "hash": "a20a2f5e14ef",
+  "desc": "",
+  "raw": "",
+  "entry": {
+   "class": "ObjectGuid",
+   "name": "LowType",
+   "sig": "return LowType(0xFFFFFFFF)",
+   "file": "src/server/game/Entities/Object/ObjectGuid.h",
+   "line": 160,
+   "access": "public",
+   "impl": null,
+   "hash": "a20a2f5e14ef",
+   "desc": "",
    "ai": true,
    "model": "qwen3.5:4b"
   }
