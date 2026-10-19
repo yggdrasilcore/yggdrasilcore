@@ -1,4 +1,4 @@
-# AzerothCore Run Engine Default Configuration
+# YggdrasilCore Run Engine Default Configuration
 # This file contains default values that can be overridden by environment variables
 # Priority order: conf.sh > environment variables > conf.sh.dist (this file)
 
@@ -16,7 +16,7 @@ export BINPATH="${RUN_ENGINE_BINPATH:-}"
 export SERVERBIN="${RUN_ENGINE_SERVERBIN:-}"
 
 # Path to server configuration file (including the file name)
-# ex: /home/user/azerothcore/etc/worldserver.conf
+# ex: /home/user/yggdrasilcore/etc/worldserver.conf
 export CONFIG="${RUN_ENGINE_CONFIG:-}"
 
 # Session manager to use: none|auto|tmux|screen

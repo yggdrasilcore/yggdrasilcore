@@ -1,5 +1,5 @@
 ################################################
-# AzerothCore World Server configuration file #
+# YggdrasilCore World Server configuration file #
 ################################################
 [worldserver]
 
@@ -112,13 +112,13 @@ BindIP = "0.0.0.0"
 #                                                                 section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database" - (use Unix sockets on
 #                                                                           Unix/Linux)
-#        Default:     "127.0.0.1;3306;acore;acore;acore_auth"       - (LoginDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_world"      - (WorldDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_characters" - (CharacterDatabaseInfo)
+#        Default:     "127.0.0.1;3306;ycore;ycore;ycore_auth"       - (LoginDatabaseInfo)
+#                     "127.0.0.1;3306;ycore;ycore;ycore_world"      - (WorldDatabaseInfo)
+#                     "127.0.0.1;3306;ycore;ycore;ycore_characters" - (CharacterDatabaseInfo)
 
-LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
+LoginDatabaseInfo     = "127.0.0.1;3306;ycore;ycore;ycore_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;ycore;ycore;ycore_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;ycore;ycore;ycore_characters"
 
 #
 #    LoginDatabase.WorkerThreads
@@ -176,7 +176,7 @@ Database.Reconnect.Attempts = 20
 #    DataDir
 #        Description: Data directory setting.
 #        Important:   DataDir needs to be quoted, as the string might contain space characters.
-#        Example:     "@prefix@\home\youruser\azerothcore\data"
+#        Example:     "@prefix@\home\youruser\yggdrasilcore\data"
 #        Default:     "."
 
 DataDir = "."
@@ -186,7 +186,7 @@ DataDir = "."
 #        Description: Logs directory setting.
 #        Important:   LogsDir needs to be quoted, as the string might contain space characters.
 #                     Logs directory must exists, or log file creation will be disabled.
-#        Example:     "/home/youruser/azerothcore/logs"
+#        Example:     "/home/youruser/yggdrasilcore/logs"
 #        Default:     "" - (Log files will be stored in the current path)
 
 LogsDir = ""
@@ -196,7 +196,7 @@ LogsDir = ""
 #        Description: Temp directory setting.
 #        Important:   TempDir needs to be quoted, as the string might contain space characters.
 #                     TempDir directory must exists, or the server can't work properly
-#        Example:     "/home/youruser/azerothcore/temp"
+#        Example:     "/home/youruser/yggdrasilcore/temp"
 #        Default:     "" - (Temp files will be stored in the current path)
 
 TempDir = ""
@@ -215,16 +215,16 @@ CMakeCommand = ""
 #    BuildDirectory
 #        Description: The path to your build directory.
 #                     If the path is left empty, the built-in CMAKE_BINARY_DIR is used.
-#        Example:     "../AzerothCore"
+#        Example:     "../YggdrasilCore"
 #        Default:     ""
 
 BuildDirectory = ""
 
 #
 #    SourceDirectory
-#        Description: The path to your AzerothCore source directory.
+#        Description: The path to your YggdrasilCore source directory.
 #                     If the path is left empty, the built-in CMAKE_SOURCE_DIR is used.
-#        Example:     "../azerothcore-wotlk"
+#        Example:     "../YggdrasilCore"
 #        Default:     ""
 
 SourceDirectory = ""
@@ -571,8 +571,8 @@ MinRecordUpdateTimeDiff = 100
 #
 #    IPLocationFile
 #        Description: The path to your IP2Location database CSV file.
-#        Example:     "C:/acore/IP2LOCATION-LITE-DB1.CSV"
-#                     "/home/acore/IP2LOCATION-LITE-DB1.CSV"
+#        Example:     "C:/ycore/IP2LOCATION-LITE-DB1.CSV"
+#                     "/home/ycore/IP2LOCATION-LITE-DB1.CSV"
 #        Default:     ""  - (Disabled)
 #
 
@@ -3299,8 +3299,8 @@ DungeonAccessRequirements.PortalAvgIlevelCheck = 0
 #
 #    DungeonAccessRequirements.OptionalStringID
 #
-#        Description: Display an extra message from acore_strings in the chat after printing the dungeon access requirements.
-#                     To enable it set the ID of your desired string from the table acore_strings
+#        Description: Display an extra message from ycore_strings in the chat after printing the dungeon access requirements.
+#                     To enable it set the ID of your desired string from the table ycore_strings
 #        Default:     0 - (Disabled)
 #                     1+ - (Enabled)
 

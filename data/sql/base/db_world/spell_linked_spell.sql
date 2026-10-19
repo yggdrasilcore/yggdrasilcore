@@ -93,6 +93,7 @@ INSERT INTO `spell_linked_spell` VALUES
 (-52010,-51966,0,'Remove Scourge Disguise [51966]'),
 (-51966,-51971,0,'Remove Scourge Disguise Instability [51971]'),
 (-51221,44280,0,'On spellfade Taxi to Explorers\' League Outpost - Spellcast Taxi to Explorers\' League'),
+(-50845,-50844,0,'Tenris Mirkblood Blood Mirror'),
 (-50493,-50314,0,'Disco Ball(Listening to Music)'),
 (-50314,-50493,0,'Disco Ball'),
 (-50098,50099,0,'The Beast Within - trigger Unleash the Beast!'),
@@ -274,6 +275,7 @@ INSERT INTO `spell_linked_spell` VALUES
 (26325,44429,0,'Green Firework Cluster - questcredit'),
 (26327,44429,0,'Red Firework Cluster - questcredit'),
 (26393,26394,1,'Elune\'s Blessing'),
+(26470,37090,2,'Bubble Proc'),
 (27272,54501,2,'Consume Shadows - Rank 7'),
 (27799,27803,0,'Holy Nova (rank4)'),
 (27800,27804,0,'Holy Nova (rank5)'),
@@ -479,6 +481,7 @@ INSERT INTO `spell_linked_spell` VALUES
 (52192,-51966,0,'Remove Scourge Disguise [51966]'),
 (52192,51971,0,'Add Scourge Disguise Instability [51971]'),
 (52214,51407,2,'Looking for treasure aura triggered by Rainspeaker Treasures: See Invisibility'),
+(52239,52240,1,'Teleport'),
 (52279,45254,1,'On spellhit Tua-Tua on Burn - Spellcast Suicide'),
 (52303,45254,1,'On spellhit Hawinni on Frozen - Spellcast Suicide'),
 (52322,52325,1,'Explode Scourgewagon'),
@@ -534,6 +537,7 @@ INSERT INTO `spell_linked_spell` VALUES
 (57620,-57935,0,'Twilight Shift aura removes Twilight Torment'),
 (57635,57636,0,'Disengage'),
 (57787,-57745,1,'Remove See Quest Invisibility 1 When hit by quest chain end spell'),
+(57835,29230,2,'Shadron Immunity - Gift of Twilight apply Immune All'),
 (57852,57931,1,'link fire on hit'),
 (57889,57885,0,'On spellcast Using the Eye of the Lich King cast Through the Eye: Summon Image of a Shadow Cultist'),
 (57889,57891,0,'On spellcast Using the Eye of the Lich King cast Through the Eye: Summon Image of Vardmadra'),
@@ -610,8 +614,6 @@ INSERT INTO `spell_linked_spell` VALUES
 (68530,-68529,0,'Cologne Immune - Perfume remove'),
 (68645,68721,1,'Rocket Pack - additional aura'),
 (69172,69173,0,'Overlord\'s Brand'),
-(69378,72586,1,'Drums of the Forgotten Kings'),
-(69381,72588,1,'Drums of the Wild'),
 (70192,-71507,1,'Remove Heavily Perfumed on Fragrant Air Analysis hit'),
 (70192,71508,1,'Add Recently Analyzed on Fragrant Air Analysis hit'),
 (70227,70232,1,'Empowered Blood Second Aura'),
@@ -646,7 +648,8 @@ INSERT INTO `spell_linked_spell` VALUES
 (71847,71874,0,'Toxic Wasteling Devour'),
 (73077,69188,2,'Rocket Pack - linked aura'),
 (73313,50772,0,'Crimson Deathcharger - Summon Unholy Mount Visual'),
-(74890,75055,0,'Instant Statue');
+(74890,75055,0,'Instant Statue'),
+(200000,46699,2,'No ammo');
 /*!40000 ALTER TABLE `spell_linked_spell` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -658,4 +661,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:41
+-- Dump completed on 2026-10-19  5:16:11

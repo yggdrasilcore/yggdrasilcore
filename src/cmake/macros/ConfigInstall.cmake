@@ -1,5 +1,5 @@
 #
-# This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+# This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
 #
 # This file is free software; as a special exception the author gives
 # unlimited permission to copy and/or distribute it, with or without
@@ -73,7 +73,7 @@ endfunction()
 
 #
 # Use it like:
-# CopyModuleConfig("acore.conf.dist")
+# CopyModuleConfig("ycore.conf.dist")
 #
 
 function(CopyModuleConfig configDir)

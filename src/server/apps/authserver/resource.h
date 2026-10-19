@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by AzerothCore.rc
+// Used by YggdrasilCore.rc
 //
 
 // Next default values for new objects

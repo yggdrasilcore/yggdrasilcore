@@ -1,5 +1,5 @@
 /*
- * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License as published by the
@@ -36,7 +36,7 @@
 #include <sstream>
 #include <vector>
 
-#ifdef ACORE_DEBUG
+#ifdef YCORE_DEBUG
 #include <boost/stacktrace.hpp>
 #include <sstream>
 #endif
@@ -66,9 +66,9 @@ DatabaseWorkerPool<T>::DatabaseWorkerPool() :
     bool isSupportClientDB = mysql_get_client_version() >= MIN_MYSQL_CLIENT_VERSION;
     bool isSameClientDB = mysql_get_client_version() == MYSQL_VERSION_ID;
 
-    WPFatal(isSupportClientDB, "AzerothCore does not support MySQL versions below 8.0\n\nFound version: {} / {}. Server compiled with: {}.\nSearch the wiki for ACE00043 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00043).",
+    WPFatal(isSupportClientDB, "YggdrasilCore does not support MySQL versions below 8.0\n\nFound version: {} / {}. Server compiled with: {}.\nSearch the wiki for ACE00043 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00043).",
         mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
-    WPFatal(isSameClientDB, "Used MySQL library version ({} id {}) does not match the version id used to compile AzerothCore (id {}).\nSearch the wiki for ACE00046 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00046).",
+    WPFatal(isSameClientDB, "Used MySQL library version ({} id {}) does not match the version id used to compile YggdrasilCore (id {}).\nSearch the wiki for ACE00046 in Common Errors (https://www.azerothcore.org/wiki/common-errors#ace00046).",
         mysql_get_client_info(), mysql_get_client_version(), MYSQL_VERSION_ID);
 }
 
@@ -256,7 +256,7 @@ SQLTransaction<T> DatabaseWorkerPool<T>::BeginTransaction()
 template <class T>
 void DatabaseWorkerPool<T>::CommitTransaction(SQLTransaction<T> transaction)
 {
-#ifdef ACORE_DEBUG
+#ifdef YCORE_DEBUG
     //! Only analyze transaction weaknesses in Debug mode.
     //! Ideally we catch the faults in Debug mode and then correct them,
     //! so there's no need to waste these CPU cycles in Release mode.
@@ -271,7 +271,7 @@ void DatabaseWorkerPool<T>::CommitTransaction(SQLTransaction<T> transaction)
     default:
         break;
     }
-#endif // ACORE_DEBUG
+#endif // YCORE_DEBUG
 
     Enqueue(new TransactionTask(transaction));
 }
@@ -279,7 +279,7 @@ void DatabaseWorkerPool<T>::CommitTransaction(SQLTransaction<T> transaction)
 template <class T>
 TransactionCallback DatabaseWorkerPool<T>::AsyncCommitTransaction(SQLTransaction<T> transaction)
 {
-#ifdef ACORE_DEBUG
+#ifdef YCORE_DEBUG
     //! Only analyze transaction weaknesses in Debug mode.
     //! Ideally we catch the faults in Debug mode and then correct them,
     //! so there's no need to waste these CPU cycles in Release mode.
@@ -294,7 +294,7 @@ TransactionCallback DatabaseWorkerPool<T>::AsyncCommitTransaction(SQLTransaction
         default:
             break;
     }
-#endif // ACORE_DEBUG
+#endif // YCORE_DEBUG
 
     TransactionWithResultTask* task = new TransactionWithResultTask(transaction);
     TransactionFuture result = task->GetFuture();
@@ -446,7 +446,7 @@ uint32 DatabaseWorkerPool<T>::OpenConnections(InternalIndex type, uint8 numConne
         }
         else if (DatabaseIncompatibleVersion(connection->GetServerInfo()))
         {
-            LOG_ERROR("sql.driver", "AzerothCore does not support MySQL versions below 8.0\n\nFound server version: {}. Server compiled with: {}.",
+            LOG_ERROR("sql.driver", "YggdrasilCore does not support MySQL versions below 8.0\n\nFound server version: {}. Server compiled with: {}.",
                 connection->GetServerInfo(), MYSQL_VERSION_ID);
             return 1;
         }
@@ -484,7 +484,7 @@ std::size_t DatabaseWorkerPool<T>::QueueSize() const
 template <class T>
 T* DatabaseWorkerPool<T>::GetFreeConnection()
 {
-#ifdef ACORE_DEBUG
+#ifdef YCORE_DEBUG
     if (_warnSyncQueries)
     {
         std::ostringstream ss;
@@ -572,10 +572,10 @@ void DatabaseWorkerPool<T>::ExecuteOrAppend(SQLTransaction<T>& trans, PreparedSt
         trans->Append(stmt);
 }
 
-template class AC_DATABASE_API DatabaseWorkerPool<LoginDatabaseConnection>;
-template class AC_DATABASE_API DatabaseWorkerPool<WorldDatabaseConnection>;
-template class AC_DATABASE_API DatabaseWorkerPool<CharacterDatabaseConnection>;
+template class YC_DATABASE_API DatabaseWorkerPool<LoginDatabaseConnection>;
+template class YC_DATABASE_API DatabaseWorkerPool<WorldDatabaseConnection>;
+template class YC_DATABASE_API DatabaseWorkerPool<CharacterDatabaseConnection>;
 
 #ifdef MOD_SHADOWS
-template class AC_DATABASE_API DatabaseWorkerPool<ShadowsDatabaseConnection>;
+template class YC_DATABASE_API DatabaseWorkerPool<ShadowsDatabaseConnection>;
 #endif

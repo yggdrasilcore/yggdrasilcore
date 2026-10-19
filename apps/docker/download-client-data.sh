@@ -11,7 +11,7 @@ echo "Client data downloader"
 echo "#######################"
 
 # first check if it's defined in env, otherwise use the default
-path="${DATAPATH:-/azerothcore/env/dist/data}"
+path="${DATAPATH:-/yggdrasilcore/env/dist/data}"
 zipPath="${DATAPATH_ZIP:-"$path/data.zip"}"
 
 dataVersionFile="$path/data-version"
@@ -27,7 +27,7 @@ if [ "$VERSION" == "$INSTALLED_VERSION" ]; then
 fi
 
 echo "Downloading client data in: $zipPath ..."
-curl -L https://github.com/wowgaming/client-data/releases/download/$VERSION/data.zip > "$zipPath" \
+curl -L https://github.com/yggdrasilcore/client-data/releases/download/$VERSION/Data.zip > "$zipPath" \
     && echo "unzip downloaded file in $path..." && unzip -q -o "$zipPath" -d "$path/" \
     && echo "Remove downloaded file" && rm "$zipPath" \
     && echo "INSTALLED_VERSION=$VERSION" > "$dataVersionFile"

@@ -5,7 +5,7 @@ set -e
 CURRENT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 source "$CURRENT_PATH/includes/includes.sh"
-source "$AC_PATH_APPS/bash_shared/menu_system.sh"
+source "$YC_PATH_APPS/bash_shared/menu_system.sh"
 
 # Menu definition using the new system
 # Format: "key|short|description"
@@ -62,4 +62,4 @@ function handle_compiler_command() {
 runHooks "ON_AFTER_OPTIONS" # you can create your custom options
 
 # Run the menu system
-menu_run_with_items "ACORE COMPILER" handle_compiler_command -- "${comp_menu_items[@]}" -- "$@"
+menu_run_with_items "YCORE COMPILER" handle_compiler_command -- "${comp_menu_items[@]}" -- "$@"

@@ -37,9 +37,9 @@ LOCK TABLES `spell_group_stack_rules` WRITE;
 INSERT INTO `spell_group_stack_rules` VALUES
 (1,4,'Group of Battle / Guardian Elixirs, stacking done with exclusive flags'),
 (1001,8,'Group of Food (Well Fed) and similar buffs'),
-(1002,19,'Group of blessings, warrior shouts (with HP increasing buffs),\n stack for different casters, effect exclusive COMBINED GROUP'),
+(1002,19,'Group of blessings, warrior shouts (with HP increasing buffs), stack for different casters, effect exclusive COMBINED GROUP'),
 (1003,17,'Group of major Armor reducing debuffs'),
-(1004,18,'Group of minor Armor reducing debuffs (with hit reduce),\n can stack for different casters, effect exclusive with exclusive flags COMBINED GROUP'),
+(1004,18,'Group of minor Armor reducing, hit increase and AP reducing debuffs, effect exclusive'),
 (1005,16,'Group of haste, contains forced stronger buff (use flagged, only 2 spells)'),
 (1006,17,'Group of Melee Crit chance increase, effect exclusive'),
 (1007,17,'Group of Percent AP increase, effect exclusive'),
@@ -47,18 +47,18 @@ INSERT INTO `spell_group_stack_rules` VALUES
 (1009,17,'Group of Spell crit chance buffs, effect exclusive'),
 (1010,1,'Group of Spell crit taken increase debuffs'),
 (1011,1,'Group of Spell power increasing buffs'),
-(1012,17,'Group of Melee, Range, spell haste buffs (with raid damage done),\n effect exclusive COMBINED GROUP'),
+(1012,17,'Group of Melee, Range, spell haste buffs (with raid damage done), effect exclusive COMBINED GROUP'),
 (1013,1,'Group of Critical chance taken debuff (all types)'),
 (1014,18,'Group of Melee attack time increse debufs, can stack for different casters, effect exclusive'),
 (1015,18,'Group of chance to hit reduce debuffs, can stack for different casters, effect exclusive'),
 (1016,8,'Group of healing taken reduce debuffs'),
-(1017,17,'Group of AP reducing debuffs, effect exclusive'),
 (1018,17,'Group of STR + AGI increasing buffs, effect exclusive'),
 (1019,17,'Group of INT and/or SPIRIT increasing buffs, effect exclusive'),
 (1020,1,'Group of healing recived increasing buffs'),
 (1021,1,'Group of physical damage taken reducing buffs'),
 (1022,17,'Group of casting speed decreasing debuffs, effect exclusive'),
 (1023,25,'Group of Armor + attributes + resistance increasing buffs'),
+(1024,17,'Group of physical damage taken increasing debuffs'),
 (1025,1,'Group of shadow resistance increasing buffs'),
 (1026,2,'Group of Immolate / Unstable Affliction - never stack for same caster'),
 (1027,8,'Group of amplify / dampen magic - never stack'),
@@ -82,4 +82,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:40
+-- Dump completed on 2026-10-19  5:16:11

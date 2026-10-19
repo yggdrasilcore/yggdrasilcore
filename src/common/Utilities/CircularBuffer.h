@@ -1,13 +1,13 @@
 /*
- * Copyright (C) 2016+ AzerothCore <www.azerothcore.org>, released under GNU AGPL v3 license: https://github.com/azerothcore/azerothcore-wotlk/blob/master/LICENSE
+ * Copyright (C) 2016+ YggdrasilCore <yggdrasilcore.github.io>, released under GNU AGPL v3 license: https://github.com/yggdrasilcore/yggdrasilcore/blob/master/LICENSE
  *
  * This file was based on
  * https://embeddedartistry.com/blog/2017/05/17/creating-a-circular-buffer-in-c-and-c/
  * https://github.com/embeddedartistry/embedded-resources/blob/master/examples/cpp/circular_buffer.cpp
  */
 
-#ifndef AZEROTHCORE_CIRCULAR_BUFFER_H
-#define AZEROTHCORE_CIRCULAR_BUFFER_H
+#ifndef YGGDRASILCORE_CIRCULAR_BUFFER_H
+#define YGGDRASILCORE_CIRCULAR_BUFFER_H
 
 #include <memory>
 #include <mutex>

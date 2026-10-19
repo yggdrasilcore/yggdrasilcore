@@ -8823,7 +8823,7 @@ INSERT INTO `broadcast_text` VALUES
 (10239,0,'How many of our Lieutenants are alive, Vanndar?','How many of our Lieutenants are alive, Vanndar?',0,0,0,0,0,0,0,0,1,18019),
 (10240,0,'$950w, soldier.','',0,0,0,0,0,0,0,0,1,18019),
 (10241,0,'How many Frostwolf Officers are alive, Vanndar?','How many Frostwolf Officers are alive, Vanndar?',0,0,0,0,0,0,0,0,1,18019),
-(10242,0,'$966w Frostwolf Commander(s) and $964w Frostwolf Lieutenant(s),\n soldier.','',1,0,0,0,0,0,0,0,1,18019),
+(10242,0,'$966w Frostwolf Commander(s) and $964w Frostwolf Lieutenant(s), soldier.','',1,0,0,0,0,0,0,0,1,18019),
 (10243,0,'Soldiers of Stormpike, your General is under attack! I require aid! Come! Come! Slay these mangy Frostwolf dogs.','',0,0,0,0,0,0,0,0,1,18019),
 (10245,0,'Stormpike filth! In my keep?! Slay them all!','',0,0,0,0,0,0,0,0,1,18019),
 (10249,1,'Hmmm... Where is my fishing hook? Oh, there it is.','',16,0,0,0,0,0,0,0,1,18019),
@@ -19790,7 +19790,7 @@ INSERT INTO `broadcast_text` VALUES
 (21528,0,'I\'m ready for Mount Hyjal, Jimmy. Teleport me!','I\'m ready for Mount Hyjal, Jimmy. Teleport me!',0,0,0,0,0,0,0,0,1,18019),
 (21529,0,'We\'re currently focus testing The Black Temple. You must have at least HONORED reputation with the Violet Eye to participate.$B$BThat\'s the reputation you gain while doing Karazhan.','',396,396,0,0,0,0,0,0,1,18019),
 (21530,0,'I wish to purchase the key to the Black Temple and some phat lewtz.','I wish to purchase the key to the Black Temple and some phat lewtz.',0,0,0,0,0,0,0,0,1,18019),
-(21531,0,'Now that you have your Black Temple key (Medallion of Karabor),\n I can teleport you directly to the Black Temple. Just tell me when you are ready.','',1,0,0,0,0,0,0,0,1,18019),
+(21531,0,'Now that you have your Black Temple key (Medallion of Karabor), I can teleport you directly to the Black Temple. Just tell me when you are ready.','',1,0,0,0,0,0,0,0,1,18019),
 (21532,0,'I\'m ready to go to the Black Temple, Johnny.','I\'m ready to go to the Black Temple, Johnny.',0,0,0,0,0,0,0,0,1,18019),
 (21533,0,'Welcome friend! What would you like to see?','',396,0,0,1,0,0,0,0,1,18019),
 (21534,0,'Greetings $G brother:sister;. How can we be of service?','',396,0,0,1,0,0,0,0,1,18019),
@@ -29960,10 +29960,10 @@ INSERT INTO `broadcast_text` VALUES
 (31840,0,'','Please, it\'s not my fault! If... if I give you a refund, maybe you can speak to a healer? I don\'t know what you expect me to do!',0,0,0,0,0,0,0,0,1,18019),
 (31841,0,'Simpletons! You cannot comprehend the forces you have set in motion. The ley line conduit will not be disrupted! Your defeat shall be absolute!','',0,0,0,0,0,0,0,0,1,18019),
 (31842,0,'That... no, keep your filthy money! It won\'t help my family!','That... no, keep your filthy money! It won\'t help my family!',0,0,0,0,0,0,0,0,1,18019),
-(31843,0,'%s prepares a Great Feast!','%s prepares a Great Feast!',0,0,0,0,0,0,0,0,1,18019),
-(31844,0,'$n prepares a Fish Feast!','$n prepares a Fish Feast!',0,0,0,0,0,0,0,0,1,18019),
-(31845,0,'$n prepares a Small Feast!','$n prepares a Small Feast!',0,0,0,0,0,0,0,0,1,18019),
-(31846,0,'$n prepares a Gigantic Feast!','$n prepares a Gigantic Feast!',0,0,0,0,0,0,0,0,1,18019),
+(31843,0,'prepares a Great Feast!','prepares a Great Feast!',0,0,0,0,0,0,0,0,1,18019),
+(31844,0,'prepares a Fish Feast!','prepares a Fish Feast!',0,0,0,0,0,0,0,0,1,18019),
+(31845,0,'prepares a Small Feast!','$n prepares a Small Feast!',0,0,0,0,0,0,0,0,1,18019),
+(31846,0,'prepares a Gigantic Feast!','prepares a Gigantic Feast!',0,0,0,0,0,0,0,0,1,18019),
 (31847,0,'%s groans.','',0,0,0,0,0,0,0,0,1,18019),
 (31848,0,'Cry to the heavens, Alliance filth. Pray that my wounds do not heal before yours.','',0,0,0,0,0,0,0,0,1,18019),
 (31849,0,'Green-skinned dog! Be silent or I will cut your tongue out and feed it to your swine-like children.','',0,0,0,0,0,0,0,0,1,18019),
@@ -73092,7 +73092,9 @@ INSERT INTO `broadcast_text` VALUES
 (77366,0,'Vol\'jin\'s one tough nut. Stabbed in the neck, still he comes back to collect what\'s due. I like this guy!$b$bMy people need security and profit. Under Hellscream, we got a whole lot of neither.','',273,0,0,0,0,0,0,0,0,18019),
 (77369,0,'|TInterface\\Icons\\inv_misc_bomb_05:20|tYou have |cFFFF0000|Hspell:145996|h[Set to Blow]|h|r! Use |cFFFF0000|Hspell:146364|h[Throw Bomb]|h|r to throw them!','',0,0,0,0,0,0,0,0,1,18019),
 (77371,0,'Dat\'s de end of Hellscream.$b$b<Vol\'jin eyes you warily.>$b$bWhat next, $r?','',274,0,0,0,0,0,0,0,0,18019),
-(77865,0,'|TInterface\\Icons\\achievement_arena_2v2_5:20|t$n has agreed to begin the encounter. Additional players required to begin: $8589w.','',0,0,0,0,0,0,0,0,1,18019);
+(77865,0,'|TInterface\\Icons\\achievement_arena_2v2_5:20|t$n has agreed to begin the encounter. Additional players required to begin: $8589w.','',0,0,0,0,0,0,0,0,1,18019),
+(99000,0,'Greetings, $n. I have spent years studying the sciences of this world. For 100 Emblems of Frost, I am willing to share my knowledge with you in any field.','Greetings, $n. I have spent years studying the sciences of this world. For 100 Emblems of Frost, I am willing to share my knowledge with you in any field.',0,0,0,0,0,0,0,0,0,18019),
+(149997,0,' ',' ',0,0,0,0,0,0,0,0,1,18019);
 /*!40000 ALTER TABLE `broadcast_text` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -73104,4 +73106,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:08:40
+-- Dump completed on 2026-10-19  5:15:57

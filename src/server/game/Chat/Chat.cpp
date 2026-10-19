@@ -1,5 +1,5 @@
 /*
- * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License as published by the
@@ -39,9 +39,9 @@ Player* ChatHandler::GetPlayer() const
     return m_session ? m_session->GetPlayer() : nullptr;
 }
 
-std::string ChatHandler::GetAcoreString(uint32 entry) const
+std::string ChatHandler::GetYcoreString(uint32 entry) const
 {
-    return m_session->GetAcoreString(entry);
+    return m_session->GetYcoreString(entry);
 }
 
 std::string const* ChatHandler::GetModuleString(std::string module, uint32 id) const
@@ -105,7 +105,7 @@ bool ChatHandler::HasLowerSecurityAccount(WorldSession* target, uint32 target_ac
 
 void ChatHandler::SendNotification(std::string_view str)
 {
-    std::vector<std::string_view> lines = Acore::Tokenize(str, '\n', true);
+    std::vector<std::string_view> lines = Ycore::Tokenize(str, '\n', true);
     for (std::string_view line : lines)
     {
         WorldPacket data(SMSG_NOTIFICATION, line.size() + 1);
@@ -116,7 +116,7 @@ void ChatHandler::SendNotification(std::string_view str)
 
 void ChatHandler::SendGMText(std::string_view str)
 {
-    std::vector<std::string_view> lines = Acore::Tokenize(str, '\n', true);
+    std::vector<std::string_view> lines = Ycore::Tokenize(str, '\n', true);
     // Session should have permissions to receive global gm messages
     if (AccountMgr::IsPlayerAccount(m_session->GetSecurity()))
         return;
@@ -131,7 +131,7 @@ void ChatHandler::SendGMText(std::string_view str)
 
 void ChatHandler::SendWorldText(std::string_view str)
 {
-    std::vector<std::string_view> lines = Acore::Tokenize(str, '\n', true);
+    std::vector<std::string_view> lines = Ycore::Tokenize(str, '\n', true);
 
     for (std::string_view line : lines)
     {
@@ -143,7 +143,7 @@ void ChatHandler::SendWorldText(std::string_view str)
 
 void ChatHandler::SendWorldTextOptional(std::string_view str, uint32 flag)
 {
-    std::vector<std::string_view> lines = Acore::Tokenize(str, '\n', true);
+    std::vector<std::string_view> lines = Ycore::Tokenize(str, '\n', true);
 
     Player* player = m_session->GetPlayer();
     if (sWorld->getBoolConfig(CONFIG_PLAYER_SETTINGS_ENABLED))
@@ -165,7 +165,7 @@ void ChatHandler::SendSysMessage(std::string_view str, bool escapeCharacters)
     // Replace every "|" with "||" in msg
     if (escapeCharacters && msg.find('|') != std::string::npos)
     {
-        std::vector<std::string_view> tokens = Acore::Tokenize(msg, '|', true);
+        std::vector<std::string_view> tokens = Ycore::Tokenize(msg, '|', true);
         std::ostringstream stream;
 
         for (std::size_t i = 0; i < tokens.size() - 1; ++i)
@@ -177,7 +177,7 @@ void ChatHandler::SendSysMessage(std::string_view str, bool escapeCharacters)
     }
 
     WorldPacket data;
-    for (std::string_view line : Acore::Tokenize(str, '\n', true))
+    for (std::string_view line : Ycore::Tokenize(str, '\n', true))
     {
         BuildChatPacket(data, CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
         m_session->SendPacket(&data);
@@ -187,7 +187,7 @@ void ChatHandler::SendSysMessage(std::string_view str, bool escapeCharacters)
 void ChatHandler::SendGlobalSysMessage(const char* str)
 {
     WorldPacket data;
-    for (std::string_view line : Acore::Tokenize(str, '\n', true))
+    for (std::string_view line : Ycore::Tokenize(str, '\n', true))
     {
         BuildChatPacket(data, CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
         sWorldSessionMgr->SendGlobalMessage(&data);
@@ -197,7 +197,7 @@ void ChatHandler::SendGlobalSysMessage(const char* str)
 void ChatHandler::SendGlobalGMSysMessage(const char* str)
 {
     WorldPacket data;
-    for (std::string_view line : Acore::Tokenize(str, '\n', true))
+    for (std::string_view line : Ycore::Tokenize(str, '\n', true))
     {
         BuildChatPacket(data, CHAT_MSG_SYSTEM, LANG_UNIVERSAL, nullptr, nullptr, line);
         sWorldSessionMgr->SendGlobalGMMessage(&data);
@@ -206,7 +206,7 @@ void ChatHandler::SendGlobalGMSysMessage(const char* str)
 
 void ChatHandler::SendSysMessage(uint32 entry)
 {
-    SendSysMessage(GetAcoreString(entry));
+    SendSysMessage(GetYcoreString(entry));
 }
 
 void ChatHandler::PSendSysMessage(std::string_view str, bool escapeCharacters)
@@ -228,7 +228,7 @@ void ChatHandler::SendErrorMessage(std::string_view str, bool escapeCharacters)
 
 bool ChatHandler::_ParseCommands(std::string_view text)
 {
-    if (Acore::ChatCommands::TryExecuteCommand(*this, text))
+    if (Ycore::ChatCommands::TryExecuteCommand(*this, text))
         return true;
 
     // Pretend commands don't exist for regular players
@@ -257,7 +257,7 @@ bool ChatHandler::ParseCommands(std::string_view text)
         return false;
 
     // ignore messages with separator after .
-    if (text[1] == Acore::Impl::ChatCommands::COMMAND_DELIMITER)
+    if (text[1] == Ycore::Impl::ChatCommands::COMMAND_DELIMITER)
         return false;
 
     return _ParseCommands(text.substr(1));
@@ -646,8 +646,8 @@ GameObject* ChatHandler::GetNearbyGameObject() const
 
     Player* pl = m_session->GetPlayer();
     GameObject* obj = nullptr;
-    Acore::NearestGameObjectCheck check(*pl);
-    Acore::GameObjectLastSearcher<Acore::NearestGameObjectCheck> searcher(pl, obj, check);
+    Ycore::NearestGameObjectCheck check(*pl);
+    Ycore::GameObjectLastSearcher<Ycore::NearestGameObjectCheck> searcher(pl, obj, check);
     Cell::VisitObjects(pl, searcher, SIZE_OF_GRIDS);
     return obj;
 }
@@ -963,9 +963,9 @@ std::string ChatHandler::GetNameLink(Player* chr) const
     return playerLink(chr->GetName());
 }
 
-std::string CliHandler::GetAcoreString(uint32 entry) const
+std::string CliHandler::GetYcoreString(uint32 entry) const
 {
-    return sObjectMgr->GetAcoreStringForDBCLocale(entry);
+    return sObjectMgr->GetYcoreStringForDBCLocale(entry);
 }
 
 void CliHandler::SendSysMessage(std::string_view str, bool /*escapeCharacters*/)
@@ -988,7 +988,7 @@ bool CliHandler::ParseCommands(std::string_view str)
 
 std::string CliHandler::GetNameLink() const
 {
-    return GetAcoreString(LANG_CONSOLE_COMMAND);
+    return GetYcoreString(LANG_CONSOLE_COMMAND);
 }
 
 bool CliHandler::needReportToTarget(Player* /*chr*/) const
@@ -1058,14 +1058,14 @@ bool CliHandler::HasSession() const
 
 bool AddonChannelCommandHandler::ParseCommands(std::string_view str)
 {
-    if (memcmp(str.data(), "AzerothCore\t", 12))
+    if (memcmp(str.data(), "YggdrasilCore\t", 14))
         return false;
-    char opcode = str[12];
-    if (!opcode) // str[12] is opcode
+    char opcode = str[14];
+    if (!opcode) // str[14] is opcode
         return false;
-    if (!str[13] || !str[14] || !str[15] || !str[16]) // str[13] through str[16] is 4-character command counter
+    if (!str[15] || !str[16] || !str[17] || !str[18]) // str[15] through str[18] is 4-character command counter
         return false;
-    echo = str.substr(13);
+    echo = str.substr(15);
 
     switch (opcode)
     {
@@ -1074,10 +1074,10 @@ bool AddonChannelCommandHandler::ParseCommands(std::string_view str)
             return true;
         case 'h': // h Issue human-readable command
         case 'i': // i Issue command
-            if (!str[17])
+            if (!str[19])
                 return false;
             humanReadable = (opcode == 'h');
-            if (_ParseCommands(str.substr(17))) // actual command starts at str[17]
+            if (_ParseCommands(str.substr(19))) // actual command starts at str[19]
             {
                 if (!hadAck)
                     SendAck();
@@ -1107,10 +1107,10 @@ void AddonChannelCommandHandler::Send(std::string const& msg)
 void AddonChannelCommandHandler::SendAck() // a Command acknowledged, no body
 {
     ASSERT(echo.size());
-    std::string ack = "AzerothCore\ta";
-    ack.resize(18);
-    memcpy(&ack[13], echo.data(), 4);
-    ack[17] = '\0';
+    std::string ack = "YggdrasilCore\ta";
+    ack.resize(20);
+    memcpy(&ack[15], echo.data(), 4);
+    ack[19] = '\0';
     Send(ack);
     hadAck = true;
 }
@@ -1118,20 +1118,20 @@ void AddonChannelCommandHandler::SendAck() // a Command acknowledged, no body
 void AddonChannelCommandHandler::SendOK() // o Command OK, no body
 {
     ASSERT(echo.size());
-    std::string ok = "AzerothCore\to";
-    ok.resize(18);
-    memcpy(&ok[13], echo.data(), 4);
-    ok[17] = '\0';
+    std::string ok = "YggdrasilCore\to";
+    ok.resize(20);
+    memcpy(&ok[15], echo.data(), 4);
+    ok[19] = '\0';
     Send(ok);
 }
 
 void AddonChannelCommandHandler::SendFailed() // f Command failed, no body
 {
     ASSERT(echo.size());
-    std::string fail = "AzerothCore\tf";
-    fail.resize(18);
-    memcpy(&fail[13], echo.data(), 4);
-    fail[17] = '\0';
+    std::string fail = "YggdrasilCore\tf";
+    fail.resize(20);
+    memcpy(&fail[15], echo.data(), 4);
+    fail[19] = '\0';
     Send(fail);
 }
 
@@ -1142,7 +1142,7 @@ void AddonChannelCommandHandler::SendSysMessage(std::string_view str, bool escap
     if (!hadAck)
         SendAck();
 
-    std::string msg = "AzerothCore\tm";
+    std::string msg = "YggdrasilCore\tm";
     msg.append(echo.data(), 4);
     std::string body(str);
     if (escapeCharacters)

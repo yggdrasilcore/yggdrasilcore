@@ -1,14 +1,14 @@
-# absolute root path of your azerothcore repository
+# absolute root path of your YggdrasilCore repository
 # It should not be modified if you don't really know what you're doing
-SRCPATH="$AC_PATH_ROOT"
+SRCPATH="$YC_PATH_ROOT"
 
 # absolute path where build files must be stored
-BUILDPATH=${BUILDPATH:-"$AC_PATH_VAR/build/obj"}
+BUILDPATH=${BUILDPATH:-"$YC_PATH_VAR/build/obj"}
 
-# absolute path where azerothcore will be installed
+# absolute path where YggdrasilCore will be installed
 # NOTE: on linux the binaries are stored in a subfolder (/bin)
 # of the $BINPATH
-BINPATH="$AC_PATH_ROOT/env/dist"
+BINPATH="$YC_PATH_ROOT/env/dist"
 
 # bash fills it by default with your os type. No need to change it.
 # Change it if you really know what you're doing.
@@ -25,10 +25,9 @@ SKIP_MYSQL_INSTALL=${SKIP_MYSQL_INSTALL:-false}
 
 # absolute path where config. files must be stored
 # default: the system will use binpath by default
-# CONFDIR="$AC_PATH_ROOT/env/dist/etc/"
+# CONFDIR="$YC_PATH_ROOT/env/dist/etc/"
 
 # absolute path where maps and client data will be downloaded
-# by the AC dashboard
 # default: the system will use binpath by default
 # DATAPATH="$BINPATH/bin"
 # DATAPATH_ZIP="$DATAPATH/data.zip"
@@ -105,8 +104,8 @@ CCUSTOMOPTIONS=${CCUSTOMOPTIONS:-''}
 # Enable ccache to speedup
 # recompilations
 #
-AC_CCACHE=${AC_CCACHE:-false}
-export CCACHE_DIR=${CCACHE_DIR:-"$AC_PATH_VAR/ccache"}
+YC_CCACHE=${YC_CCACHE:-false}
+export CCACHE_DIR=${CCACHE_DIR:-"$YC_PATH_VAR/ccache"}
 
 #
 # Enable running the cmake install as root
@@ -116,7 +115,7 @@ export CCACHE_DIR=${CCACHE_DIR:-"$AC_PATH_VAR/ccache"}
 # it to set higher process priority.
 # Default: 0 (false)
 #
-export AC_ENABLE_ROOT_CMAKE_INSTALL=${AC_ENABLE_ROOT_CMAKE_INSTALL:-0}
+export YC_ENABLE_ROOT_CMAKE_INSTALL=${YC_ENABLE_ROOT_CMAKE_INSTALL:-0}
 
 ##############################################
 #
@@ -130,9 +129,9 @@ export AC_ENABLE_ROOT_CMAKE_INSTALL=${AC_ENABLE_ROOT_CMAKE_INSTALL:-0}
 # Note: dependencies above are already installed in docker
 #
 # Usage:
-#  1. To enable the gperftools you need to compile with the -DWITH_PERFTOOLS=ON compiler flag. You can use CCUSTOMOPTIONS above to set it for the dashboard compiler
+#  1. To enable the gperftools you need to compile with the -DWITH_PERFTOOLS=ON compiler flag. You can use CCUSTOMOPTIONS above to set it for the build
 #  2. Configure the variable below accordingly to your needs
-#  3. run the worldserver with the "./acore.sh run-worldserver"
+#  3. run the worldserver
 #  4. run "killall -12 worldserver"  This command will start the monitoring process. Run "killall -12 worldserver" again to stop the process when you want
 #  5. At this time you will have the .prof file ready in the folder configured below.
 #  Run "google-pprof --callgrind <path/of/worldserver/bin> </path/of/prof/file>" This will generate a callgrind file that can be read with
@@ -170,7 +169,7 @@ export CPUPROFILESIGNAL=${CPUPROFILESIGNAL:-12}
 # Format of each line:
 #   <module-name> <branch> <commit>
 # Lines starting with '#' and empty lines are ignored.
-export MODULES_LIST_FILE=${MODULES_LIST_FILE:-"$AC_PATH_ROOT/conf/modules.list"}
+export MODULES_LIST_FILE=${MODULES_LIST_FILE:-"$YC_PATH_ROOT/conf/modules.list"}
 
 # Space/newline separated list of modules to exclude when using
 # 'module install --all' and 'module update --all'. Items can be specified

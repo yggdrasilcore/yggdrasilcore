@@ -1,5 +1,5 @@
 /*
- * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License as published by the
@@ -36,7 +36,7 @@ bool DBUpdaterUtil::CheckExecutable()
     std::filesystem::path exe(GetCorrectedMySQLExecutable());
     if (!is_regular_file(exe))
     {
-        exe = Acore::SearchExecutableInPath("mysql");
+        exe = Ycore::SearchExecutableInPath("mysql");
         if (!exe.empty() && is_regular_file(exe))
         {
             // Correct the path to the cli
@@ -192,6 +192,6 @@ std::string DBUpdater<CharacterDatabaseConnection>::GetDBModuleName()
     return "characters";
 }
 
-template class AC_DATABASE_API DBUpdater<LoginDatabaseConnection>;
-template class AC_DATABASE_API DBUpdater<WorldDatabaseConnection>;
-template class AC_DATABASE_API DBUpdater<CharacterDatabaseConnection>;
+template class YC_DATABASE_API DBUpdater<LoginDatabaseConnection>;
+template class YC_DATABASE_API DBUpdater<WorldDatabaseConnection>;
+template class YC_DATABASE_API DBUpdater<CharacterDatabaseConnection>;

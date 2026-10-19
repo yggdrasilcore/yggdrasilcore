@@ -21,9 +21,9 @@ results = {
 
 # Main function to parse all the files of the project
 def parsing_file(directory: str) -> None:
-    print("Starting AzerothCore CPP Codestyle check...")
+    print("Starting YggdrasilCore CPP Codestyle check...")
     print(" ")
-    print("Please read the C++ Code Standards for AzerothCore:")
+    print("Please read the C++ Code Standards for YggdrasilCore:")
     print("https://www.azerothcore.org/wiki/cpp-code-standards")
     print(" ")
     for root, _, files in os.walk(directory):

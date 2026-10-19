@@ -101,6 +101,7 @@ INSERT INTO `instance_template` VALUES
 (580,530,'instance_sunwell_plateau',1),
 (585,530,'instance_magisters_terrace',0),
 (595,1,'instance_culling_of_stratholme',1),
+(598,0,'',1),
 (599,571,'instance_halls_of_stone',0),
 (600,571,'instance_drak_tharon_keep',1),
 (601,571,'instance_azjol_nerub',0),
@@ -132,4 +133,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:09
+-- Dump completed on 2026-10-19  5:16:04

@@ -34,7 +34,10 @@ CREATE TABLE `updates_include` (
 LOCK TABLES `updates_include` WRITE;
 /*!40000 ALTER TABLE `updates_include` DISABLE KEYS */;
 INSERT INTO `updates_include` VALUES
-('$/data/sql/updates/db_world','RELEASED');
+('$/data/sql/archive/db_world','ARCHIVED'),
+('$/data/sql/custom/db_world','CUSTOM'),
+('$/data/sql/updates/db_world','RELEASED'),
+('$/data/sql/updates/pending_db_world','PENDING');
 /*!40000 ALTER TABLE `updates_include` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -46,4 +49,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:50
+-- Dump completed on 2026-10-19  5:16:13

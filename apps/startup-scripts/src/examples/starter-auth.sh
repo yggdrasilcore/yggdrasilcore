@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# AzerothCore Auth Server Starter Example
+# YggdrasilCore Auth Server Starter Example
 # This example shows how to use the run-engine to start authserver without restart loop
 
 PATH_RUNENGINE="./"
@@ -24,7 +24,7 @@ fi
 # Method 2: Direct binary path (full path)
 # Uncomment the line below to start with full binary path
 #
-# "$PATH_RUNENGINE/run-engine" start /home/user/azerothcore/bin/authserver --server-config /path/to/authserver.conf
+# "$PATH_RUNENGINE/run-engine" start /home/user/yggdrasilcore/bin/authserver --server-config /path/to/authserver.conf
 
 # Method 3: Binary name only (system PATH)
 # Uncomment the line below if authserver is in your system PATH

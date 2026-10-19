@@ -3438,7 +3438,6 @@ INSERT INTO `creature_template_locale` VALUES
 (620,'ruRU','Курица','',18019),
 (620,'zhCN','鸡','',18019),
 (620,'zhTW','雞','',18019),
-(621,'deDE','Chicken','',18019),
 (622,'deDE','Gobliningenieur','',18019),
 (622,'esES','Ingeniero goblin','',18019),
 (622,'esMX','Ingeniero goblin','',18019),
@@ -125895,14 +125894,6 @@ INSERT INTO `creature_template_locale` VALUES
 (22238,'ruRU','Волномут Змеиного Святилища','',18019),
 (22238,'zhCN','毒蛇神殿唤潮者','',18019),
 (22238,'zhTW','毒蛇神殿招潮者','',18019),
-(22239,'deDE','Seltsamer geflügelter Goblin','',18019),
-(22239,'esES','Goblin alado extraño','',18019),
-(22239,'esMX','Goblin alado extraño','',18019),
-(22239,'frFR','Etrange gobelin ailé','',18019),
-(22239,'koKR','날개 달린 이상한 고블린','',18019),
-(22239,'ruRU','Странный крылатый гоблин','',18019),
-(22239,'zhCN','奇怪的带翼地精','',18019),
-(22239,'zhTW','哥布林天使','',18019),
 (22240,'deDE','Leafbeard Flavor Event Channel Bunny','',18019),
 (22240,'esES','Leafbeard Flavor Event Channel Bunny','',18019),
 (22240,'esMX','Leafbeard Flavor Event Channel Bunny','',18019),
@@ -138513,15 +138504,15 @@ INSERT INTO `creature_template_locale` VALUES
 (24149,'frFR','Basil Osgood','Aubergiste',18019),
 (24149,'koKR','바질 오스굿','여관주인',18019),
 (24149,'ruRU','Базиль Осгуд','Хозяин таверны',18019),
-(24149,'zhCN','巴希尔·奥斯古德','旅店老板',18019);
-INSERT INTO `creature_template_locale` VALUES
+(24149,'zhCN','巴希尔·奥斯古德','旅店老板',18019),
 (24149,'zhTW','巴希爾·奧斯古','旅店老闆',18019),
 (24150,'deDE','Glorenfeld','Forscherliga',18019),
 (24150,'esES','Glorenfeld','Liga de Expedicionarios',18019),
 (24150,'esMX','Glorenfeld','Liga de Expedicionarios',18019),
 (24150,'frFR','Glorenfeld','Ligue des explorateurs',18019),
 (24150,'koKR','글로렌펠드','탐험가 연맹',18019),
-(24150,'ruRU','Глоренфелд','Лига исследователей',18019),
+(24150,'ruRU','Глоренфелд','Лига исследователей',18019);
+INSERT INTO `creature_template_locale` VALUES
 (24150,'zhCN','格罗菲尔德','探险者协会',18019),
 (24150,'zhTW','葛羅倫費德','探險者協會',18019),
 (24151,'deDE','Daegarn','Forscherliga',18019),
@@ -157812,15 +157803,15 @@ INSERT INTO `creature_template_locale` VALUES
 (26787,'ruRU','Проекция Дракуру','',18019),
 (26787,'zhCN','达库鲁的影像','',18019),
 (26787,'zhTW','德拉庫魯的影像','',18019),
-(26788,'deDE','Bombereskorte von Kurbelzisch','',18019);
-INSERT INTO `creature_template_locale` VALUES
+(26788,'deDE','Bombereskorte von Kurbelzisch','',18019),
 (26788,'esES','Escolta de bombardero de Palanqueta','',18019),
 (26788,'esMX','Escolta de bombardero de Palanqueta','',18019),
 (26788,'frFR','Escorte de bombardier de Spumelevier','',18019),
 (26788,'koKR','피즈크랭크 폭격기 호위','',18019),
 (26788,'ruRU','Эскорт бомбардировщика со станции Выкрутеня','',18019),
 (26788,'zhCN','菲兹兰克轰炸护航机','',18019),
-(26788,'zhTW','嘶軸轟炸機護衛隊','',18019),
+(26788,'zhTW','嘶軸轟炸機護衛隊','',18019);
+INSERT INTO `creature_template_locale` VALUES
 (26789,'deDE','Drakuru\'s Bunny 04','',18019),
 (26789,'esES','Drakuru\'s Bunny 04','',18019),
 (26789,'esMX','Drakuru\'s Bunny 04','',18019),
@@ -177328,8 +177319,7 @@ INSERT INTO `creature_template_locale` VALUES
 (29414,'deDE','Knochengreif','',18019),
 (29414,'esES','Grifo osario','',18019),
 (29414,'esMX','Grifo osario','',18019),
-(29414,'frFR','Griffon d\'os','',18019);
-INSERT INTO `creature_template_locale` VALUES
+(29414,'frFR','Griffon d\'os','',18019),
 (29414,'koKR','해골 그리핀','',18019),
 (29414,'ruRU','Костяной грифон','',18019),
 (29414,'zhCN','白骨狮鹫','',18019),
@@ -177337,7 +177327,8 @@ INSERT INTO `creature_template_locale` VALUES
 (29415,'deDE','Gefangener Greif des Ansturms','',18019),
 (29415,'esES','Grifo del Embate capturado','',18019),
 (29415,'esMX','Grifo del Embate capturado','',18019),
-(29415,'frFR','Griffon de l\'Assaut capturé','',18019),
+(29415,'frFR','Griffon de l\'Assaut capturé','',18019);
+INSERT INTO `creature_template_locale` VALUES
 (29415,'koKR','사로잡힌 붉은돌격대 그리핀','',18019),
 (29415,'ruRU','Пойманный грифон Алого Натиска','',18019),
 (29415,'zhCN','被捕获的先锋军狮鹫','',18019),
@@ -196772,14 +196763,14 @@ INSERT INTO `creature_template_locale` VALUES
 (32742,'koKR','나의 시체','',18019),
 (32742,'ruRU','Ваш труп','',18019),
 (32742,'zhCN','你的尸体','',18019),
-(32742,'zhTW','你的屍體','',18019);
-INSERT INTO `creature_template_locale` VALUES
+(32742,'zhTW','你的屍體','',18019),
 (32743,'deDE','Willard Blauvelt','Arenaspekulant',18019),
 (32743,'esES','Willard Blauvelt','Especulador de arena',18019),
 (32743,'esMX','Willard Blauvelt','Especulador de arena',18019),
 (32743,'frFR','Willard Blauvelt','Spéculateur de l\'arène',18019),
 (32743,'koKR','윌라드 블로벨트','투기장 투기꾼',18019),
-(32743,'ruRU','Виллард Бловельт','Спекулянт арены',18019),
+(32743,'ruRU','Виллард Бловельт','Спекулянт арены',18019);
+INSERT INTO `creature_template_locale` VALUES
 (32743,'zhCN','维拉德·布劳维特','竞技场投机商',18019),
 (32743,'zhTW','韋拉德·布勞維特','競技場投機者',18019),
 (32744,'deDE','Bakor der Lange','Arenafan',18019),
@@ -215744,15 +215735,15 @@ INSERT INTO `creature_template_locale` VALUES
 (38907,'koKR','대기열 제어기','',18019),
 (38907,'ruRU','Queue Controller','',18019),
 (38907,'zhCN','Queue Controller','',18019),
-(38907,'zhTW','佇列控制器','',18019);
-INSERT INTO `creature_template_locale` VALUES
+(38907,'zhTW','佇列控制器','',18019),
 (38919,'deDE','Bankier der Grimmtotem','Bankier',18019),
 (38919,'esES','[PH] Grimtotem Banker','Banquero',18019),
 (38919,'esMX','[PH] Grimtotem Banker','Banquero',18019),
 (38919,'frFR','[PH] Banquier du Totem-sinistre','Banquier',18019),
 (38919,'koKR','[PH] 그림토템 은행원','은행원',18019),
 (38919,'ruRU','[PH] Grimtotem Banker','Банкир',18019),
-(38919,'zhCN','[PH] Grimtotem Banker','银行职员',18019),
+(38919,'zhCN','[PH] Grimtotem Banker','银行职员',18019);
+INSERT INTO `creature_template_locale` VALUES
 (38919,'zhTW','[PH] 恐怖圖騰銀行員','銀行職員',18019),
 (38920,'deDE','Bankier der Grimmtotem','Bankier',18019),
 (38920,'esES','[PH] Grimtotem Banker 2','Banquero',18019),
@@ -218098,10 +218089,7 @@ INSERT INTO `creature_template_locale` VALUES
 (42078,'koKR','꼬마 토르','파괴자',18019),
 (42078,'ruRU','Игрушечный Тор','Разрушитель',18019),
 (42078,'zhCN','迷你雷神','无坚不摧',18019),
-(42078,'zhTW','迷你雷神','毀滅者',18019),
-(50001,'zhCN','学者卡尔亚','',18019),
-(50002,'zhCN','大主教欧雷里斯','',18019),
-(61021,'zhCN','圣光护卫者阿德因','',18019);
+(42078,'zhTW','迷你雷神','毀滅者',18019);
 /*!40000 ALTER TABLE `creature_template_locale` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -218113,4 +218101,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:08:49
+-- Dump completed on 2026-10-19  5:16:00

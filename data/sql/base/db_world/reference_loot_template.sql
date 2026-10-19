@@ -2446,6 +2446,10 @@ INSERT INTO `reference_loot_template` VALUES
 (14502,20881,0,0,0,1,1,1,3,'Idol of Strife'),
 (14502,20882,0,0,0,1,1,1,3,'Idol of War'),
 (14503,21156,0,0,0,1,1,1,1,'Scarab Bag'),
+(14697,43071,0,15,0,1,1,1,1,'Blessed Legplates of Undead Slaying'),
+(14697,43075,0,15,0,1,1,1,1,'Blessed Trousers of Undead Cleansing'),
+(14697,43079,0,15,0,1,1,1,1,'Blessed Leggings of Undead Slaying'),
+(14697,43083,0,15,0,1,1,1,1,'Blessed Greaves of Undead Slaying'),
 (20000,1364,0,0,0,1,1,1,1,'Grey 1-5 EXP 0 : Ragged Leather Vest'),
 (20000,1366,0,0,0,1,1,1,1,'Grey 1-5 EXP 0 : Ragged Leather Pants'),
 (20000,1367,0,0,0,1,1,1,1,'Grey 1-5 EXP 0 : Ragged Leather Boots'),
@@ -20407,13 +20411,13 @@ INSERT INTO `reference_loot_template` VALUES
 (1022324,6608,0,0,0,1,1,1,1,'Bright Armor'),
 (1022324,7558,0,0,0,1,1,1,1,'Shimmering Stave'),
 (1022324,8183,0,0,0,1,1,1,1,'Precision Bow'),
-(1022324,8186,0,0,0,1,1,1,1,'Dire Wand'),
+(1022324,8186,0,0,0,1,1,1,1,'Dire Wand');
+INSERT INTO `reference_loot_template` VALUES
 (1022324,9766,0,0,0,1,1,1,1,'Greenweave Sash'),
 (1022324,9767,0,0,0,1,1,1,1,'Greenweave Sandals'),
 (1022324,9769,0,0,0,1,1,1,1,'Greenweave Branch'),
 (1022324,9771,0,0,0,1,1,1,1,'Greenweave Gloves'),
-(1022324,9772,0,0,0,1,1,1,1,'Greenweave Leggings');
-INSERT INTO `reference_loot_template` VALUES
+(1022324,9772,0,0,0,1,1,1,1,'Greenweave Leggings'),
 (1022324,9773,0,0,0,1,1,1,1,'Greenweave Robe'),
 (1022324,9774,0,0,0,1,1,1,1,'Greenweave Vest'),
 (1022324,9781,0,0,0,1,1,1,1,'Bandit Pants'),
@@ -41231,13 +41235,13 @@ INSERT INTO `reference_loot_template` VALUES
 (1032222,12979,0,0,0,1,1,1,1,'Firebane Cloak'),
 (1032222,12982,0,0,0,1,1,1,1,'Silver-linked Footguards'),
 (1032222,12983,0,0,0,1,1,1,1,'Rakzur Club'),
-(1032222,12984,0,0,0,1,1,1,1,'Skycaller'),
+(1032222,12984,0,0,0,1,1,1,1,'Skycaller');
+INSERT INTO `reference_loot_template` VALUES
 (1032222,12985,0,0,0,1,1,1,1,'Ring of Defense'),
 (1032222,12987,0,0,0,1,1,1,1,'Darkweave Breeches'),
 (1032222,12988,0,0,0,1,1,1,1,'Starsight Tunic'),
 (1032222,12989,0,0,0,1,1,1,1,'Gargoyle\'s Bite'),
-(1032222,12990,0,0,0,1,1,1,1,'Razor\'s Edge');
-INSERT INTO `reference_loot_template` VALUES
+(1032222,12990,0,0,0,1,1,1,1,'Razor\'s Edge'),
 (1032222,12992,0,0,0,1,1,1,1,'Searing Blade'),
 (1032222,12994,0,0,0,1,1,1,1,'Thorbia\'s Gauntlets'),
 (1032222,12996,0,0,0,1,1,1,1,'Band of Purification'),
@@ -50874,4 +50878,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:34
+-- Dump completed on 2026-10-19  5:16:09

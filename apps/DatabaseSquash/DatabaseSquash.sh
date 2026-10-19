@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 echo "❗CAUTION"
-echo "This tool is only supposed to be used by AzerothCore Maintainers."
+echo "This tool is only supposed to be used by YggdrasilCore Maintainers."
 echo "The tool is used to prepare for, and generate a database squash."
 echo
 echo "Before you continue make sure you have read"
@@ -22,12 +22,6 @@ if [[ "$PROJECT_ROOT" =~ ^/([a-zA-Z])/(.*) ]]; then
   PROJECT_ROOT="${DRIVE_LETTER^^}:/${PATH_REMAINDER}"
 fi
 
-VERSION_UPDATER_PATH="$PROJECT_ROOT/apps/DatabaseSquash/VersionUpdater/versionupdater.sh"
-
-"$VERSION_UPDATER_PATH"
-
-echo "✅ VersionUpdater Completed..."
-echo
 echo "❗IMPORTANT!"
 echo "1. Before you continue you need to drop all your databases."
 echo "2. Run WorldServer to populate the database."

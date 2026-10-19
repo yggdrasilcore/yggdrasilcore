@@ -40,7 +40,7 @@ function All {
 function Menu {
 echo ""
 echo "..............................................."
-echo "AzerothCore dbc, maps, vmaps, mmaps extractor"
+echo "YggdrasilCore dbc, maps, vmaps, mmaps extractor"
 echo "..............................................."
 echo "PRESS 1, 2, 3 OR 4 to select your task, or 5 to EXIT."
 echo "..............................................."

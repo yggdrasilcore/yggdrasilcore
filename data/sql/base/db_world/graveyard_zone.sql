@@ -736,10 +736,14 @@ INSERT INTO `graveyard_zone` VALUES
 (1478,4722,0,'Icecrown, Argent Tournament GY'),
 (1478,4723,0,'Icecrown, Argent Tournament GY'),
 (1478,4742,0,'Icecrown, Argent Tournament GY'),
+(1682,210,0,'Icecrown Glacier, Citadel GY - Icecrown'),
 (1682,4809,0,'Icecrown Glacier, Citadel GY'),
 (1682,4812,0,'Icecrown Glacier, Citadel GY'),
 (1682,4813,0,'Icecrown Glacier, Citadel GY'),
-(1682,4820,0,'Icecrown Glacier, Citadel GY');
+(1682,4820,0,'Icecrown Glacier, Citadel GY'),
+(2000,268,0,'Azshara Crater, by deep ally mine'),
+(2001,268,0,'Azshara Crater, by ally bridge\r\n'),
+(2002,268,0,'Azshara Crater, inside temple');
 /*!40000 ALTER TABLE `graveyard_zone` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -751,4 +755,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:06
+-- Dump completed on 2026-10-19  5:16:04

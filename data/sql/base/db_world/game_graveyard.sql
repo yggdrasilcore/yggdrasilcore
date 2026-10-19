@@ -722,7 +722,10 @@ INSERT INTO `game_graveyard` VALUES
 (1682,571,6447.49,2060.86,564.03,'Icecrown Glacier, Citadel GY'),
 (1683,580,1620.95,624.701,32.8968,'Sunwell - Quel\'Delar Entrance'),
 (1691,0,-13205.6,272.703,21.8571,'AAA - Arena (Dev Test)'),
-(1720,571,2585.83,-5808.93,296.197,'Howling Fjord, Frostblade GY');
+(1720,571,2585.83,-5808.93,296.197,'Howling Fjord, Frostblade GY'),
+(2000,37,977.21,471.39,283.5,'Azshara Crater, by deep ally mine'),
+(2001,37,825.815,123.7,269.43,'Azshara Crater, by ally bridge'),
+(2002,37,-612.3,296,354.6,'Azshara Crater, inside temple');
 /*!40000 ALTER TABLE `game_graveyard` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -734,4 +737,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:09:00
+-- Dump completed on 2026-10-19  5:16:02

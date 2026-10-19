@@ -1,5 +1,5 @@
 ##################################################
-# AzerothCore Database Import configuration file #
+# YggdrasilCore Database Import configuration file #
 ##################################################
 
 ###################################################################################################
@@ -35,16 +35,16 @@
 #        Description: Logs directory setting.
 #        Important:   LogsDir needs to be quoted, as the string might contain space characters.
 #                     Logs directory must exists, or log file creation will be disabled.
-#        Example:     "/home/youruser/azerothcore/logs"
+#        Example:     "/home/youruser/yggdrasilcore/logs"
 #        Default:     "" - (Log files will be stored in the current path)
 
 LogsDir = ""
 
 #
 #    SourceDirectory
-#        Description: The path to your AzerothCore source directory.
+#        Description: The path to your YggdrasilCore source directory.
 #                     If the path is left empty, the built-in CMAKE_SOURCE_DIR is used.
-#        Example:     "../AzerothCore"
+#        Example:     "../YggdrasilCore"
 #        Default:     ""
 #
 
@@ -67,7 +67,7 @@ MySQLExecutable = ""
 #        Description: Temp directory setting.
 #        Important:   TempDir needs to be quoted, as the string might contain space characters.
 #                     TempDir directory must exists, or the server can't work properly
-#        Example:     "/home/youruser/azerothcore/temp"
+#        Example:     "/home/youruser/yggdrasilcore/temp"
 #        Default:     "" - (Temp files will be stored in the current path)
 
 TempDir = ""
@@ -87,17 +87,17 @@ TempDir = ""
 #                                                                 section my.ini)
 #                     ".;/path/to/unix_socket;username;password;database;ssl" - (use Unix sockets on
 #                                                                           Unix/Linux)
-#        Default:     "127.0.0.1;3306;acore;acore;acore_auth"       - (LoginDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_world"      - (WorldDatabaseInfo)
-#                     "127.0.0.1;3306;acore;acore;acore_characters" - (CharacterDatabaseInfo)
+#        Default:     "127.0.0.1;3306;ycore;ycore;ycore_auth"       - (LoginDatabaseInfo)
+#                     "127.0.0.1;3306;ycore;ycore;ycore_world"      - (WorldDatabaseInfo)
+#                     "127.0.0.1;3306;ycore;ycore;ycore_characters" - (CharacterDatabaseInfo)
 #
 #    The SSL option will enable TLS when connecting to the specified database. If not provided or
 #    any value other than 'ssl' is set, TLS will not be used.
 #
 
-LoginDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_auth"
-WorldDatabaseInfo     = "127.0.0.1;3306;acore;acore;acore_world"
-CharacterDatabaseInfo = "127.0.0.1;3306;acore;acore;acore_characters"
+LoginDatabaseInfo     = "127.0.0.1;3306;ycore;ycore;ycore_auth"
+WorldDatabaseInfo     = "127.0.0.1;3306;ycore;ycore;ycore_world"
+CharacterDatabaseInfo = "127.0.0.1;3306;ycore;ycore;ycore_characters"
 
 #
 #    Database.Reconnect.Seconds

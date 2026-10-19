@@ -63,8 +63,8 @@ INSERT INTO `dungeon_access_requirements` VALUES
 (63,1,10277,'You must complete the quest \"The Caverns of Time\" and be level 70 before entering the Heroic difficulty of Old Hillsbrad Foothills',2,NULL,0,'Caverns Of Time: Escape from Durnholde (Heroic)'),
 (63,2,30635,NULL,2,NULL,0,'Caverns Of Time: Escape from Durnholde (Heroic)'),
 (77,1,11492,'You must complete the quest \"Hard to Kill\" and be level 70 before entering the Heroic difficulty of the Magisters\' Terrace.',2,NULL,0,'Isle of Quel\'Danas: Magisters\' Terrace (Heroic)'),
-(104,0,4530,NULL,2,NULL,0,'Icecrown Citadel (10 player, Heroic)'),
-(105,0,4597,NULL,2,NULL,0,'Icecrown Citadel (25 player, Heroic)'),
+(104,0,4530,NULL,2,NULL,1,'Icecrown Citadel (10 player, Heroic)'),
+(105,0,4597,NULL,2,NULL,1,'Icecrown Citadel (25 player, Heroic)'),
 (110,0,3917,NULL,2,NULL,0,'Trial of the Crusader (10 player, Heroic)'),
 (111,0,3916,NULL,2,NULL,0,'Trial of the Crusader (25 player, Heroic)'),
 (114,1,24499,'You must complete the quest \"Echoes of Tortured Souls\" before entering the Pit of Saron.',0,NULL,0,'Icecrown Citadel: Pit of Saron (Normal)'),
@@ -86,4 +86,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-07-19 12:08:53
+-- Dump completed on 2026-10-19  5:16:01

@@ -36,14 +36,6 @@ CREATE TABLE `uptime` (
 
 LOCK TABLES `uptime` WRITE;
 /*!40000 ALTER TABLE `uptime` DISABLE KEYS */;
-INSERT INTO `uptime` VALUES
-(1,1721169877,0,0,'AzerothCore rev. bdf204f1eb0c 2024-07-16 16:28:59 +0000 (time-for-A-SQUASH branch) (Win64, RelWithDebInfo, Static)'),
-(1,1734468956,0,0,'AzerothCore rev. 2923a4aa43d0 2024-12-17 12:28:46 -0300 (master branch) (Win64, RelWithDebInfo, Static)'),
-(1,1734470333,0,0,'AzerothCore rev. 2923a4aa43d0 2024-12-17 12:28:46 -0300 (master branch) (Win64, RelWithDebInfo, Static)'),
-(1,1734471110,0,0,'AzerothCore rev. 2923a4aa43d0 2024-12-17 12:28:46 -0300 (master branch) (Win64, RelWithDebInfo, Static)'),
-(1,1752912822,0,0,'AzerothCore rev. 9415d1bef80d 2025-07-05 11:29:15 +0200 (whisper-something-something branch) (Win64, RelWithDebInfo, Static)'),
-(1,1752913079,0,0,'AzerothCore rev. 9415d1bef80d 2025-07-05 11:29:15 +0200 (whisper-something-something branch) (Win64, RelWithDebInfo, Static)'),
-(1,1752919589,0,0,'AzerothCore rev. 9415d1bef80d 2025-07-05 11:29:15 +0200 (whisper-something-something branch) (Win64, RelWithDebInfo, Static)');
 /*!40000 ALTER TABLE `uptime` ENABLE KEYS */;
 UNLOCK TABLES;
 

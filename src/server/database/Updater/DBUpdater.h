@@ -1,5 +1,5 @@
 /*
- * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Affero General Public License as published by the
@@ -41,7 +41,7 @@
 template <class T>
 class DatabaseWorkerPool;
 
-class AC_DATABASE_API UpdateException : public std::exception
+class YC_DATABASE_API UpdateException : public std::exception
 {
 public:
     UpdateException(std::string const& msg) : _msg(msg) { }
@@ -59,7 +59,7 @@ enum BaseLocation
     LOCATION_DOWNLOAD
 };
 
-class AC_DATABASE_API DBUpdaterUtil
+class YC_DATABASE_API DBUpdaterUtil
 {
 public:
     static std::string GetCorrectedMySQLExecutable();
@@ -88,7 +88,7 @@ struct DBUpdaterModuleInfo
 };
 
 template <class T>
-class AC_DATABASE_API DBUpdater
+class YC_DATABASE_API DBUpdater
 {
 public:
     using Path = std::filesystem::path;
@@ -191,7 +191,7 @@ bool DBUpdater<T>::Create(DatabaseWorkerPool<T>& pool)
 {
     LOG_WARN("sql.updates", "Database \"{}\" does not exist", pool.GetConnectionInfo()->database);
 
-    const char* disableInteractive = std::getenv("AC_DISABLE_INTERACTIVE");
+    const char* disableInteractive = std::getenv("YC_DISABLE_INTERACTIVE");
 
     if (!sConfigMgr->isDryRun() && (disableInteractive == nullptr || std::strcmp(disableInteractive, "1") != 0))
     {
@@ -248,14 +248,14 @@ bool DBUpdater<T>::Update(DatabaseWorkerPool<T>& pool, std::string_view modulesL
 
     if (!is_directory(sourceDirectory))
     {
-        LOG_ERROR("sql.updates", "DBUpdater: The given source directory {} does not exist, change the path to the directory where your sql directory exists (for example c:\\source\\azerothcore). Shutting down.",
+        LOG_ERROR("sql.updates", "DBUpdater: The given source directory {} does not exist, change the path to the directory where your sql directory exists (for example c:\\source\\yggdrasilcore). Shutting down.",
                   sourceDirectory.generic_string());
         return false;
     }
 
     auto CheckUpdateTable = [&](std::string const& tableName)
     {
-        auto checkTable = DBUpdater<T>::Retrieve(pool, Acore::StringFormat("SHOW TABLES LIKE '{}'", tableName));
+        auto checkTable = DBUpdater<T>::Retrieve(pool, Ycore::StringFormat("SHOW TABLES LIKE '{}'", tableName));
         if (!checkTable)
         {
             LOG_WARN("sql.updates", "> Table '{}' not exist! Try add based table", tableName);
@@ -299,7 +299,7 @@ bool DBUpdater<T>::Update(DatabaseWorkerPool<T>& pool, std::string_view modulesL
         return false;
     }
 
-    std::string const info = Acore::StringFormat("Containing {} new and {} archived updates.", result.recent, result.archived);
+    std::string const info = Ycore::StringFormat("Containing {} new and {} archived updates.", result.recent, result.archived);
 
     if (!result.updated)
         LOG_INFO("sql.updates", ">> {} database is up-to-date! {}", DBUpdater<T>::GetTableName(), info);
@@ -327,7 +327,7 @@ bool DBUpdater<T>::Update(DatabaseWorkerPool<T>& pool, std::vector<std::string> 
 
     auto CheckUpdateTable = [&](std::string const& tableName)
     {
-        auto checkTable = DBUpdater<T>::Retrieve(pool, Acore::StringFormat("SHOW TABLES LIKE '{}'", tableName));
+        auto checkTable = DBUpdater<T>::Retrieve(pool, Ycore::StringFormat("SHOW TABLES LIKE '{}'", tableName));
         if (!checkTable)
         {
             Path const temp(GetBaseFilesDirectory() + tableName + ".sql");
@@ -465,7 +465,7 @@ void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, std::string const& hos
 
     auto tempDir = configTempDir.empty() ? std::filesystem::temp_directory_path().string() : configTempDir;
 
-    tempDir = Acore::String::AddSuffixIfNotExists(tempDir, std::filesystem::path::preferred_separator);
+    tempDir = Ycore::String::AddSuffixIfNotExists(tempDir, std::filesystem::path::preferred_separator);
 
     std::string confFileName = "mysql_ac.conf";
 
@@ -521,7 +521,7 @@ void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, std::string const& hos
         args.emplace_back(database);
 
     // Invokes a mysql process which doesn't leak credentials to logs
-    int const ret = Acore::StartProcess(DBUpdaterUtil::GetCorrectedMySQLExecutable(), args,
+    int const ret = Ycore::StartProcess(DBUpdaterUtil::GetCorrectedMySQLExecutable(), args,
         "sql.updates", path.generic_string(), true);
 
     if (ret != EXIT_SUCCESS)
@@ -529,7 +529,7 @@ void DBUpdater<T>::ApplyFile(DatabaseWorkerPool<T>& pool, std::string const& hos
         LOG_FATAL("sql.updates", "Applying of file \'{}\' to database \'{}\' failed!" \
             " If you are a user, please pull the latest revision from the repository. "
             "Also make sure you have not applied any of the databases with your sql client. "
-            "You cannot use auto-update system and import sql files from AzerothCore repository with your sql client. "
+            "You cannot use auto-update system and import sql files from YggdrasilCore repository with your sql client. "
             "If you are a developer, please fix your sql query.",
             path.generic_string(), pool.GetConnectionInfo()->database);
 

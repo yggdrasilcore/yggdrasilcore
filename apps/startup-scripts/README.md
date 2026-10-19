@@ -1,6 +1,6 @@
-# AzerothCore Startup Scripts
+# Yggdrasilcore Startup Scripts
 
-A comprehensive suite of scripts for managing AzerothCore server instances with advanced session management, automatic restart capabilities, and production-ready service management.
+A comprehensive suite of scripts for managing Yggdrasilcore server instances with advanced session management, automatic restart capabilities, and production-ready service management.
 
 ## 📋 Table of Contents
 
@@ -15,25 +15,23 @@ A comprehensive suite of scripts for managing AzerothCore server instances with 
 
 ## 🎯 Overview
 
-The AzerothCore startup scripts provide multiple approaches to running server instances:
+The Yggdrasilcore startup scripts provide multiple approaches to running server instances:
 
 1. **Development/Testing**: Simple execution for debugging and development
 2. **Production with Restarts**: Automatic restart on crashes with crash detection
 3. **Background Services**: Production-ready service management with PM2 or systemd
 4. **Session Management**: Interactive console access via tmux/screen
 
-All scripts are integrated into the `acore.sh` dashboard for easy access.
-
 ### 📦 Automatic Deployment
 
-**Important**: When you compile AzerothCore using the acore dashboard (`./acore.sh compiler build`), all startup scripts are automatically copied from `apps/startup-scripts/src/` to your `bin/` folder. This means:
+**Important**: When you build YggdrasilCore, all startup scripts are automatically copied from `apps/startup-scripts/src/` to your `bin/` folder. This means:
 
 - ✅ **Portable Deployment**: You can copy the entire `bin/` folder to different servers
 - ✅ **Self-Contained**: All restart and service management tools travel with your binaries  
 - ✅ **No Additional Setup**: Scripts work immediately after deployment
 - ✅ **Production Ready**: Deploy to production servers without needing the full source code
 
-This makes it easy to deploy your compiled binaries along with the management scripts to production environments where you may not have the full AzerothCore source code.
+This makes it easy to deploy your compiled binaries along with the management scripts to production environments where you may not have the full Yggdrasilcore source code.
 
 ## 🔧 Components
 
@@ -92,18 +90,6 @@ This makes it easy to deploy your compiled binaries along with the management sc
 ./service-manager.sh stop auth
 ```
 
-### 4. Using acore.sh Dashboard
-
-```bash
-# Interactive dashboard
-./acore.sh
-
-# Direct commands
-./acore.sh run-authserver    # Start authserver with restart
-./acore.sh run-worldserver   # Start worldserver with restart
-./acore.sh service-manager   # Access service manager
-```
-
 ## ⚙️ Configuration
 
 ### Configuration Priority (Highest to Lowest)
@@ -127,7 +113,7 @@ nano scripts/conf.sh
 
 ```bash
 # Binary settings
-export BINPATH="/path/to/azerothcore/bin"
+export BINPATH="/path/to/yggdrasilcore/bin"
 export SERVERBIN="worldserver"  # or "authserver"
 export CONFIG="/path/to/worldserver.conf"
 
@@ -136,7 +122,7 @@ export SESSION_MANAGER="tmux"  # none|auto|tmux|screen
 export SESSION_NAME="ac-world"
 
 # Interactive mode control
-export AC_DISABLE_INTERACTIVE="0"  # Set to 1 to disable interactive prompts (useful for non-interactive services)
+export YC_DISABLE_INTERACTIVE="0"  # Set to 1 to disable interactive prompts (useful for non-interactive services)
 
 # Debugging
 export GDB_ENABLED="1"  # 0 or 1
@@ -442,7 +428,7 @@ You can customize where service configurations and PM2/systemd files are stored:
 
 ```bash
 # Set custom directories
-export AC_SERVICE_CONFIG_DIR="/path/to/your/project/services"
+export YC_SERVICE_CONFIG_DIR="/path/to/your/project/services"
 
 # Now all service operations will use these custom directories
 ./service-manager.sh create auth authserver --bin-path /path/to/bin
@@ -455,21 +441,21 @@ This is particularly useful for:
 
 #### Service Configuration Portability
 
-The service manager automatically stores binary and configuration paths as relative paths when they are located under the `AC_SERVICE_CONFIG_DIR`, making service configurations portable across environments:
+The service manager automatically stores binary and configuration paths as relative paths when they are located under the `YC_SERVICE_CONFIG_DIR`, making service configurations portable across environments:
 
 ```bash
 # Set up a portable project structure
-export AC_SERVICE_CONFIG_DIR="/opt/myproject/services"
-mkdir -p "$AC_SERVICE_CONFIG_DIR"/{bin,etc}
+export YC_SERVICE_CONFIG_DIR="/opt/myproject/services"
+mkdir -p "$YC_SERVICE_CONFIG_DIR"/{bin,etc}
 
 # Copy your binaries and configs
-cp /path/to/compiled/authserver "$AC_SERVICE_CONFIG_DIR/bin/"
-cp /path/to/authserver.conf "$AC_SERVICE_CONFIG_DIR/etc/"
+cp /path/to/compiled/authserver "$YC_SERVICE_CONFIG_DIR/bin/"
+cp /path/to/authserver.conf "$YC_SERVICE_CONFIG_DIR/etc/"
 
-# Create service - paths under AC_SERVICE_CONFIG_DIR will be stored as relative
+# Create service - paths under YC_SERVICE_CONFIG_DIR will be stored as relative
 ./service-manager.sh create auth authserver \
-  --bin-path "$AC_SERVICE_CONFIG_DIR/bin" \
-  --server-config "$AC_SERVICE_CONFIG_DIR/etc/authserver.conf"
+  --bin-path "$YC_SERVICE_CONFIG_DIR/bin" \
+  --server-config "$YC_SERVICE_CONFIG_DIR/etc/authserver.conf"
 
 # Registry will contain relative paths like "bin/authserver" and "etc/authserver.conf"
 # instead of absolute paths, making the entire directory portable
@@ -482,10 +468,10 @@ cp /path/to/authserver.conf "$AC_SERVICE_CONFIG_DIR/etc/"
 - **Development/Production Parity**: Same relative structure across environments
 
 **How it works:**
-- Paths under `AC_SERVICE_CONFIG_DIR` are automatically stored as relative paths
-- Paths outside `AC_SERVICE_CONFIG_DIR` are stored as absolute paths for safety
-- When services are restored or started, relative paths are resolved from `AC_SERVICE_CONFIG_DIR`
-- If `AC_SERVICE_CONFIG_DIR` is not set, all paths are stored as absolute paths (traditional behavior)
+- Paths under `YC_SERVICE_CONFIG_DIR` are automatically stored as relative paths
+- Paths outside `YC_SERVICE_CONFIG_DIR` are stored as absolute paths for safety
+- When services are restored or started, relative paths are resolved from `YC_SERVICE_CONFIG_DIR`
+- If `YC_SERVICE_CONFIG_DIR` is not set, all paths are stored as absolute paths (traditional behavior)
 
 #### Migration from Legacy Format
 
@@ -521,20 +507,20 @@ The startup scripts recognize several environment variables for configuration an
 
 #### Configuration Directory Variables
 
-- **`AC_SERVICE_CONFIG_DIR`**: Override the default configuration directory for services registry and configurations
-  - Default: `${XDG_CONFIG_HOME:-$HOME/.config}/azerothcore/services`
+- **`YC_SERVICE_CONFIG_DIR`**: Override the default configuration directory for services registry and configurations
+  - Default: `${XDG_CONFIG_HOME:-$HOME/.config}/yggdrasilcore/services`
   - Used for storing service registry and run-engine configurations
 
 #### Service Detection Variables
 
-- **`AC_LAUNCHED_BY_PM2`**: Set to `1` when launched by PM2 (automatically set by service-manager)
+- **`YC_LAUNCHED_BY_PM2`**: Set to `1` when launched by PM2 (automatically set by service-manager)
   - Disables the use of the `unbuffer` command for output capture
   - Enables non-interactive mode to prevent prompts
   - More robust than relying on PM2's internal variables
   
-- **`AC_DISABLE_INTERACTIVE`**: Controls interactive mode (0=enabled, 1=disabled)
+- **`YC_DISABLE_INTERACTIVE`**: Controls interactive mode (0=enabled, 1=disabled)
   - Automatically set based on execution context
-  - Prevents AzerothCore from showing interactive prompts in service environments
+  - Prevents Yggdrasilcore from showing interactive prompts in service environments
 
 #### Configuration Variables
 
@@ -548,20 +534,20 @@ When using systemd as the service provider:
 
 ```bash
 # Systemd commands
-systemctl --user status acore-auth     # Check status
-systemctl --user logs acore-auth       # View logs
-systemctl --user restart acore-auth    # Restart
-systemctl --user enable acore-auth     # Enable auto-start
+systemctl --user status ycore-auth     # Check status
+systemctl --user logs ycore-auth       # View logs
+systemctl --user restart ycore-auth    # Restart
+systemctl --user enable ycore-auth     # Enable auto-start
 
 # For system services (requires sudo)
-sudo systemctl status acore-auth
-sudo systemctl enable acore-auth
+sudo systemctl status ycore-auth
+sudo systemctl enable ycore-auth
 ```
 
 **Enhanced systemd Integration:**
 - **Automatic Service Type**: When using session managers (tmux/screen), services are automatically configured with `Type=forking` for proper daemon behavior
 - **Smart ExecStop**: Services with session managers get automatic `ExecStop` commands to properly terminate tmux/screen sessions when stopping the service
-- **Non-Interactive Mode**: Services without session managers automatically set `AC_DISABLE_INTERACTIVE=1` to prevent hanging on prompts
+- **Non-Interactive Mode**: Services without session managers automatically set `YC_DISABLE_INTERACTIVE=1` to prevent hanging on prompts
 
 ### Session Management in Services
 
@@ -579,32 +565,6 @@ Services can be configured with session managers for interactive access:
 tmux attach-session -t worldserver
 ```
 
-## 🎮 Integration with acore.sh Dashboard
-
-The startup scripts are fully integrated into the AzerothCore dashboard:
-
-### Direct Commands
-
-```bash
-# Run servers with simple restart (development/testing)
-./acore.sh run-worldserver   # Option 11 or 'rw'
-./acore.sh run-authserver    # Option 12 or 'ra'
-
-# Access service manager (production)
-./acore.sh service-manager   # Option 15 or 'sm'
-
-# Examples:
-./acore.sh rw               # Quick worldserver start
-./acore.sh ra               # Quick authserver start
-./acore.sh sm create auth authserver --bin-path /path/to/bin
-```
-
-### What Happens Behind the Scenes
-
-- **run-worldserver/run-authserver**: Calls `simple-restarter` with appropriate binary
-- **service-manager**: Provides full access to the service management interface
-- Scripts automatically use the correct binary path from your build configuration
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -618,8 +578,8 @@ Error: Binary '/path/to/bin/worldserver' not found
 # Check if binary exists
 ls -la /path/to/bin/worldserver
 
-# Compile if needed
-./acore.sh compiler build
+# Build if needed
+docker compose build
 ```
 
 #### 2. Configuration File Issues
