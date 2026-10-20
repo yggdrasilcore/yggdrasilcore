@@ -1970,6 +1970,7 @@ public:
     void SetVisible(bool x);
     void SetModelVisible(bool on);
     [[nodiscard]] uint32 GetPhaseByAuras() const;
+    void CorrectPhaseMask();
     void SetPhaseMask(uint32 newPhaseMask, bool update) override;// overwrite WorldObject::SetPhaseMask
     void UpdateObjectVisibility(bool forced = true, bool fromUpdate = false) override;
 
@@ -2169,6 +2170,8 @@ protected:
     bool _instantCast;
 
 private:
+    void SetPhaseMaskInternal(uint32 newPhaseMask, bool update, bool overrideVehicle);
+
     bool IsTriggeredAtSpellProcEvent(Unit* victim, Aura* aura, WeaponAttackType attType, bool isVictim, bool active, SpellProcEventEntry const*& spellProcEvent, ProcEventInfo const& eventInfo);
     bool HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggeredByAura, SpellInfo const* procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown, ProcEventInfo const& eventInfo);
     bool HandleAuraProc(Unit* victim, uint32 damage, Aura* triggeredByAura, SpellInfo const* procSpell, uint32 procFlag, uint32 procEx, uint32 cooldown, bool* handled);

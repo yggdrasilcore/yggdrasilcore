@@ -1826,7 +1826,7 @@ void AuraEffect::HandlePhase(AuraApplication const* aurApp, uint8 mode, bool app
             newPhase = PHASEMASK_ANYWHERE;
 
         player->SetPhaseMask(newPhase, false);
-        player->GetSession()->SendSetPhaseShift(newPhase);
+        player->GetSession()->SendSetPhaseShift(player->GetPhaseMask());
     }
     else
     {
@@ -3701,7 +3701,7 @@ void AuraEffect::HandleAuraControlVehicle(AuraApplication const* aurApp, uint8 m
             caster->_ExitVehicle();
         else if (Vehicle* vehKit = target->GetVehicleKit())
         {
-            vehKit->RemovePassenger(caster);
+            vehKit->RemovePassenger(caster, false);
             // Vehicle::RemovePassenger does not clear m_vehicle on this core (unlike Trinity);
             // clear it here so Unit::_EnterVehicle ASSERT(!m_vehicle) holds for the pending join.
             if (caster->GetVehicle() == vehKit)
