@@ -179,8 +179,7 @@ INSERT INTO `battlemaster_entry` VALUES
 (35026,30),
 (35027,30),
 (37298,1),
-(37413,1),
-(999991,6);
+(37413,1);
 /*!40000 ALTER TABLE `battlemaster_entry` ENABLE KEYS */;
 UNLOCK TABLES;
 
