@@ -4,10 +4,6 @@ DELETE FROM `creature_addon` WHERE `guid` = 65528;
 INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras`) VALUES
 (65528, 655280, 0, 0, 0, 0, 0, NULL);
 
-DELETE FROM `creature_template_movement` WHERE `CreatureId` = 18258;
-INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`) VALUES
-(18258, 1, 1, 1, 0, 0, 0, NULL);
-
 DELETE FROM `waypoint_data` WHERE `id` = 655280;
 INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `position_z`, `orientation`, `delay`, `move_type`, `action`, `action_chance`, `wpguid`) VALUES
 (655280, 1, -1363.2769, 8702.0000, 28.1523, NULL, 0, 1, 0, 100, 0),
