@@ -40613,9 +40613,9 @@
   }
  },
  "Unit::ChangeSeat@5acc762a:qwen3-5-4b": {
-  "hash": "84f2b44ad971",
-  "desc": "Removes the current passenger from their vehicle and attempts to move them to a specified seat (or the next available seat if a negative ID is provided), aborting if the move fails. Side effects: The passenger is removed from their current seat; if successful, they are added to the new seat. If the seat ID is invalid or no empty seat exists, the operation returns without side effects.",
-  "raw": "{\"what\": \"Removes the current passenger from their vehicle and attempts to move them to a specified seat (or the next available seat if a negative ID is provided), aborting if the move fails.\", \"effects\": \"The passenger is removed from their current seat; if successful, they are added to the new seat. If the seat ID is invalid or no empty seat exists, the operation returns without side effects.\"}",
+  "hash": "59756eb361ec",
+  "desc": "Removes the current passenger from their seat and attempts to move them to a new seat specified by `seatId`, or automatically finds the next available seat if `seatId` is negative.",
+  "raw": "{\"what\": \"Removes the current passenger from their seat and attempts to move them to a new seat specified by `seatId`, or automatically finds the next available seat if `seatId` is negative.\", \"effects\": \"None\"}",
   "entry": {
    "class": "Unit",
    "name": "ChangeSeat",
@@ -40625,10 +40625,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 19504
+    "line": 19581
    },
-   "hash": "84f2b44ad971",
-   "desc": "Removes the current passenger from their vehicle and attempts to move them to a specified seat (or the next available seat if a negative ID is provided), aborting if the move fails. Side effects: The passenger is removed from their current seat; if successful, they are added to the new seat. If the seat ID is invalid or no empty seat exists, the operation returns without side effects.",
+   "hash": "59756eb361ec",
+   "desc": "Removes the current passenger from their seat and attempts to move them to a new seat specified by `seatId`, or automatically finds the next available seat if `seatId` is negative.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -41402,22 +41402,22 @@
   }
  },
  "Unit::SetPhaseMask@daeca786:qwen3-5-4b": {
-  "hash": "059dc57f855f",
-  "desc": "Updates the unit's phase mask if it differs from the current one, validates the change via a script manager, and adjusts hostile references and threat lists for the new phase. Side effects: modifies hostile reference online/offline states based on phase alignment; merges offline threat lists into the active threat list; may return early without changes if no update is needed or permissions are denied.",
-  "raw": "{\n  \"what\": \"Updates the unit's phase mask if it differs from the current one, validates the change via a script manager, and adjusts hostile references and threat lists for the new phase.\",\n  \"effects\": \"modifies hostile reference online/offline states based on phase alignment; merges offline threat lists into the active threat list; may return early without changes if no update is needed or permissions are denied.\"\n}",
+  "hash": "4151180f5167",
+  "desc": "Sets the phase mask for the unit by calling the internal implementation with the provided new phase mask and update flag, ensuring the operation is performed on the current unit context. Side effects: The phase mask of the unit is updated based on the `newPhaseMask` parameter if `update` is true; otherwise, it may be set without triggering specific update logic depending on the internal implementation details.",
+  "raw": "{\"what\": \"Sets the phase mask for the unit by calling the internal implementation with the provided new phase mask and update flag, ensuring the operation is performed on the current unit context.\", \"effects\": \"The phase mask of the unit is updated based on the `newPhaseMask` parameter if `update` is true; otherwise, it may be set without triggering specific update logic depending on the internal implementation details.\"}",
   "entry": {
    "class": "Unit",
    "name": "SetPhaseMask",
    "sig": "void SetPhaseMask(uint32 newPhaseMask, bool update)",
    "file": "src/server/game/Entities/Unit/Unit.h",
-   "line": 1973,
+   "line": 1974,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 19104
+    "line": 19159
    },
-   "hash": "059dc57f855f",
-   "desc": "Updates the unit's phase mask if it differs from the current one, validates the change via a script manager, and adjusts hostile references and threat lists for the new phase. Side effects: modifies hostile reference online/offline states based on phase alignment; merges offline threat lists into the active threat list; may return early without changes if no update is needed or permissions are denied.",
+   "hash": "4151180f5167",
+   "desc": "Sets the phase mask for the unit by calling the internal implementation with the provided new phase mask and update flag, ensuring the operation is performed on the current unit context. Side effects: The phase mask of the unit is updated based on the `newPhaseMask` parameter if `update` is true; otherwise, it may be set without triggering specific update logic depending on the internal implementation details.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -42841,27 +42841,6 @@
    "model": "qwen3.5:4b"
   }
  },
- "Vehicle::RemovePassenger@99e6235d:qwen3-5-4b": {
-  "hash": "4fba15310df6",
-  "desc": "Removes a passenger from the vehicle by resetting their seat data, updating NPC flags, removing specific unit flags, and handling charm status if applicable.",
-  "raw": "{\"what\": \"Removes a passenger from the vehicle by resetting their seat data, updating NPC flags, removing specific unit flags, and handling charm status if applicable.\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Vehicle",
-   "name": "RemovePassenger",
-   "sig": "void RemovePassenger(Unit* passenger)",
-   "file": "src/server/game/Entities/Vehicle/Vehicle.h",
-   "line": 49,
-   "access": "public",
-   "impl": {
-    "file": "src/server/game/Entities/Vehicle/Vehicle.cpp",
-    "line": 604
-   },
-   "hash": "4fba15310df6",
-   "desc": "Removes a passenger from the vehicle by resetting their seat data, updating NPC flags, removing specific unit flags, and handling charm status if applicable.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
  "Vehicle::RelocatePassengers@fc70f79e:qwen3-5-4b": {
   "hash": "e2118c1cb7bb",
   "desc": "Retrieves all passengers currently seated in the vehicle, calculates their precise absolute positions accounting for vehicle orientation, and updates both their physical location and internal movement data to reflect this new state. Side effects: Updates the position of all seated passengers; may trigger broadcast events due to position changes.",
@@ -43296,6 +43275,48 @@
    "impl": null,
    "hash": "a20a2f5e14ef",
    "desc": "",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Unit::CorrectPhaseMask@9bb4b4f6:qwen3-5-4b": {
+  "hash": "d86886b1467c",
+  "desc": "Calculates the appropriate phase mask for the current entity (player or creature) based on auras and game master status, then applies this mask internally and notifies the session if it's a player.",
+  "raw": "{\"what\": \"Calculates the appropriate phase mask for the current entity (player or creature) based on auras and game master status, then applies this mask internally and notifies the session if it's a player.\", \"effects\": \"none\"}",
+  "entry": {
+   "class": "Unit",
+   "name": "CorrectPhaseMask",
+   "sig": "void CorrectPhaseMask()",
+   "file": "src/server/game/Entities/Unit/Unit.h",
+   "line": 1973,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Unit/Unit.cpp",
+    "line": 19130
+   },
+   "hash": "d86886b1467c",
+   "desc": "Calculates the appropriate phase mask for the current entity (player or creature) based on auras and game master status, then applies this mask internally and notifies the session if it's a player.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Vehicle::RemovePassenger@e7059b26:qwen3-5-4b": {
+  "hash": "77a0e507785f",
+  "desc": "Removes a passenger from the vehicle by resetting their seat data, updating NPC flags based on seat capabilities, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.",
+  "raw": "{\n  \"what\": \"Removes a passenger from the vehicle by resetting their seat data, updating NPC flags based on seat capabilities, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.\",\n  \"effects\": \"none\"\n}",
+  "entry": {
+   "class": "Vehicle",
+   "name": "RemovePassenger",
+   "sig": "void RemovePassenger(Unit* passenger, bool correctPhase = true)",
+   "file": "src/server/game/Entities/Vehicle/Vehicle.h",
+   "line": 49,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Vehicle/Vehicle.cpp",
+    "line": 604
+   },
+   "hash": "77a0e507785f",
+   "desc": "Removes a passenger from the vehicle by resetting their seat data, updating NPC flags based on seat capabilities, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
