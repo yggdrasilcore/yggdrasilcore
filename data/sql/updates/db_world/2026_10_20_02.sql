@@ -11,3 +11,5 @@ INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_
 (10682, 0, 3, 0, 7, 0, 100, 512, 0, 0, 0, 0, 0, 0, 136, 1, 1, 38571, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'Raider Kerr - On Evade - Set Run Speed to 1.38571'),
 (10682, 0, 4, 0, 25, 0, 100, 512, 0, 0, 0, 0, 0, 0, 43, 0, 2328, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'Raider Kerr - On Reset - Mount'),
 (10682, 0, 5, 0, 25, 0, 100, 512, 0, 0, 0, 0, 0, 0, 136, 1, 1, 38571, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'Raider Kerr - On Reset - Set Run Speed to 1.38571');
+
+UPDATE `smart_scripts` SET `action_param6` = 2 WHERE (`entryorguid` = 10676 AND `source_type` = 0 AND `id` IN (0, 6, 7) AND `action_type` = 53 AND `action_param6` = 0) OR (`entryorguid` = 1067600 AND `source_type` = 9 AND `id` = 0 AND `action_type` = 53 AND `action_param6` = 0) OR (`entryorguid` = 1067601 AND `source_type` = 9 AND `id` = 1 AND `action_type` = 53 AND `action_param6` = 0) OR (`entryorguid` = 1067603 AND `source_type` = 9 AND `id` = 2 AND `action_type` = 53 AND `action_param6` = 0) OR (`entryorguid` = 1067604 AND `source_type` = 9 AND `id` = 0 AND `action_type` = 53 AND `action_param6` = 0);
