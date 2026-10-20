@@ -65,18 +65,6 @@ jobs:
         fetch-depth: 1
         persist-credentials: false
 
-    - name: Normalize git metadata
-      if: steps.changes.outputs.code == 'true'
-      run: |
-        # BuildKit keys the compile layer on the bind-mounted .git content. The
-        # index, reflogs and fetch helpers are rewritten by every checkout, so
-        # drop them to keep the key stable for an unchanged revision.
-        find .git -name index -delete
-        find .git -name FETCH_HEAD -delete
-        find .git -name ORIG_HEAD -delete
-        find .git -name COMMIT_EDITMSG -delete
-        find .git -type d -name logs -prune -exec rm -rf {} +
-
     - name: Download client data
       if: steps.changes.outputs.code == 'true'
       run: |
@@ -103,6 +91,16 @@ jobs:
       if: steps.changes.outputs.code == 'true'
       uses: crazy-max/ghaction-github-runtime@v3
 
+    - name: Restore compiler cache
+      if: steps.changes.outputs.code == 'true'
+      uses: actions/cache/restore@v4
+      with:
+        path: var/docker/ccache
+        key: ccache-docker-${{ github.ref }}-${{ github.sha }}
+        restore-keys: |
+          ccache-docker-${{ github.ref }}-
+          ccache-docker-
+
     - name: Build Docker images
       if: steps.changes.outputs.code == 'true'
       run: |
@@ -112,6 +110,23 @@ jobs:
           yggdrasilcore-db-import \
           yggdrasilcore-authserver \
           yggdrasilcore-worldserver
+
+    - name: Export compiler cache
+      if: steps.changes.outputs.code == 'true'
+      run: |
+        set -euo pipefail
+        dest="$RUNNER_TEMP/ccache-export"
+        rm -rf "$dest"
+        docker buildx build \
+          --file apps/docker/Dockerfile \
+          --target ccache-export \
+          --build-arg "CACHEBUST=${{ github.run_id }}-${{ github.run_attempt }}" \
+          --output "type=local,dest=$dest" \
+          .
+        rm -rf var/docker/ccache
+        mkdir -p var/docker/ccache
+        cp -a "$dest/out/." var/docker/ccache/
+        du -sh var/docker/ccache
 
     - name: Start database
       if: steps.changes.outputs.code == 'true'
@@ -276,3 +291,10 @@ jobs:
     - name: Tear down
       if: always() && steps.changes.outputs.code == 'true'
       run: docker compose down -v --remove-orphans
+
+    - name: Save compiler cache
+      if: always() && steps.changes.outputs.code == 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: var/docker/ccache
+        key: ccache-docker-${{ github.ref }}-${{ github.run_id }}-${{ github.run_attempt }}

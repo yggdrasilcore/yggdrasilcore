@@ -81,13 +81,26 @@ ARG CACHEBUST=1
 
 WORKDIR /yggdrasilcore/build
 
-RUN --mount=type=cache,target=/ccache,sharing=locked \
+# BuildKit keys a RUN on the contents of the contexts it binds, and the checkout
+# rewrites `.git` on every run. Stage the checkout metadata into a cache mount
+# first (this writes nothing to the image), then compile with only cache mounts
+# attached. Cache mounts are excluded from the cache key and persist between
+# builds, so an unchanged revision reuses the compile layer instead of rebuilding.
+RUN --mount=type=bind,source=.git,target=/git-seed \
+    --mount=type=bind,source=var/docker/ccache,target=/ccache-seed \
+    --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=locked \
+    --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=locked \
+    find /yggdrasilcore/.git -mindepth 1 -delete 2>/dev/null || true; \
+    cp -a /git-seed/. /yggdrasilcore/.git/; \
+    cp -an /ccache-seed/. /ccache/ 2>/dev/null || true
+
+RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=locked \
                                                                             
                                                                            
                                                                                 
                                                                                
                                      
-    --mount=type=bind,target=/yggdrasilcore/.git,source=.git \
+    --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=locked \
     git config --global --add safe.directory /yggdrasilcore \
     && cmake /yggdrasilcore \
        -G Ninja \
@@ -106,6 +119,22 @@ RUN --mount=type=cache,target=/ccache,sharing=locked \
        -DLUA_VERSION="luajit"                          \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
+
+###################################
+# Compiler cache export (CI only) #
+###################################
+# Republishes the ccache cache mount into the stage filesystem so the workflow
+# can extract it with `--output type=local` and cache it between jobs. Never
+# part of a normal image build.
+FROM alpine:3.20 AS ccache-export
+
+ARG CACHEBUST=1
+
+RUN --mount=type=bind,source=var/docker/ccache,target=/ccache-seed \
+    --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=locked \
+    cp -an /ccache-seed/. /ccache/ 2>/dev/null || true; \
+    echo "$CACHEBUST"; \
+    rm -rf /out && mkdir -p /out && cp -a /ccache/. /out/
 
 #############################
 # Base runtime for services #
