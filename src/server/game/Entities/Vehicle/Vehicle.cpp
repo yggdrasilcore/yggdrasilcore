@@ -16,6 +16,7 @@
  */
 
 #include "Vehicle.h"
+#include <algorithm>
 #include "AreaDefines.h"
 #include "BattlefieldWG.h"
 #include "GameTime.h"
@@ -734,6 +735,11 @@ bool Vehicle::IsVehicleInUse()
         }
 
     return false;
+}
+
+bool Vehicle::IsControllableVehicle() const
+{
+    return std::ranges::any_of(Seats, [](auto const& seat) { return seat.second.SeatInfo->CanControl(); });
 }
 
 void Vehicle::TeleportVehicle(float x, float y, float z, float ang)
