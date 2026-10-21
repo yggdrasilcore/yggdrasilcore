@@ -860,13 +860,20 @@ public:
                 case GO_SAURFANG_CAMP_FORGE:
                 case GO_SAURFANG_CAMP_BONFIRE:
                 case GO_SAURFANG_CAMP_ANVIL:
+                    // Horde camp props. The Alliance camp summons its own, so these exist only in a
+                    // Horde instance: in Alliance ones they are removed outright, because a despawned
+                    // spawn can still deal its area damage.
+                    if (GetTeamIdInInstance() != TEAM_HORDE)
+                    {
+                        go->AddObjectToRemoveList();
+                        break;
+                    }
+
                     // Camp props belong to the aftermath; their spawn rows are unconditional, hence the despawn.
                     SaurfangCampGUIDs.push_back(go->GetGUID());
                     if (GetBossState(DATA_DEATHBRINGER_SAURFANG) != DONE)
                         go->DespawnOrUnsummon(0ms, Seconds(WEEK));
-                    // The despawn is persisted, so an instance restarted after the outro comes back
-                    // with them hidden. Horde only - the Alliance camp summons its own props.
-                    else if (GetTeamIdInInstance() == TEAM_HORDE)
+                    else // Horde only - the Alliance camp summons its own props.
                         go->Respawn();
                     break;
                 case GO_PLAGUE_SIGIL:
