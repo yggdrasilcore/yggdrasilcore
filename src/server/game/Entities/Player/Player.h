@@ -1638,6 +1638,7 @@ public:
     [[nodiscard]] PlayerMails const& GetMails() const { return m_mail; }
     void SendItemRetrievalMail(uint32 itemEntry, uint32 count); // Item retrieval mails sent by The Postmaster (34337)
     void SendItemRetrievalMail(std::vector<std::pair<uint32, uint32>> mailItems); // Item retrieval mails sent by The Postmaster (34337)
+    void SendItemRetrievalMail(Item* item); // Item retrieval mail for a pre-created item (preserves trade window data)
 
     /*********************************************************/
     /*** MAILED ITEMS SYSTEM ***/
