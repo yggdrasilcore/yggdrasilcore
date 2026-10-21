@@ -27,7 +27,10 @@
 namespace
 {
     std::unordered_map<ObjectGuid, CharacterCacheEntry> _characterCacheStore;
-    std::unordered_map<std::string, CharacterCacheEntry*> _characterCacheByNameStore;
+    // Store GUIDs, not pointers into _characterCacheStore: entries can be erased
+    // (or the store cleared on reload) while a name lookup is in flight, and a
+    // dangling pointer would hand out a GUID that no longer exists in the store.
+    std::unordered_map<std::string, ObjectGuid> _characterCacheByNameStore;
 }
 
 CharacterCache* CharacterCache::instance()
@@ -62,6 +65,7 @@ void CharacterCache::LoadCharacterCacheStorage()
     {
         std::unique_lock<std::shared_mutex> lock(_cacheLock);
         _characterCacheStore.clear();
+        _characterCacheByNameStore.clear();
     }
     uint32 oldMSTime = getMSTime();
 
@@ -145,7 +149,7 @@ void CharacterCache::AddCharacterCacheEntry(ObjectGuid const& guid, uint32 accou
     }
 
     // Fill Name to Guid Store
-    _characterCacheByNameStore[name] = &data;
+    _characterCacheByNameStore[name] = guid;
 }
 
 void CharacterCache::DeleteCharacterCacheEntry(ObjectGuid const& guid, std::string const& name)
@@ -178,9 +182,9 @@ void CharacterCache::UpdateCharacterData(ObjectGuid const& guid, std::string con
     //WorldPackets::Misc::InvalidatePlayer packet(guid);
     //sWorld->SendGlobalMessage(packet.Write());
 
-    // Correct name -> pointer storage
+    // Correct name -> guid storage
     _characterCacheByNameStore.erase(oldName);
-    _characterCacheByNameStore[name] = &itr->second;
+    _characterCacheByNameStore[name] = guid;
 }
 
 void CharacterCache::UpdateCharacterLevel(ObjectGuid const& guid, uint8 level)
@@ -291,10 +295,12 @@ Optional<CharacterCacheEntry> CharacterCache::GetCharacterCacheByGuid(ObjectGuid
 Optional<CharacterCacheEntry> CharacterCache::GetCharacterCacheByName(std::string const& name) const
 {
     std::shared_lock<std::shared_mutex> lock(_cacheLock);
-    auto itr = _characterCacheByNameStore.find(name);
-    if (itr != _characterCacheByNameStore.end())
+    auto nameItr = _characterCacheByNameStore.find(name);
+    if (nameItr != _characterCacheByNameStore.end())
     {
-        return *itr->second;
+        auto itr = _characterCacheStore.find(nameItr->second);
+        if (itr != _characterCacheStore.end())
+            return itr->second;
     }
 
     return {};
@@ -306,7 +312,7 @@ ObjectGuid CharacterCache::GetCharacterGuidByName(std::string const& name) const
     auto itr = _characterCacheByNameStore.find(name);
     if (itr != _characterCacheByNameStore.end())
     {
-        return itr->second->Guid;
+        return itr->second;
     }
 
     return ObjectGuid::Empty;
@@ -352,10 +358,12 @@ uint32 CharacterCache::GetCharacterAccountIdByGuid(ObjectGuid guid) const
 uint32 CharacterCache::GetCharacterAccountIdByName(std::string const& name) const
 {
     std::shared_lock<std::shared_mutex> lock(_cacheLock);
-    auto itr = _characterCacheByNameStore.find(name);
-    if (itr != _characterCacheByNameStore.end())
+    auto nameItr = _characterCacheByNameStore.find(name);
+    if (nameItr != _characterCacheByNameStore.end())
     {
-        return itr->second->AccountId;
+        auto itr = _characterCacheStore.find(nameItr->second);
+        if (itr != _characterCacheStore.end())
+            return itr->second.AccountId;
     }
 
     return 0;

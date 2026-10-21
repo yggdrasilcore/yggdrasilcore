@@ -215,7 +215,6 @@ class ObjectGuid
         [[nodiscard]] char const* GetTypeName() const { return !IsEmpty() ? GetTypeName(GetHigh()) : "None"; }
         [[nodiscard]] std::string ToString() const;
 
-    private:
         static bool HasEntry(HighGuid high)
         {
             switch (high)
@@ -240,6 +239,7 @@ class ObjectGuid
 
         [[nodiscard]] bool HasEntry() const { return HasEntry(GetHigh()); }
 
+    private:
         static ObjectGuid Global(HighGuid type, LowType counter);
         static ObjectGuid MapSpecific(HighGuid type, uint32 entry, LowType counter);
 
