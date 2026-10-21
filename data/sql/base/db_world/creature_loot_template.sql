@@ -248886,7 +248886,22 @@ INSERT INTO `creature_loot_template` VALUES
 (40419,26001,26001,6,0,1,1,1,1,'Charscale Invoker - (ReferenceTable)'),
 (40419,26002,26002,6,0,1,1,1,1,'Charscale Invoker - (ReferenceTable)'),
 (40419,26015,26015,2,0,1,1,1,1,'Charscale Invoker - (ReferenceTable)'),
-(40419,26016,26016,2,0,1,1,1,1,'Charscale Invoker - (ReferenceTable)');
+(40419,26016,26016,2,0,1,1,1,1,'Charscale Invoker - (ReferenceTable)'),
+(39946,49426,0,100,0,1,0,1,1,'General Zarithrian - Emblem of Frost'),
+(39947,49426,0,100,0,1,0,1,1,'Baltharus the Warborn - Emblem of Frost'),
+(39948,49426,0,100,0,1,0,1,1,'Saviana Ragefire - Emblem of Frost'),
+(100000,1,35071,100,0,1,0,2,2,'Soulguard Watchman - (ReferenceTable)'),
+(100001,1,35073,100,0,1,0,2,2,'Spectral Warden (1) - (ReferenceTable)'),
+(100003,1,35083,100,0,1,0,1,1,'Naxxramas Cultist - (ReferenceTable)'),
+(100004,1,35083,100,0,1,0,1,1,'Dread Creeper - (ReferenceTable)'),
+(100004,42253,0,18,0,1,1,1,3,'Dread Creeper - Iceweb Spider Silk'),
+(100004,44758,0,70,0,1,1,2,4,'Dread Creeper - Icy Spinneret'),
+(100004,44759,0,12,0,1,1,2,3,'Dread Creeper - Acid-Drenched Fangs'),
+(100005,1,35085,100,0,1,0,1,1,'Naxxramas Cultist (1) - (ReferenceTable)'),
+(100006,1,35085,100,0,1,0,1,1,'Carrion Spinner (1) - (ReferenceTable)'),
+(100006,42253,0,18,0,1,1,1,3,'Carrion Spinner (1) - Iceweb Spider Silk'),
+(100006,44758,0,70,0,1,1,2,4,'Carrion Spinner (1) - Icy Spinneret'),
+(100006,44759,0,12,0,1,1,2,3,'Carrion Spinner (1) - Acid-Drenched Fangs');
 /*!40000 ALTER TABLE `creature_loot_template` ENABLE KEYS */;
 UNLOCK TABLES;
 
