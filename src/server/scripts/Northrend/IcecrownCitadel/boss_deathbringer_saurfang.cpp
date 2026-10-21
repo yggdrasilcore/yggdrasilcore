@@ -1038,7 +1038,10 @@ public:
         {
             _events.Reset();
             _outroZeppelinWait = 0;
-            me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+            // Flagged only while the RP can actually be started; the flag is cleared by
+            // ACTION_START_EVENT and never comes back for an instance that has beaten him.
+            if (uint32 const state = _instance->GetBossState(DATA_DEATHBRINGER_SAURFANG); state != DONE && state != IN_PROGRESS)
+                me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->SetReactState(REACT_PASSIVE);
         }
 
