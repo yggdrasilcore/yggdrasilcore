@@ -500,15 +500,18 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recvData)
         return;
     }
 
-    // verify that the mail has the item to avoid cheaters taking COD items without paying
-    bool foundItem = false;
-    for (std::vector<MailItemInfo>::const_iterator itr = m->items.begin(); itr != m->items.end(); ++itr)
-        if (itr->item_guid == itemLowGuid)
+    // The client only sends the low 32 bits of the item GUID. Resolve that
+    // against the mail's full 48-bit item counters before using it as a key.
+    ObjectGuid::LowType itemGuid = 0;
+    for (MailItemInfo const& mailItem : m->items)
+    {
+        if ((mailItem.item_guid & 0xFFFFFFFF) == itemLowGuid)
         {
-            foundItem = true;
+            itemGuid = mailItem.item_guid;
             break;
         }
-    if (!foundItem)
+    }
+    if (!itemGuid)
     {
         player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_ERR_INTERNAL_ERROR);
         return;
@@ -521,15 +524,15 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recvData)
         return;
     }
 
-    Item* it = player->GetMItem(itemLowGuid);
+    Item* it = player->GetMItem(itemGuid);
 
     ItemPosCountVec dest;
     uint8 msg = _player->CanStoreItem(NULL_BAG, NULL_SLOT, dest, it, false);
     if (msg == EQUIP_ERR_OK)
     {
         CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-        m->RemoveItem(itemLowGuid);
-        m->removedItems.push_back(itemLowGuid);
+        m->RemoveItem(itemGuid);
+        m->removedItems.push_back(itemGuid);
 
         if (m->COD > 0) // if there is COD, take COD money from player and send them to sender by mail
         {
@@ -581,7 +584,7 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recvData)
         player->_SaveMail(trans);
         CharacterDatabase.CommitTransaction(trans);
 
-        player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_OK, 0, itemLowGuid, count);
+        player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_OK, 0, itemGuid, count);
     }
     else
         player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_ERR_EQUIP_ERROR, msg);
