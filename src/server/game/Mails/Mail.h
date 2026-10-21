@@ -160,6 +160,7 @@ struct MailItemInfo
 {
     ObjectGuid::LowType item_guid;
     uint32 item_template;
+    uint32 handle;                  // client-facing attachment handle, unique within the mail
 };
 typedef std::vector<MailItemInfo> MailItemInfoVec;
 
@@ -187,7 +188,37 @@ struct Mail
         MailItemInfo mii;
         mii.item_guid = itemGuidLow;
         mii.item_template = item_template;
+
+        // Assign the lowest unused attachment handle (1..MAX_MAIL_ITEMS).
+        // The client receives this value in the mail list and echoes it back
+        // in CMSG_MAIL_TAKE_ITEM, so it has to stay unique and stable for the
+        // lifetime of the mail. It is deliberately not the item GUID.
+        mii.handle = 1;
+        for (;;)
+        {
+            bool used = false;
+            for (MailItemInfo const& item : items)
+            {
+                if (item.handle == mii.handle)
+                {
+                    used = true;
+                    break;
+                }
+            }
+            if (!used)
+                break;
+            ++mii.handle;
+        }
+
         items.push_back(mii);
+    }
+
+    MailItemInfo const* GetItemByHandle(uint32 handle) const
+    {
+        for (MailItemInfo const& item : items)
+            if (item.handle == handle)
+                return &item;
+        return nullptr;
     }
 
     bool RemoveItem(ObjectGuid::LowType item_guid)
