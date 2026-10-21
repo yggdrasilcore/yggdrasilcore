@@ -12963,6 +12963,14 @@ void Player::ResurectUsingRequestData()
 
 void Player::SetClientControl(Unit* target, bool allowMove, bool packetOnly /*= false*/)
 {
+    ASSERT(target);
+    // refuse to grant control if target is charmed by someone else
+    if (target->IsCharmed() && (GetGUID() != target->GetCharmerGUID()))
+    {
+        LOG_ERROR("entities.player", "Player '{}' attempt to client control '{}', which is charmed by GUID {}", GetName(), target->GetName(), target->GetCharmerGUID().ToString());
+        return;
+    }
+
     WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, target->GetPackGUID().size() + 1);
     data << target->GetPackGUID();
     data << uint8((allowMove && !target->HasUnitState(UNIT_STATE_FLEEING | UNIT_STATE_CONFUSED)) ? 1 : 0);
