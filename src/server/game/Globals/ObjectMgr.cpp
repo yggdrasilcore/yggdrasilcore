@@ -6337,7 +6337,7 @@ void ObjectMgr::ReturnOrDeleteOldMails(bool serverUp)
     stmt->SetData(0, uint32(curTime));
     if (PreparedQueryResult items = CharacterDatabase.Query(stmt))
     {
-        MailItemInfo item;
+        MailItemInfo item{};
         do
         {
             Field* fields = items->Fetch();

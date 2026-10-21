@@ -483,10 +483,10 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recvData)
 {
     ObjectGuid mailbox;
     uint32 mailId;
-    uint32 itemLowGuid;
+    uint32 itemHandle;
     recvData >> mailbox;
     recvData >> mailId;
-    recvData >> itemLowGuid;    // item guid low
+    recvData >> itemHandle;     // attachment handle
 
     if (!CanOpenMailBox(mailbox))
         return;
@@ -500,22 +500,15 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recvData)
         return;
     }
 
-    // The client only sends the low 32 bits of the item GUID. Resolve that
-    // against the mail's full 48-bit item counters before using it as a key.
-    ObjectGuid::LowType itemGuid = 0;
-    for (MailItemInfo const& mailItem : m->items)
-    {
-        if ((mailItem.item_guid & 0xFFFFFFFF) == itemLowGuid)
-        {
-            itemGuid = mailItem.item_guid;
-            break;
-        }
-    }
-    if (!itemGuid)
+    // The client sends back the opaque attachment handle we gave it in the
+    // mail list. Resolve it to the mail's full 48-bit item counter.
+    MailItemInfo const* mailItem = m->GetItemByHandle(itemHandle);
+    if (!mailItem)
     {
         player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_ERR_INTERNAL_ERROR);
         return;
     }
+    ObjectGuid::LowType itemGuid = mailItem->item_guid;
 
     // prevent cheating with skip client money check
     if (!player->HasEnoughMoney(m->COD))
@@ -584,7 +577,7 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recvData)
         player->_SaveMail(trans);
         CharacterDatabase.CommitTransaction(trans);
 
-        player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_OK, 0, itemGuid, count);
+        player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_OK, 0, itemHandle, count);
     }
     else
         player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_ERR_EQUIP_ERROR, msg);
@@ -718,8 +711,8 @@ void WorldSession::HandleGetMailList(WorldPacket& recvData)
             Item* item = player->GetMItem(mail->items[i].item_guid);
             // item index (0-6?)
             data << uint8(i);
-            // item guid low?
-            data << uint32((item ? item->GetGUID().GetCounter() : 0));
+            // attachment handle (opaque to the client)
+            data << uint32(mail->items[i].handle);
             // entry
             data << uint32((item ? item->GetEntry() : 0));
             for (uint8 j = 0; j < MAX_INSPECTED_ENCHANTMENT_SLOT; ++j)

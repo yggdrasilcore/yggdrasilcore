@@ -1624,7 +1624,7 @@ public:
     void SetTarget(ObjectGuid /*guid*/ = ObjectGuid::Empty) override { } /// Used for serverside target changes, does not apply to players
     void SetSelection(ObjectGuid guid);
 
-    void SendMailResult(uint32 mailId, MailResponseType mailAction, MailResponseResult mailError, uint32 equipError = 0, ObjectGuid::LowType item_guid = 0, uint32 item_count = 0);
+    void SendMailResult(uint32 mailId, MailResponseType mailAction, MailResponseResult mailError, uint32 equipError = 0, uint32 itemHandle = 0, uint32 item_count = 0);
     void SendNewMail();
     void UpdateNextMailTimeAndUnreads();
     void AddNewMailDeliverTime(time_t deliver_time);
