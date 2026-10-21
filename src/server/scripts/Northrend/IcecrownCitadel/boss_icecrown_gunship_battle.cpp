@@ -870,7 +870,6 @@ public:
 
         void Reset() override
         {
-            _events.Reset();
         }
 
         void EnterEvadeMode(EvadeReason /*why*/) override
@@ -1228,7 +1227,6 @@ public:
 
         void Reset() override
         {
-            _events.Reset();
         }
 
         void EnterEvadeMode(EvadeReason /*why*/) override
