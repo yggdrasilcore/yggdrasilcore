@@ -1225,8 +1225,11 @@ public:
 
                             // Not raised here: DONE fires the moment the boss dies. The outro asks
                             // via SetData(DATA_SAURFANG_CAMP); OnPlayerEnter covers saved instances.
+                            // FAIL is treated like NOT_STARTED: a wipe leaves it in FAIL for good in
+                            // this framework, and without this the pad would stay shut until a kill.
                             [[fallthrough]];
                         case NOT_STARTED:
+                        case FAIL:
                             if (GameObject* teleporter = instance->GetGameObject(SaurfangTeleportGUID))
                             {
                                 HandleGameObject(SaurfangTeleportGUID, true, teleporter);
