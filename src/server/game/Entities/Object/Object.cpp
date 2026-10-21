@@ -125,7 +125,12 @@ void Object::_Create(ObjectGuid::LowType guidlow, uint32 entry, HighGuid guidhig
 {
     if (!m_uint32Values) _InitValues();
 
-    ObjectGuid guid(guidhigh, entry, guidlow);
+    // Entry-bearing types pack the entry into bits 24..47, so their counter is
+    // limited to 24 bits. Entry-less types (players, items, groups, ...) use the
+    // full counter and must go through the global constructor instead.
+    ObjectGuid guid = ObjectGuid::HasEntry(guidhigh)
+        ? ObjectGuid(guidhigh, entry, guidlow)
+        : ObjectGuid(guidhigh, guidlow);
     SetGuidValue(OBJECT_FIELD_GUID, guid);
     SetUInt32Value(OBJECT_FIELD_TYPE, m_objectType);
     m_PackGUID.Set(guid);
