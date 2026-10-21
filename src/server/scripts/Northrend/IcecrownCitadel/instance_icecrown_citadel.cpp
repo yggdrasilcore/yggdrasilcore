@@ -1563,8 +1563,8 @@ public:
 
             vendor->CastSpell(vendor, SPELL_SIMPLE_TELEPORT, true);
             // The path ends on the pitch, facing the customers.
-            vendor->GetMotionMaster()->MoveWaypoint(smith ? (horde ? PATH_CAMP_MORGAN_DAYBLAZE : PATH_CAMP_SHELY_STEELBOWELS)
-                                                          : (horde ? PATH_CAMP_APOTHECARY_CANDITH_TOMAS : PATH_CAMP_BRAZIE_GETZ), false);
+            vendor->GetMotionMaster()->MovePath(smith ? (horde ? PATH_CAMP_MORGAN_DAYBLAZE : PATH_CAMP_SHELY_STEELBOWELS)
+                                                        : (horde ? PATH_CAMP_APOTHECARY_CANDITH_TOMAS : PATH_CAMP_BRAZIE_GETZ), false);
         }
 
         void SetData(uint32 type, uint32 data) override
