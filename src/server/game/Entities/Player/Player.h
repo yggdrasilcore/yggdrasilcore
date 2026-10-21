@@ -2641,6 +2641,7 @@ public:
 protected:
     uint32 GetSpellQueueWindow() const;
     void ProcessSpellQueue();
+    Unit* SelectCharmedAIGroupTarget(float distance) const;
 
 public:
     std::deque<PendingSpellCastRequest> SpellQueue;
