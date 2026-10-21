@@ -181,13 +181,13 @@ public:
         {
             do
             {
-                Field* fields           = result->Fetch();
-                uint32 itemGuid         = fields[0].Get<uint32>();
-                uint32 itemBag          = fields[1].Get<uint32>();
-                uint8 itemSlot          = fields[2].Get<uint8>();
-                uint32 ownerGuid        = fields[3].Get<uint32>();
-                uint32 ownerAccountId   = fields[4].Get<uint32>();
-                std::string ownerName   = fields[5].Get<std::string>();
+                Field* fields                  = result->Fetch();
+                ObjectGuid::LowType itemGuid   = fields[0].Get<uint64>();
+                uint32 itemBag                 = fields[1].Get<uint32>();
+                uint8 itemSlot                 = fields[2].Get<uint8>();
+                uint32 ownerGuid               = fields[3].Get<uint32>();
+                uint32 ownerAccountId          = fields[4].Get<uint32>();
+                std::string ownerName          = fields[5].Get<std::string>();
 
                 char const* itemPos = nullptr;
                 if (Player::IsEquipmentPos(itemBag, itemSlot))
@@ -236,7 +236,7 @@ public:
             do
             {
                 Field* fields                   = result->Fetch();
-                ObjectGuid::LowType itemGuid    = fields[0].Get<uint32>();
+                ObjectGuid::LowType itemGuid    = fields[0].Get<uint64>();
                 ObjectGuid::LowType itemSender  = fields[1].Get<uint32>();
                 uint32 itemReceiver             = fields[2].Get<uint32>();
                 uint32 itemSenderAccountId      = fields[3].Get<uint32>();
@@ -282,11 +282,11 @@ public:
         {
             do
             {
-                Field* fields           = result->Fetch();
-                uint32 itemGuid         = fields[0].Get<uint32>();
-                uint32 owner            = fields[1].Get<uint32>();
-                uint32 ownerAccountId   = fields[2].Get<uint32>();
-                std::string ownerName   = fields[3].Get<std::string>();
+                Field* fields                  = result->Fetch();
+                ObjectGuid::LowType itemGuid   = fields[0].Get<uint64>();
+                uint32 owner                   = fields[1].Get<uint32>();
+                uint32 ownerAccountId          = fields[2].Get<uint32>();
+                std::string ownerName          = fields[3].Get<std::string>();
 
                 char const* itemPos = "[in auction]";
 
@@ -314,10 +314,10 @@ public:
         {
             do
             {
-                Field* fields = result->Fetch();
-                uint32 itemGuid = fields[0].Get<uint32>();
-                uint32 guildGuid = fields[1].Get<uint32>();
-                std::string guildName = fields[2].Get<std::string>();
+                Field* fields                  = result->Fetch();
+                ObjectGuid::LowType itemGuid   = fields[0].Get<uint64>();
+                uint32 guildGuid               = fields[1].Get<uint32>();
+                std::string guildName          = fields[2].Get<std::string>();
 
                 char const* itemPos = "[in guild bank]";
 
