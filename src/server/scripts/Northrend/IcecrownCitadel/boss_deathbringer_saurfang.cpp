@@ -811,10 +811,16 @@ _guardList.push_back(guard->GetGUID());
                     break;
                 case ACTION_EVADE:
                     // Wipe handling: the party despawns in the grip and comes back at its spawn points.
+                    // Respawn reverts to the original entry unless it is updated, which would turn an
+                    // Alliance captain and guards back into their Horde spawns.
                     for (ObjectGuid const& guid : _guardList)
                         if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
+                        {
+                            guard->SetOriginalEntry(guard->GetEntry());
                             guard->DespawnOnEvade(3s);
+                        }
 
+                    me->SetOriginalEntry(me->GetEntry());
                     me->DespawnOnEvade(3s);
                     break;
                 default:
@@ -1100,10 +1106,16 @@ _guardList.push_back(guard->GetGUID());
                     break;
                 case ACTION_EVADE:
                     // Wipe handling: the party despawns in the grip and comes back at its spawn points.
+                    // Respawn reverts to the original entry unless it is updated, which would turn an
+                    // Alliance captain and guards back into their Horde spawns.
                     for (ObjectGuid const& guid : _guardList)
                         if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
+                        {
+                            guard->SetOriginalEntry(guard->GetEntry());
                             guard->DespawnOnEvade(3s);
+                        }
 
+                    me->SetOriginalEntry(me->GetEntry());
                     me->DespawnOnEvade(3s);
                     break;
                 default:
