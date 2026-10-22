@@ -100,13 +100,18 @@ void Player::Update(uint32 p_time)
 
     UpdateAfkReport(now);
 
-    // Channel updates run on a 5s cadence instead of every zone change, so
-    // border crossings collapse into the latest zone.
-    static std::atomic<uint32> lastChannelTick{ 0 };
-    uint32 tickMs = lastChannelTick.load(std::memory_order_relaxed);
-    uint32 nowMs = getMSTime();
-    if (nowMs - tickMs >= 5000 && lastChannelTick.compare_exchange_strong(tickMs, nowMs))
-        UpdateLocalChannels(m_zoneUpdateId);
+    // Channel updates run on a 5s cadence per player instead of every zone
+    // change, so border crossings collapse into the latest zone.
+    if (m_zoneUpdateId != uint32(-1))
+    {
+        uint32 nowMs = getMSTime();
+        if ((!m_lastLocalChannelUpdate || nowMs - m_lastLocalChannelUpdate >= 5000) &&
+            (!GetSession()->PlayerLoading() || IsBeingTeleportedFar()))
+        {
+            UpdateLocalChannels(m_zoneUpdateId);
+            m_lastLocalChannelUpdate = nowMs;
+        }
+    }
 
     // Xinef: update charm AI only if we are controlled by creature or
     // non-posses player charm
@@ -1405,6 +1410,18 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
     // check some item equip limitations (in result lost CanTitanGrip at talent
     // reset, for example)
     AutoUnequipOffhandIfNeed();
+
+    // Apply the first zone transition immediately; later crossings within the
+    // 5s window are collapsed into the latest zone by Player::Update.
+    if (!GetSession()->PlayerLoading() || IsBeingTeleportedFar())
+    {
+        uint32 nowMs = getMSTime();
+        if (!m_lastLocalChannelUpdate || nowMs - m_lastLocalChannelUpdate >= 5000)
+        {
+            UpdateLocalChannels(newZone);
+            m_lastLocalChannelUpdate = nowMs;
+        }
+    }
 
     UpdateZoneDependentAuras(newZone);
 }
