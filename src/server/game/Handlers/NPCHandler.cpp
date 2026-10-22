@@ -107,7 +107,11 @@ void WorldSession::SendTrainerList(ObjectGuid guid, const std::string& strTitle)
 
     // Stop the npc if moving
     unit->PauseMovementForInteraction(_player);
-    unit->SetHomePosition(unit->GetPosition());
+
+    // Update home position for patrolling NPCs only (prevents drift for stationary NPCs)
+    if (unit->GetDefaultMovementType() == WAYPOINT_MOTION_TYPE ||
+        unit->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
+        unit->SetHomePosition(unit->GetPosition());
 
     CreatureTemplate const* ci = unit->GetCreatureTemplate();
 
@@ -301,7 +305,11 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
 
     // Stop the npc if moving
     unit->PauseMovementForInteraction(_player);
-    unit->SetHomePosition(unit->GetPosition());
+
+    // Update home position for patrolling NPCs only (prevents drift for stationary NPCs)
+    if (unit->GetDefaultMovementType() == WAYPOINT_MOTION_TYPE ||
+        unit->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
+        unit->SetHomePosition(unit->GetPosition());
 
     // If spiritguide, no need for gossip menu, just put player into resurrect queue
     if (unit->IsSpiritGuide())
