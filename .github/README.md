@@ -11,7 +11,7 @@ Read more about Yggdrasil WoW and see Yggdrasilcore in action [here](https://ygg
 
 ## Build Status
 
-<img width="171" height="35" alt="image" src="https://github.com/user-attachments/assets/e1078d72-c9e2-42d3-a6ce-5bd70cd8edb4" />
+[![docker-build](https://github.com/yggdrasilcore/yggdrasilcore/actions/workflows/core-build.yml/badge.svg?branch=master)](https://github.com/yggdrasilcore/yggdrasilcore/actions/workflows/core-build.yml)
 <br><br>
 We build every commit on a local Dockerized Ubuntu 24.04 machine before anything is merged to master. 
 
