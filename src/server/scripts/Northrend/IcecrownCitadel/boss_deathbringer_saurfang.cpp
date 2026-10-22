@@ -1200,7 +1200,7 @@ _guardList.push_back(guard->GetGUID());
                         if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
                             guard->AI()->DoAction(ACTION_READY_WEAPONS);
                     me->SetWalk(true);
-                    me->GetMotionMaster()->MovePoint(POINT_FIRST_STEP, firstStepPos.GetPositionX(), firstStepPos.GetPositionY(), firstStepPos.GetPositionZ());
+                    me->GetMotionMaster()->MovePoint(POINT_FIRST_STEP, firstStepPos.GetPositionX(), firstStepPos.GetPositionY(), firstStepPos.GetPositionZ(), FORCED_MOVEMENT_NONE, 0.f, firstStepPos.GetOrientation(), false);
                     break;
                 case EVENT_INTRO_ALLIANCE_5:
                     Talk(SAY_INTRO_ALLIANCE_5);
