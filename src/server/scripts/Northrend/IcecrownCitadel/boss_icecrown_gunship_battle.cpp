@@ -1893,11 +1893,13 @@ public:
     struct npc_gunship_mageAI : public gunship_npc_AI
     {
         uint32 _shadowChannelingRecastTimer;
+        bool _atSlot;
 
         npc_gunship_mageAI(Creature* creature) : gunship_npc_AI(creature)
         {
             me->m_CombatDistance = 70.0f;
             _shadowChannelingRecastTimer = 0;
+            _atSlot = false;
         }
 
         void AttackStart(Unit* target) override
@@ -1922,6 +1924,7 @@ public:
                         break;
                     case SLOT_MAGE_1:
                     case SLOT_MAGE_2:
+                        _atSlot = true;
                         me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, true);
                         break;
                     default:
@@ -1936,7 +1939,8 @@ public:
         {
             if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
                 return;
-            if (me->GetReactState() == REACT_PASSIVE)
+            // Mages stay REACT_PASSIVE at their slot, so the passive guard must not skip this.
+            if ((Index != SLOT_MAGE_1 && Index != SLOT_MAGE_2) || !_atSlot)
                 return;
             gunship_npc_AI::UpdateAI(diff);
 
@@ -1947,7 +1951,7 @@ public:
                 if (diff >= _shadowChannelingRecastTimer)
                 {
                     _shadowChannelingRecastTimer = 0;
-                    if (!me->HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_CONFUSED | UNIT_STATE_POSSESSED))
+                    if (!me->HasAura(SPELL_SHADOW_CHANNELING) && !me->HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_CONFUSED | UNIT_STATE_POSSESSED))
                         me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, true);
                 }
                 else
