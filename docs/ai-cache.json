@@ -13212,9 +13212,9 @@
   }
  },
  "Player::Update@216ef278:qwen3-5-4b": {
-  "hash": "f0b8ceca3263",
-  "desc": "Processes quest completion by destroying required and source items based on bonding rules and repeatability status, removing the timed quest, and storing reward items if storage capacity allows. Side effects: Destroys specific item instances from player inventory or world; removes the quest from active tracking; stores new reward items in the player's bag/equipment slots.",
-  "raw": "{\n  \"what\": \"Processes quest completion by destroying required and source items based on bonding rules and repeatability status, removing the timed quest, and storing reward items if storage capacity allows.\",\n  \"effects\": \"Destroys specific item instances from player inventory or world; removes the quest from active tracking; stores new reward items in the player's bag/equipment slots.\"\n}",
+  "hash": "2cc3d64b32a0",
+  "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.",
+  "raw": "{\"what\": \"Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "Update",
@@ -13223,11 +13223,11 @@
    "line": 1097,
    "access": "public",
    "impl": {
-    "file": "src/server/game/Entities/Player/PlayerQuest.cpp",
-    "line": 662
+    "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
+    "line": 57
    },
-   "hash": "f0b8ceca3263",
-   "desc": "Processes quest completion by destroying required and source items based on bonding rules and repeatability status, removing the timed quest, and storing reward items if storage capacity allows. Side effects: Destroys specific item instances from player inventory or world; removes the quest from active tracking; stores new reward items in the player's bag/equipment slots.",
+   "hash": "2cc3d64b32a0",
+   "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -26598,22 +26598,22 @@
   }
  },
  "Player::SetClientControl@d7ca35fd:qwen3-5-4b": {
-  "hash": "d12feda5b6ae",
-  "desc": "Updates the client with movement control status for a target unit and conditionally adjusts the player's viewpoint or movement state based on flags. Side effects: Modifies target's controlled state, orientation, and movement capabilities; sends network packet to client",
-  "raw": "{\"what\": \"Updates the client with movement control status for a target unit and conditionally adjusts the player's viewpoint or movement state based on flags.\", \"effects\": \"Modifies target's controlled state, orientation, and movement capabilities; sends network packet to client\"}",
+  "hash": "620a91576bb7",
+  "desc": "Attempts to grant client-side control to a target unit, checking for charmed status and sending a network packet to update the client view; optionally sets the viewpoint and movement state if not in 'packet only' mode.",
+  "raw": "{\"what\": \"Attempts to grant client-side control to a target unit, checking for charmed status and sending a network packet to update the client view; optionally sets the viewpoint and movement state if not in 'packet only' mode.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "SetClientControl",
    "sig": "void SetClientControl(Unit* target, bool allowMove, bool packetOnly = false)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2341,
+   "line": 2343,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 12937
+    "line": 13032
    },
-   "hash": "d12feda5b6ae",
-   "desc": "Updates the client with movement control status for a target unit and conditionally adjusts the player's viewpoint or movement state based on flags. Side effects: Modifies target's controlled state, orientation, and movement capabilities; sends network packet to client",
+   "hash": "620a91576bb7",
+   "desc": "Attempts to grant client-side control to a target unit, checking for charmed status and sending a network packet to update the client view; optionally sets the viewpoint and movement state if not in 'packet only' mode.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
