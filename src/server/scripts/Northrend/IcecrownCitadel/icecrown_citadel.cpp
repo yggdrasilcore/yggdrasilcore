@@ -3667,9 +3667,38 @@ public:
     }
 };
 
+enum BrazieGetzGossip
+{
+    GOSSIP_MENU_BRAZIE_GETZ             = 10949,
+    GOSSIP_OPTION_BRAZIE_ODD_LITTLE_GUY = 1
+};
+
+class npc_brazie_getz : public CreatureScript
+{
+public:
+    npc_brazie_getz() : CreatureScript("npc_brazie_getz") { }
+
+    struct npc_brazie_getzAI : public ScriptedAI
+    {
+        npc_brazie_getzAI(Creature* creature) : ScriptedAI(creature) { }
+
+        void sGossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
+        {
+            if (menuId == GOSSIP_MENU_BRAZIE_GETZ && gossipListId == GOSSIP_OPTION_BRAZIE_ODD_LITTLE_GUY)
+                CloseGossipMenuFor(player);
+        }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetIcecrownCitadelAI<npc_brazie_getzAI>(creature);
+    }
+};
+
 void AddSC_icecrown_citadel()
 {
     new npc_highlord_tirion_fordring_lh();
+    new npc_brazie_getz();
     new npc_rotting_frost_giant();
     new npc_frost_freeze_trap();
     new npc_alchemist_adrianna();
