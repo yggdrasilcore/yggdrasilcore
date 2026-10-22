@@ -3166,6 +3166,31 @@ void Creature::ClearInteractionStop(Player* player)
     }
 }
 
+void Creature::ForceClearInteractionStop()
+{
+    if (!HasAura(INTERACTION_STOP_AURA) && !_interactionStopResume.valid)
+        return;
+
+    RemoveAurasDueToSpell(INTERACTION_STOP_AURA);
+    ResumeMovement();
+    _interactionStopResume.valid = false;
+
+    {
+        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
+        for (auto itr = GetInteractionStopMap()->begin(); itr != GetInteractionStopMap()->end();)
+        {
+            itr->second.erase(GetGUID().GetRawValue());
+            if (itr->second.empty())
+                itr = GetInteractionStopMap()->erase(itr);
+            else
+                ++itr;
+        }
+    }
+
+    LOG_DEBUG("entities.unit", "Creature {} (entry {}) interaction stop force-cleared by script movement",
+        GetGUID().ToString(), GetEntry());
+}
+
 void Creature::ResumeInteractionMovement()
 {
     if (!_interactionStopResume.valid)

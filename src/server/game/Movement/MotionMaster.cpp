@@ -850,6 +850,13 @@ void MotionMaster::MoveDistract(uint32 timer)
 
 void MotionMaster::Mutate(MovementGenerator* m, MovementSlot slot)
 {
+    if (m && _owner->IsCreature())
+    {
+        Creature* creature = _owner->ToCreature();
+        if (creature->IsGossipScriptActive())
+            creature->ForceClearInteractionStop();
+    }
+
     while (MovementGenerator* curr = Impl[slot])
     {
         bool delayed = (_top == slot && (_cleanFlag & MMCF_UPDATE));

@@ -578,6 +578,13 @@ namespace
 
     int32 MoveSplineInit::Launch()
     {
+        if (unit->IsCreature())
+        {
+            Creature* creature = unit->ToCreature();
+            if (creature->IsGossipScriptActive())
+                creature->ForceClearInteractionStop();
+        }
+
         MoveSpline& move_spline = *unit->movespline;
 
         bool transport = unit->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) && unit->GetTransGUID();
