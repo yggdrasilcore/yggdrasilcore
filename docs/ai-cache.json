@@ -43412,5 +43412,44 @@
    "ai": true,
    "model": "qwen3.5:4b"
   }
+ },
+ "Creature::ForceClearInteractionStop@86bdf900:qwen3-5-4b": {
+  "hash": "ef23328469b0",
+  "desc": "Removes the INTERACTION_STOP_AURA from the creature, resumes its movement, clears internal state flags, and removes the creature's GUID from all interaction stop maps while holding a lock.",
+  "raw": "{\n  \"what\": \"Removes the INTERACTION_STOP_AURA from the creature, resumes its movement, clears internal state flags, and removes the creature's GUID from all interaction stop maps while holding a lock.\",\n  \"effects\": \"none\"\n}",
+  "entry": {
+   "class": "Creature",
+   "name": "ForceClearInteractionStop",
+   "sig": "void ForceClearInteractionStop()",
+   "file": "src/server/game/Entities/Creature/Creature.h",
+   "line": 93,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 3169
+   },
+   "hash": "ef23328469b0",
+   "desc": "Removes the INTERACTION_STOP_AURA from the creature, resumes its movement, clears internal state flags, and removes the creature's GUID from all interaction stop maps while holding a lock.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Creature::SetGossipScriptActive@ccbf2dc0:qwen3-5-4b": {
+  "hash": "631f55b3bf47",
+  "desc": "Sets the gossip script's active state to the provided boolean value",
+  "raw": "{\"what\": \"Sets the gossip script's active state to the provided boolean value\", \"effects\": \"none\"}",
+  "entry": {
+   "class": "Creature",
+   "name": "SetGossipScriptActive",
+   "sig": "void SetGossipScriptActive(bool active)",
+   "file": "src/server/game/Entities/Creature/Creature.h",
+   "line": 95,
+   "access": "public",
+   "impl": null,
+   "hash": "631f55b3bf47",
+   "desc": "Sets the gossip script's active state to the provided boolean value",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
  }
 }
