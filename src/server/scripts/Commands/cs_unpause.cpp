@@ -19,9 +19,6 @@
 
 using namespace Ycore::ChatCommands;
 
-// Released by the UnpauseOnInteract client addon when an interaction
-// window closes: ".unpause <creature guid>". Only removes the stop aura
-// if it was placed by the requesting player.
 class unpause_commandscript : public CommandScript
 {
 public:

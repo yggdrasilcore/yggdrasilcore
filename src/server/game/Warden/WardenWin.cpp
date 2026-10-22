@@ -40,6 +40,11 @@ static constexpr char _luaEvalPostfix[] = ",'GUILD')end";
 
 static_assert((sizeof(_luaEvalPrefix)-1 + sizeof(_luaEvalMidfix)-1 + sizeof(_luaEvalPostfix)-1 + WARDEN_MAX_LUA_CHECK_LENGTH) == 255);
 
+static constexpr uint16 _interactionUnpausePayloadId = 8999;
+static constexpr char _interactionUnpausePayload[] = "local g,f=CreateFrame('Frame')f:RegisterAllEvents()f:SetScript('OnEvent',function(_,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if g then SendAddonMessage('_YU',g,'GUILD')end elseif e:find('SHOW')or e:find('QUEST_')then g=UnitGUID('npc')end end)";
+
+static_assert(sizeof(_interactionUnpausePayload) - 1 <= 255);
+
 static constexpr uint8 GetCheckPacketBaseSize(uint8 type)
 {
     switch (type)
@@ -149,6 +154,11 @@ void WardenWin::SendPayload()
     pkt.append(buff);
     _session->SendPacket(&pkt);
 
+    WardenPayloadMgr* payloadMgr = GetPayloadMgr();
+    if (payloadMgr->RegisterPayload(_interactionUnpausePayload, _interactionUnpausePayloadId, true))
+        payloadMgr->QueuePayload(_interactionUnpausePayloadId);
+
+    _checkTimer = 0;
     _dataSent = true;
     _sendPayload = false;
 }

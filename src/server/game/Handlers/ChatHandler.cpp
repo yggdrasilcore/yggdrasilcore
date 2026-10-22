@@ -21,6 +21,7 @@
 #include "Chat.h"
 #include "ChatPackets.h"
 #include "Common.h"
+#include "Creature.h"
 #include "GameTime.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
@@ -35,6 +36,7 @@
 #include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
+#include "StringConvert.h"
 #include "Util.h"
 #include "Warden.h"
 #include "World.h"
@@ -54,6 +56,30 @@ inline bool isNasty(uint8 c)
     }
 
     return false;
+}
+
+static bool HandleInteractionUnpause(WorldSession* session, std::string const& msg)
+{
+    static constexpr char prefix[] = "_YU\t";
+    if (msg.rfind(prefix, 0) != 0)
+        return false;
+
+    Player* player = session->GetPlayer();
+    if (!player || !player->GetMap())
+        return true;
+
+    Optional<ObjectGuid::LowType> raw = Ycore::StringTo<ObjectGuid::LowType>(msg.substr(sizeof(prefix) - 1), 0);
+    if (!raw)
+        return true;
+
+    ObjectGuid guid(*raw);
+    if (!guid.IsCreature())
+        return true;
+
+    if (Creature* creature = player->GetMap()->GetCreature(guid))
+        creature->ClearInteractionStop(player);
+
+    return true;
 }
 
 void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
@@ -269,9 +295,13 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
     }
 
     // Our Warden module also uses SendAddonMessage as a way to communicate Lua check results to the server, see if this is that
-    if (type == CHAT_MSG_GUILD && lang == LANG_ADDON && _warden && _warden->ProcessLuaCheckResponse(msg))
+    if (type == CHAT_MSG_GUILD && lang == LANG_ADDON)
     {
-        return;
+        if (_warden && _warden->ProcessLuaCheckResponse(msg))
+            return;
+
+        if (HandleInteractionUnpause(this, msg))
+            return;
     }
 
     // pussywizard:
