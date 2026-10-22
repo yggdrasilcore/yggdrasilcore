@@ -3225,6 +3225,24 @@ void Creature::ClearInteractionStopsBy(Player* player)
             creature->ClearInteractionStop(player);
 }
 
+void Creature::ClearInteractionStopsOutOfRange(Player* player)
+{
+    if (!player || !player->GetMap())
+        return;
+
+    std::unordered_set<uint64> guids;
+    {
+        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
+        if (auto itr = GetInteractionStopMap()->find(player->GetGUID().GetCounter()); itr != GetInteractionStopMap()->end())
+            guids = itr->second;
+    }
+
+    for (uint64 raw : guids)
+        if (Creature* creature = player->GetMap()->GetCreature(ObjectGuid(raw)))
+            if (player->GetDistance(creature) > 2.5f)
+                creature->ClearInteractionStop(player);
+}
+
 void Creature::AllLootRemovedFromCorpse()
 {
     if (loot.loot_type != LOOT_SKINNING && !IsPet() && GetCreatureTemplate()->SkinLootId && hasLootRecipient())

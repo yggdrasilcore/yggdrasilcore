@@ -20,6 +20,7 @@
 #include "CellImpl.h"
 #include "Channel.h"
 #include "ChannelMgr.h"
+#include "Creature.h"
 #include "Formulas.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
@@ -1203,6 +1204,8 @@ bool Player::UpdatePosition(float x, float y, float z, float orientation,
 
     if (GetTrader() && !IsWithinDistInMap(GetTrader(), INTERACTION_DISTANCE))
         GetSession()->SendCancelTrade(TRADE_STATUS_TRADE_CANCELED);
+
+    Creature::ClearInteractionStopsOutOfRange(this);
 
     CheckAreaExploreAndOutdoor();
 

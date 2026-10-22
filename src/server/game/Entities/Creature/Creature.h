@@ -93,6 +93,8 @@ public:
     void ResumeInteractionMovement();
     // Logout failover: releases every creature stopped by the given player.
     static void ClearInteractionStopsBy(Player* player);
+    // Releases creatures stopped by the player that are now outside interaction range.
+    static void ClearInteractionStopsOutOfRange(Player* player);
 
     struct InteractionStopResume
     {
