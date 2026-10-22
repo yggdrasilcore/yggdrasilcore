@@ -2349,6 +2349,8 @@ void Player::ProcessTerrainStatusUpdate()
 
     LiquidData const& liquidData = GetLiquidData();
 
+    bool wasUnderwater = (m_MirrorTimerFlags & UNDERWATER_INWATER) != 0;
+
     // player specific logic for mirror timers
     if (liquidData.Status != LIQUID_MAP_NO_WATER)
     {
@@ -2395,6 +2397,12 @@ void Player::ProcessTerrainStatusUpdate()
     }
     else
         m_MirrorTimerFlags &= ~(UNDERWATER_INWATER | UNDERWATER_INLAVA | UNDERWATER_INSLIME | UNDERWATER_INDARKWATER);
+
+    // Dismount flying mounts as soon as the player submerges deep enough to start breathing,
+    // even if a water breathing aura prevents the breath timer from actually running.
+    if (!wasUnderwater && (m_MirrorTimerFlags & UNDERWATER_INWATER) &&
+        IsMounted() && HasAuraType(SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED))
+        RemoveAurasByType(SPELL_AURA_MOUNTED);
 }
 
 uint32 Player::GetSpellQueueWindow() const
