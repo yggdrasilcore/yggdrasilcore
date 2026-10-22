@@ -53,7 +53,7 @@ public:
         }
 
         ObjectGuid guid(raw);
-        if (!guid.IsCreature() || !player->GetMap())
+        if (!guid.IsCreatureOrVehicle() || !player->GetMap())
             return true;
 
         if (Creature* creature = player->GetMap()->GetCreature(guid))
