@@ -1681,6 +1681,8 @@ public:
 
     void SendProficiency(ItemClass itemClass, uint32 itemSubclassMask);
     void SendInitialSpells();
+    void SendUnlearnSpells();
+    static bool IsUnlearnNeededForSpell(uint32 spellId);
     void SendLearnPacket(uint32 spellId, bool learn);
     bool addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool temporary = false, bool learnFromSkill = false);
     bool _addSpell(uint32 spellId, uint8 addSpecMask, bool temporary, bool learnFromSkill = false);
@@ -2641,6 +2643,7 @@ public:
 protected:
     uint32 GetSpellQueueWindow() const;
     void ProcessSpellQueue();
+    Unit* SelectCharmedAIGroupTarget(float distance) const;
 
 public:
     std::deque<PendingSpellCastRequest> SpellQueue;
