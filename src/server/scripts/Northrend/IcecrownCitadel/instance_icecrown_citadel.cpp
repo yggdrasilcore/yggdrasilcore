@@ -54,7 +54,6 @@ enum TimedEvents
     EVENT_REBUILD_PLATFORM      = 3,
     EVENT_RESPAWN_GUNSHIP       = 4,
     EVENT_RESPAWN_SINDRAGOSA    = 5,
-    EVENT_SPAWN_SAURFANG_EVENT  = 6,
     EVENT_SAURFANG_ZEPPELIN_DOCK = 7,
     EVENT_SAURFANG_OUTRO_TIMEOUT = 8,
     EVENT_SAURFANG_ZEPPELIN_REMOVE = 9,
@@ -294,6 +293,7 @@ public:
             DarkwhisperElevatorTimer = 3000;
             _saurfangCampSpawned = false;
             _saurfangOutroRunning = false;
+            _saurfangEventPending = false;
             _saurfangZeppelinDocked = false;
             _saurfangZeppelinLeaving = false;
             SetHeaders(DataHeader);
@@ -355,7 +355,7 @@ public:
 
             // Also covers an instance whose Gunship Battle state was set directly, which would
             // otherwise keep them hidden for good.
-            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == DONE && !_saurfangOutroRunning)
+            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == DONE && !_saurfangOutroRunning && !_saurfangEventPending)
                 RestoreHiddenSaurfangEventNpcs();
 
             if (GetBossState(DATA_DEATHBRINGER_SAURFANG) == DONE && !_saurfangOutroRunning)
@@ -1596,6 +1596,20 @@ public:
         {
             switch (type)
             {
+                case DATA_SAURFANG_EVENT_SPAWN:
+                    if (data == IN_PROGRESS)
+                    {
+                        // The captain is walking off the ship; do not let a player entering now
+                        // reveal the party at Deathbringer's Rise ahead of him.
+                        _saurfangEventPending = true;
+                    }
+                    else if (data == DONE)
+                    {
+                        _saurfangEventPending = false;
+                        if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == DONE && !_saurfangOutroRunning)
+                            SpawnSaurfangEventNpcs();
+                    }
+                    break;
                 case DATA_SAURFANG_CAMP:
                     // The boss is DONE for the whole outro, so the encounter state alone cannot tell
                     // "outro playing" from "outro over".
@@ -2199,9 +2213,6 @@ public:
                         // Could happen more than once if more than one player enters before she respawns.
                         Events.CancelEvent(EVENT_RESPAWN_SINDRAGOSA);
                         break;
-                    case EVENT_SPAWN_SAURFANG_EVENT:
-                        SpawnSaurfangEventNpcs();
-                        break;
                     case EVENT_SAURFANG_OUTRO_TIMEOUT:
                         _saurfangOutroRunning = false;
                         SetData(DATA_SAURFANG_OUTRO_ZEPPELIN, DONE);
@@ -2309,8 +2320,8 @@ public:
                         }
                     if (Creature* captain = source->FindNearestCreature(GetTeamIdInInstance() == TEAM_HORDE ? NPC_IGB_HIGH_OVERLORD_SAURFANG : NPC_IGB_MURADIN_BRONZEBEARD, 200.0f))
                         captain->AI()->DoAction(ACTION_EXIT_SHIP);
-                    // The captain despawns 18s into his walk off the ship; the event party appears with him.
-                    Events.ScheduleEvent(EVENT_SPAWN_SAURFANG_EVENT, 18s);
+                    // The event party at Deathbringer's Rise is revealed by the captain when his
+                    // walk off the ship actually finishes, not on a fixed timer.
                     break;
 
                 case EVENT_QUAKE:
@@ -2446,6 +2457,7 @@ public:
         ObjectGuid SaurfangZeppelinPassengerGUID;
         bool _saurfangCampSpawned;
         bool _saurfangOutroRunning;
+        bool _saurfangEventPending;
         bool _saurfangZeppelinDocked;
         bool _saurfangZeppelinLeaving;
         ObjectGuid PlagueSigilGUID;
