@@ -715,20 +715,63 @@ public:
                     ship->CastSpell(ship, SPELL_AWARD_REPUTATION_BOSS_KILL, true);
                 }
 
-                for (uint8 i = 0; i < 2; ++i)
-                    if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(i == 0 ? DATA_ICECROWN_GUNSHIP_BATTLE : DATA_ENEMY_GUNSHIP)))
-                        if (MotionTransport* t = go->ToMotionTransport())
+                // The defeated ship is no longer part of the encounter. Stop its crew before the
+                // boarding movement/teleport events can carry them onto the winning ship, and
+                // leave them standing where they are on their own deck.
+                if (MotionTransport* defeatedShip = (me->GetTransport() ? me->GetTransport()->ToMotionTransport() : nullptr))
+                {
+                    Transport::PassengerSet const& passengers = defeatedShip->GetPassengers();
+                    for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                    {
+                        if (!(*itr)->IsCreature())
+                            continue;
+
+                        Creature* c = (*itr)->ToCreature();
+                        if (c == me)
+                            continue;
+
+                        if (c->GetEntry() == NPC_TELEPORT_PORTAL || c->GetEntry() == NPC_TELEPORT_EXIT)
                         {
-                            Transport::PassengerSet const& passengers = t->GetPassengers();
-                            for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
-                            {
-                                if (!(*itr)->IsCreature())
-                                    continue;
-                                Creature* c = (*itr)->ToCreature();
-                                if (c->GetEntry() == NPC_SKYBREAKER_MARINE || c->GetEntry() == NPC_SKYBREAKER_SERGEANT || c->GetEntry() == NPC_KOR_KRON_REAVER || c->GetEntry() == NPC_KOR_KRON_SERGEANT)
-                                    c->DespawnOrUnsummon(1ms);
-                            }
+                            c->DespawnOrUnsummon(1ms);
+                            continue;
                         }
+
+                        c->m_Events.KillAllEvents(true);
+                        c->CombatStop(true);
+                        c->SetReactState(REACT_PASSIVE);
+                        c->GetMotionMaster()->MoveIdle();
+                        c->SetStandState(UNIT_STAND_STATE_STAND);
+                        c->SetEmoteState(EMOTE_ONESHOT_NONE);
+                    }
+                }
+
+                // Adds that already crossed to the winning ship would otherwise stay hostile
+                // after the encounter is over. Also clear any portal that sits on its deck.
+                if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
+                    if (MotionTransport* t = go->ToMotionTransport())
+                    {
+                        Transport::PassengerSet const& passengers = t->GetPassengers();
+                        for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                        {
+                            if (!(*itr)->IsCreature())
+                                continue;
+                            Creature* c = (*itr)->ToCreature();
+                            if (c->GetEntry() == NPC_TELEPORT_PORTAL || c->GetEntry() == NPC_TELEPORT_EXIT)
+                            {
+                                c->DespawnOrUnsummon(1ms);
+                                continue;
+                            }
+                            if (c->GetEntry() == NPC_SKYBREAKER_MARINE || c->GetEntry() == NPC_SKYBREAKER_SERGEANT || c->GetEntry() == NPC_KOR_KRON_REAVER || c->GetEntry() == NPC_KOR_KRON_SERGEANT)
+                                c->DespawnOrUnsummon(1ms);
+                        }
+                    }
+
+                // Boarding portals are summoned at world coordinates, not as transport passengers.
+                std::list<Creature*> portals;
+                me->GetCreatureListWithEntryInGrid(portals, NPC_TELEPORT_PORTAL, 250.0f);
+                me->GetCreatureListWithEntryInGrid(portals, NPC_TELEPORT_EXIT, 250.0f);
+                for (Creature* portal : portals)
+                    portal->DespawnOrUnsummon(1ms);
             }
             else
             {
