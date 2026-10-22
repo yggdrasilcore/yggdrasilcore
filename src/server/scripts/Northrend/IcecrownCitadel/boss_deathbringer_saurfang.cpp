@@ -32,6 +32,7 @@ enum ScriptTexts
     SAY_INTRO_ALLIANCE_2            = 0,
     SAY_INTRO_ALLIANCE_3            = 1,
     SAY_INTRO_ALLIANCE_6            = 2,
+    SAY_INTRO_ALLIANCE_7            = 3,
     SAY_INTRO_HORDE_2               = 4,
     SAY_INTRO_HORDE_4               = 5,
     SAY_INTRO_HORDE_9               = 6,
@@ -205,12 +206,6 @@ enum EventTypes
 
     // Guards
     EVENT_OUTRO_GUARD_VANISH    = 74,
-
-    // One-shot emotes between the Horde intro lines
-    EVENT_INTRO_HORDE_10        = 75,
-    EVENT_INTRO_HORDE_TALK      = 76,
-    EVENT_INTRO_HORDE_NO        = 77,
-    EVENT_INTRO_HORDE_QUESTION  = 78,
 };
 
 enum Phases
@@ -493,8 +488,11 @@ public:
 		{
 			if (!_introDone)
 			{
-				if (!UpdateVictim())
-					return;
+				if (!(events.IsInPhase(PHASE_INTRO_A) || events.IsInPhase(PHASE_INTRO_H)))
+				{
+					if (!UpdateVictim())
+						return;
+				}
 			}
 			else
 			{
@@ -585,6 +583,36 @@ public:
 			{
 				switch (eventId)
 				{
+					case EVENT_INTRO_ALLIANCE_2:
+						me->SetFaction(FACTION_UNDEAD_SCOURGE);
+						Talk(SAY_INTRO_ALLIANCE_2);
+						break;
+					case EVENT_INTRO_ALLIANCE_3:
+						Talk(SAY_INTRO_ALLIANCE_3);
+						break;
+					case EVENT_INTRO_ALLIANCE_6:
+						Talk(SAY_INTRO_ALLIANCE_6);
+						Talk(SAY_INTRO_ALLIANCE_7);
+						DoCast(me, SPELL_GRIP_OF_AGONY);
+						break;
+					case EVENT_INTRO_HORDE_2:
+						me->SetFaction(FACTION_UNDEAD_SCOURGE);
+						Talk(SAY_INTRO_HORDE_2);
+						break;
+					case EVENT_INTRO_HORDE_4:
+						Talk(SAY_INTRO_HORDE_4);
+						break;
+					case EVENT_INTRO_HORDE_9:
+						DoCast(me, SPELL_GRIP_OF_AGONY);
+						Talk(SAY_INTRO_HORDE_9);
+						break;
+					case EVENT_INTRO_FINISH:
+						events.SetPhase(PHASE_COMBAT);
+						_introDone = true;
+						me->SetImmuneToPC(false);
+						if (Player* target = me->SelectNearestPlayer(100.0f))
+							AttackStart(target);
+						break;
 					case EVENT_SUMMON_BLOOD_BEAST:
 						for (uint32 i10 = 0; i10 < 2; ++i10)
 							DoCast(me, SPELL_SUMMON_BLOOD_BEAST + i10);
@@ -629,6 +657,28 @@ public:
         {
             switch (action)
             {
+                case PHASE_INTRO_A:
+                case PHASE_INTRO_H:
+                    events.SetPhase(uint32(action));
+                    me->SetHomePosition(deathbringerPos.GetPositionX(), deathbringerPos.GetPositionY(), deathbringerPos.GetPositionZ(), me->GetOrientation());
+                    me->SetWalk(false);
+                    me->GetMotionMaster()->MovePoint(POINT_SAURFANG, deathbringerPos.GetPositionX(), deathbringerPos.GetPositionY(), deathbringerPos.GetPositionZ());
+
+                    events.ScheduleEvent(EVENT_INTRO_ALLIANCE_2, 2500ms, 0, PHASE_INTRO_A);
+                    events.ScheduleEvent(EVENT_INTRO_ALLIANCE_3, 20s, 0, PHASE_INTRO_A);
+                    events.ScheduleEvent(EVENT_INTRO_HORDE_2, 5s, 0, PHASE_INTRO_H);
+                    break;
+                case ACTION_CONTINUE_INTRO:
+                    if (_introDone)
+                        return;
+
+                    events.ScheduleEvent(EVENT_INTRO_ALLIANCE_6, 7s, 0, PHASE_INTRO_A);
+                    events.ScheduleEvent(EVENT_INTRO_FINISH, 8s, 0, PHASE_INTRO_A);
+
+                    events.ScheduleEvent(EVENT_INTRO_HORDE_4, 6500ms, 0, PHASE_INTRO_H);
+                    events.ScheduleEvent(EVENT_INTRO_HORDE_9, 48200ms, 0, PHASE_INTRO_H);
+                    events.ScheduleEvent(EVENT_INTRO_FINISH, 55700ms, 0, PHASE_INTRO_H);
+                    break;
                 case ACTION_MARK_OF_THE_FALLEN_CHAMPION:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, false, -SPELL_MARK_OF_THE_FALLEN_CHAMPION))
                     {
@@ -733,8 +783,7 @@ _guardList.push_back(guard->GetGUID());
                         me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                         Talk(SAY_INTRO_HORDE_1);
                         _events.SetPhase(PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_2, 5s, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_3, 21s + 400ms, 0, PHASE_INTRO_H);
+                        _events.ScheduleEvent(EVENT_INTRO_HORDE_3, 18500ms, 0, PHASE_INTRO_H);
                         _instance->HandleGameObject(_instance->GetGuidData(GO_SAURFANG_S_DOOR), true);
 
                         if (GameObject* teleporter = ObjectAccessor::GetGameObject(*me, _instance->GetGuidData(GO_SCOURGE_TRANSPORTER_SAURFANG)))
@@ -744,8 +793,7 @@ _guardList.push_back(guard->GetGUID());
                         }
 
                         deathbringer->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                        deathbringer->SetWalk(false);
-                        deathbringer->GetMotionMaster()->MovePoint(POINT_SAURFANG, deathbringerPos.GetPositionX(), deathbringerPos.GetPositionY(), deathbringerPos.GetPositionZ());
+                        deathbringer->AI()->DoAction(PHASE_INTRO_H);
                     }
                     break;
                 case ACTION_START_OUTRO:
@@ -805,14 +853,12 @@ _guardList.push_back(guard->GetGUID());
                     case POINT_FIRST_STEP:
                         me->SetWalk(false);
                         Talk(SAY_INTRO_HORDE_3);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_4, 8s + 500ms, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_5, 18s + 600ms, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_6, 35s + 400ms, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_7, 52s + 400ms, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_8, 56s, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_9, 57s + 200ms, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_HORDE_10, 59s + 800ms, 0, PHASE_INTRO_H);
-                        _events.ScheduleEvent(EVENT_INTRO_FINISH,  66s + 200ms, 0, PHASE_INTRO_H);
+                        _events.ScheduleEvent(EVENT_INTRO_HORDE_5, 15500ms, 0, PHASE_INTRO_H);
+                        _events.ScheduleEvent(EVENT_INTRO_HORDE_6, 29500ms, 0, PHASE_INTRO_H);
+                        _events.ScheduleEvent(EVENT_INTRO_HORDE_7, 43800ms, 0, PHASE_INTRO_H);
+                        _events.ScheduleEvent(EVENT_INTRO_HORDE_8, 47000ms, 0, PHASE_INTRO_H);
+                        if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
+                            deathbringer->AI()->DoAction(ACTION_CONTINUE_INTRO);
                         break;
                     case POINT_CORPSE:
                         if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
@@ -850,10 +896,6 @@ _guardList.push_back(guard->GetGUID());
             {
                 case 0:
                     break;
-                case EVENT_INTRO_HORDE_2:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->AI()->Talk(SAY_INTRO_HORDE_2);
-                    break;
                 case EVENT_INTRO_HORDE_3:
                     for (ObjectGuid const& guid : _guardList)
                         if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
@@ -861,20 +903,11 @@ _guardList.push_back(guard->GetGUID());
                     me->SetWalk(true);
                     me->GetMotionMaster()->MovePoint(POINT_FIRST_STEP, firstStepPos.GetPositionX(), firstStepPos.GetPositionY(), firstStepPos.GetPositionZ());
                     break;
-                case EVENT_INTRO_HORDE_4:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->AI()->Talk(SAY_INTRO_HORDE_4);
-                    _events.ScheduleEvent(EVENT_INTRO_HORDE_QUESTION, 3s + 800ms, 0, PHASE_INTRO_H);
-                    break;
                 case EVENT_INTRO_HORDE_5:
                     Talk(SAY_INTRO_HORDE_5);
-                    _events.ScheduleEvent(EVENT_INTRO_HORDE_TALK, 3s, 0, PHASE_INTRO_H);
-                    _events.ScheduleEvent(EVENT_INTRO_HORDE_TALK, 6s + 700ms, 0, PHASE_INTRO_H);
                     break;
                 case EVENT_INTRO_HORDE_6:
                     Talk(SAY_INTRO_HORDE_6);
-                    _events.ScheduleEvent(EVENT_INTRO_HORDE_TALK, 3s + 400ms, 0, PHASE_INTRO_H);
-                    _events.ScheduleEvent(EVENT_INTRO_HORDE_NO, 7s + 100ms, 0, PHASE_INTRO_H);
                     break;
                 case EVENT_INTRO_HORDE_7:
                     Talk(SAY_INTRO_HORDE_7);
@@ -885,33 +918,6 @@ _guardList.push_back(guard->GetGUID());
                         if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
                             guard->AI()->DoAction(ACTION_CHARGE);
                     me->GetMotionMaster()->MoveCharge(chargePos[0].GetPositionX(), chargePos[0].GetPositionY(), chargePos[0].GetPositionZ(), 8.5f, POINT_CHARGE);
-                    break;
-                case EVENT_INTRO_HORDE_9:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->AI()->DoCast(me, SPELL_GRIP_OF_AGONY);
-                    break;
-                case EVENT_INTRO_HORDE_10:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->AI()->Talk(SAY_INTRO_HORDE_9);
-                    break;
-                case EVENT_INTRO_HORDE_TALK:
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_TALK);
-                    break;
-                case EVENT_INTRO_HORDE_NO:
-                    me->HandleEmoteCommand(EMOTE_ONESHOT_NO);
-                    break;
-                case EVENT_INTRO_HORDE_QUESTION:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->HandleEmoteCommand(EMOTE_ONESHOT_QUESTION);
-                    break;
-                case EVENT_INTRO_FINISH:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                    {
-                        deathbringer->AI()->DoAction(ACTION_INTRO_DONE);
-                        deathbringer->SetImmuneToPC(false);
-                        if (Player* target = deathbringer->SelectNearestPlayer(100.0f))
-                            deathbringer->AI()->AttackStart(target);
-                    }
                     break;
                 case EVENT_OUTRO_DESCEND:
                     me->RemoveAurasDueToSpell(SPELL_GRIP_OF_AGONY);
@@ -1076,9 +1082,7 @@ _guardList.push_back(guard->GetGUID());
                         Talk(SAY_INTRO_ALLIANCE_1);
                         _outroZeppelinWait = 0;
                         _events.SetPhase(PHASE_INTRO_A);
-                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_2, 1s, 0, PHASE_INTRO_A);
-                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_3, 18s + 400ms, 0, PHASE_INTRO_A);
-                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_4, 24s + 500ms, 0, PHASE_INTRO_A);
+                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_4, 29500ms, 0, PHASE_INTRO_A);
                         _instance->HandleGameObject(_instance->GetGuidData(GO_SAURFANG_S_DOOR), true);
 
                         if (GameObject* teleporter = ObjectAccessor::GetGameObject(*me, _instance->GetGuidData(GO_SCOURGE_TRANSPORTER_SAURFANG)))
@@ -1088,8 +1092,7 @@ _guardList.push_back(guard->GetGUID());
                         }
 
                         deathbringer->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-                        deathbringer->SetWalk(false);
-                        deathbringer->GetMotionMaster()->MovePoint(POINT_SAURFANG, deathbringerPos.GetPositionX(), deathbringerPos.GetPositionY(), deathbringerPos.GetPositionZ());
+                        deathbringer->AI()->DoAction(PHASE_INTRO_A);
                     }
                     break;
                 case ACTION_START_OUTRO:
@@ -1155,10 +1158,9 @@ _guardList.push_back(guard->GetGUID());
                     case POINT_FIRST_STEP:
                         me->SetWalk(false);
                         Talk(SAY_INTRO_ALLIANCE_4);
-                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_5, 6s, 0, PHASE_INTRO_A);
-                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_6, 8s + 600ms, 0, PHASE_INTRO_A);
-                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_7, 11s + 300ms, 0, PHASE_INTRO_A);
-                        _events.ScheduleEvent(EVENT_INTRO_FINISH, 15s + 600ms, 0, PHASE_INTRO_A);
+                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_5, 5s, 0, PHASE_INTRO_A);
+                        if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
+                            deathbringer->AI()->DoAction(ACTION_CONTINUE_INTRO);
                         break;
                     case POINT_A_MURADIN_STEP:
                         Talk(SAY_OUTRO_ALLIANCE_2);
@@ -1189,14 +1191,6 @@ _guardList.push_back(guard->GetGUID());
             {
                 case 0:
                     break;
-                case EVENT_INTRO_ALLIANCE_2:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->AI()->Talk(SAY_INTRO_ALLIANCE_2);
-                    break;
-                case EVENT_INTRO_ALLIANCE_3:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->AI()->Talk(SAY_INTRO_ALLIANCE_3);
-                    break;
                 case EVENT_INTRO_ALLIANCE_4:
                     for (ObjectGuid const& guid : _guardList)
                         if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
@@ -1210,25 +1204,6 @@ _guardList.push_back(guard->GetGUID());
                         if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
                             guard->AI()->DoAction(ACTION_CHARGE);
                     me->GetMotionMaster()->MoveCharge(chargePos[0].GetPositionX(), chargePos[0].GetPositionY(), chargePos[0].GetPositionZ(), 8.5f, POINT_CHARGE);
-                    break;
-                case EVENT_INTRO_ALLIANCE_6:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                        deathbringer->AI()->DoCast(me, SPELL_GRIP_OF_AGONY);
-                    break;
-                case EVENT_INTRO_ALLIANCE_7:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                    {
-                        deathbringer->AI()->Talk(SAY_INTRO_ALLIANCE_6);
-                    }
-                    break;
-                case EVENT_INTRO_FINISH:
-                    if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
-                    {
-                        deathbringer->AI()->DoAction(ACTION_INTRO_DONE);
-                        deathbringer->SetImmuneToPC(false);
-                        if (Player* target = deathbringer->SelectNearestPlayer(100.0f))
-                            deathbringer->AI()->AttackStart(target);
-                    }
                     break;
 
                 case EVENT_OUTRO_DESCEND:
