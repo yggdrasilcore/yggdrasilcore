@@ -438,6 +438,10 @@ void ThreatMgr::AddThreat(Unit* victim, float threat, SpellSchoolMask schoolMask
     if (!ThreatCalcHelper::isValidProcess(victim, iOwner, threatSpell))
         return;
 
+    // accessories are fully treated as components of the parent and cannot have threat
+    if (victim->HasUnitTypeMask(UNIT_MASK_ACCESSORY))
+        return;
+
     threat = ThreatCalcHelper::calcThreat(victim, threat, schoolMask, threatSpell);
     if (Creature* hatingCreature = iOwner->ToCreature())
     {
