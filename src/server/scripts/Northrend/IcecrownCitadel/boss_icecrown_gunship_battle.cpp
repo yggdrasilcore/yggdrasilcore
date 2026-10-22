@@ -1922,7 +1922,7 @@ public:
                         break;
                     case SLOT_MAGE_1:
                     case SLOT_MAGE_2:
-                        me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, false);
+                        me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, true);
                         break;
                     default:
                         break;
@@ -1948,7 +1948,7 @@ public:
                 {
                     _shadowChannelingRecastTimer = 0;
                     if (!me->HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_CONFUSED | UNIT_STATE_POSSESSED))
-                        me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, false);
+                        me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, true);
                 }
                 else
                     _shadowChannelingRecastTimer -= diff;
@@ -1957,7 +1957,7 @@ public:
 
             if (!me->HasAura(SPELL_SHADOW_CHANNELING) && !me->HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_CONFUSED | UNIT_STATE_POSSESSED | UNIT_STATE_CASTING))
             {
-                me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, false);
+                me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, true);
                 _shadowChannelingRecastTimer = 1000;
             }
         }
