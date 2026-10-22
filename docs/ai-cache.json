@@ -13386,9 +13386,9 @@
   }
  },
  "Player::SendInitialPacketsBeforeAddToMap@d0d768c9:qwen3-5-4b": {
-  "hash": "a4ba138e78cb",
-  "desc": "Sends initial player state packets to the server before adding the player to the game map, including social list, homebind coordinates, talents, spells, action buttons, reputation, achievements, and equipment.",
-  "raw": "{\n  \"what\": \"Sends initial player state packets to the server before adding the player to the game map, including social list, homebind coordinates, talents, spells, action buttons, reputation, achievements, and equipment.\",\n  \"effects\": \"none\"\n}",
+  "hash": "4f2419b7b3b3",
+  "desc": "Sends initial player data packets to the server before adding the player to the map, including social list, homebind coordinates and area, talents, spells, action buttons, reputation, achievements, equipment set, and login timespeed.",
+  "raw": "{\n  \"what\": \"Sends initial player data packets to the server before adding the player to the map, including social list, homebind coordinates and area, talents, spells, action buttons, reputation, achievements, equipment set, and login timespeed.\",\n  \"effects\": \"none\"\n}",
   "entry": {
    "class": "Player",
    "name": "SendInitialPacketsBeforeAddToMap",
@@ -13398,10 +13398,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 11623
+    "line": 11715
    },
-   "hash": "a4ba138e78cb",
-   "desc": "Sends initial player state packets to the server before adding the player to the game map, including social list, homebind coordinates, talents, spells, action buttons, reputation, achievements, and equipment.",
+   "hash": "4f2419b7b3b3",
+   "desc": "Sends initial player data packets to the server before adding the player to the map, including social list, homebind coordinates and area, talents, spells, action buttons, reputation, achievements, equipment set, and login timespeed.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -19896,22 +19896,22 @@
   }
  },
  "Player::addSpell@0a9a2ecc:qwen3-5-4b": {
-  "hash": "8181c159df15",
-  "desc": "Adds a spell to the player's active list, updates its state based on whether it is temporary or learned from a skill, and manages the activation status of ranked spells in chains by potentially deactivating higher-ranked spells if a lower-ranked one is added. Side effects: Modifies the internal spell map (m_spells), sends network packets to clients to update action bar states for superseded spells, and may return false if the spell cannot be added or conflicts with existing active ranked spells.",
-  "raw": "{\"what\": \"Adds a spell to the player's active list, updates its state based on whether it is temporary or learned from a skill, and manages the activation status of ranked spells in chains by potentially deactivating higher-ranked spells if a lower-ranked one is added.\", \"effects\": \"Modifies the internal spell map (m_spells), sends network packets to clients to update action bar states for superseded spells, and may return false if the spell cannot be added or conflicts with existing active ranked spells.\"}",
+  "hash": "9779b05d4d75",
+  "desc": "Adds a new spell to the player's active list, updates its state based on whether it is temporary or permanent, and manages the active states of related ranked spells in the spell chain. Side effects: Modifies internal spell state flags (Active), potentially sends an unlearn packet if conditions are met, and may send a 'Superceded Spell' network packet to clients when a lower-rank spell becomes inactive due to a higher-rank spell being added.",
+  "raw": "{\"what\": \"Adds a new spell to the player's active list, updates its state based on whether it is temporary or permanent, and manages the active states of related ranked spells in the spell chain.\", \"effects\": \"Modifies internal spell state flags (Active), potentially sends an unlearn packet if conditions are met, and may send a 'Superceded Spell' network packet to clients when a lower-rank spell becomes inactive due to a higher-rank spell being added.\"}",
   "entry": {
    "class": "Player",
    "name": "addSpell",
    "sig": "bool addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool temporary = false, bool learnFromSkill = false)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 1685,
+   "line": 1687,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 3066
+    "line": 3132
    },
-   "hash": "8181c159df15",
-   "desc": "Adds a spell to the player's active list, updates its state based on whether it is temporary or learned from a skill, and manages the activation status of ranked spells in chains by potentially deactivating higher-ranked spells if a lower-ranked one is added. Side effects: Modifies the internal spell map (m_spells), sends network packets to clients to update action bar states for superseded spells, and may return false if the spell cannot be added or conflicts with existing active ranked spells.",
+   "hash": "9779b05d4d75",
+   "desc": "Adds a new spell to the player's active list, updates its state based on whether it is temporary or permanent, and manages the active states of related ranked spells in the spell chain. Side effects: Modifies internal spell state flags (Active), potentially sends an unlearn packet if conditions are met, and may send a 'Superceded Spell' network packet to clients when a lower-rank spell becomes inactive due to a higher-rank spell being added.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -20106,22 +20106,22 @@
   }
  },
  "Player::CheckSkillLearnedBySpell@dc69daaa:qwen3-5-4b": {
-  "hash": "a7797a744a1c",
-  "desc": "Validates whether a specific spell teaches a skill compatible with the player's race and class combination. If validation is disabled globally, it returns true immediately. Otherwise, it iterates through all skills taught by the spell to check if any are valid for the player; if no valid skill is found, it logs an error and returns false.",
-  "raw": "{\"what\": \"Validates whether a specific spell teaches a skill compatible with the player's race and class combination. If validation is disabled globally, it returns true immediately. Otherwise, it iterates through all skills taught by the spell to check if any are valid for the player; if no valid skill is found, it logs an error and returns false.\", \"effects\": \"None\"}",
+  "hash": "18ba3d2fc588",
+  "desc": "Verifies if a spell teaches a skill valid for the player's race and class combination by iterating through associated skills and checking compatibility. Side effects: Logs an error and returns false if an invalid skill is found; otherwise returns true.",
+  "raw": "{\"what\": \"Verifies if a spell teaches a skill valid for the player's race and class combination by iterating through associated skills and checking compatibility.\", \"effects\": \"Logs an error and returns false if an invalid skill is found; otherwise returns true.\"}",
   "entry": {
    "class": "Player",
    "name": "CheckSkillLearnedBySpell",
    "sig": "bool CheckSkillLearnedBySpell(uint32 spellId)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 1696,
+   "line": 1698,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 3113
+    "line": 3190
    },
-   "hash": "a7797a744a1c",
-   "desc": "Validates whether a specific spell teaches a skill compatible with the player's race and class combination. If validation is disabled globally, it returns true immediately. Otherwise, it iterates through all skills taught by the spell to check if any are valid for the player; if no valid skill is found, it logs an error and returns false.",
+   "hash": "18ba3d2fc588",
+   "desc": "Verifies if a spell teaches a skill valid for the player's race and class combination by iterating through associated skills and checking compatibility. Side effects: Logs an error and returns false if an invalid skill is found; otherwise returns true.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43321,6 +43321,69 @@
    },
    "hash": "3233f5e47c07",
    "desc": "Constructs and sends a WorldPacket containing the result of a mail operation, including the mail ID, action type, error status, optional equip error code, item handle, and item count.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Player::SendUnlearnSpells@ae13ff90:qwen3-5-4b": {
+  "hash": "e5e32dd576ba",
+  "desc": "Constructs a network packet to send unlearned spells to the client by iterating through the player's spell list, filtering out removed or superseded ranks, and serializing valid spell IDs.",
+  "raw": "{\"what\": \"Constructs a network packet to send unlearned spells to the client by iterating through the player's spell list, filtering out removed or superseded ranks, and serializing valid spell IDs.\", \"effects\": \"none\"}",
+  "entry": {
+   "class": "Player",
+   "name": "SendUnlearnSpells",
+   "sig": "void SendUnlearnSpells()",
+   "file": "src/server/game/Entities/Player/Player.h",
+   "line": 1684,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Player/Player.cpp",
+    "line": 2870
+   },
+   "hash": "e5e32dd576ba",
+   "desc": "Constructs a network packet to send unlearned spells to the client by iterating through the player's spell list, filtering out removed or superseded ranks, and serializing valid spell IDs.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Player::IsUnlearnNeededForSpell@fac65ed3:qwen3-5-4b": {
+  "hash": "1640eff29472",
+  "desc": "Checks whether a spell requires unlearning before it can be learned by the player.",
+  "raw": "{\n  \"what\": \"Checks whether a spell requires unlearning before it can be learned by the player.\",\n  \"effects\": \"none\"\n}",
+  "entry": {
+   "class": "Player",
+   "name": "IsUnlearnNeededForSpell",
+   "sig": "bool IsUnlearnNeededForSpell(uint32 spellId)",
+   "file": "src/server/game/Entities/Player/Player.h",
+   "line": 1685,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Player/Player.cpp",
+    "line": 2912
+   },
+   "hash": "1640eff29472",
+   "desc": "Checks whether a spell requires unlearning before it can be learned by the player.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Player::SelectCharmedAIGroupTarget@e2b9d0a3:qwen3-5-4b": {
+  "hash": "e6012f8f6155",
+  "desc": "Selects a charmed AI group target within a specified distance by iterating through the player's group members, filtering for valid targets based on world presence, distance, line of sight, hostility status, and attack validity, then returning the member with the highest priority order.",
+  "raw": "{\"what\": \"Selects a charmed AI group target within a specified distance by iterating through the player's group members, filtering for valid targets based on world presence, distance, line of sight, hostility status, and attack validity, then returning the member with the highest priority order.\", \"effects\": \"none\"}",
+  "entry": {
+   "class": "Player",
+   "name": "SelectCharmedAIGroupTarget",
+   "sig": "Unit* SelectCharmedAIGroupTarget(float distance) const",
+   "file": "src/server/game/Entities/Player/Player.h",
+   "line": 2646,
+   "access": "protected",
+   "impl": {
+    "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
+    "line": 2218
+   },
+   "hash": "e6012f8f6155",
+   "desc": "Selects a charmed AI group target within a specified distance by iterating through the player's group members, filtering for valid targets based on world presence, distance, line of sight, hostility status, and attack validity, then returning the member with the highest priority order.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
