@@ -13212,9 +13212,9 @@
   }
  },
  "Player::Update@216ef278:qwen3-5-4b": {
-  "hash": "2cc3d64b32a0",
-  "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues. Side effects: May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.",
-  "raw": "{\"what\": \"Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.\", \"effects\": \"May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.\"}",
+  "hash": "f0b8ceca3263",
+  "desc": "Processes quest completion by destroying required and source items based on bonding rules and repeatability status, removing the timed quest, and storing reward items if storage capacity allows. Side effects: Destroys specific item instances from player inventory or world; removes the quest from active tracking; stores new reward items in the player's bag/equipment slots.",
+  "raw": "{\n  \"what\": \"Processes quest completion by destroying required and source items based on bonding rules and repeatability status, removing the timed quest, and storing reward items if storage capacity allows.\",\n  \"effects\": \"Destroys specific item instances from player inventory or world; removes the quest from active tracking; stores new reward items in the player's bag/equipment slots.\"\n}",
   "entry": {
    "class": "Player",
    "name": "Update",
@@ -13223,11 +13223,11 @@
    "line": 1097,
    "access": "public",
    "impl": {
-    "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 57
+    "file": "src/server/game/Entities/Player/PlayerQuest.cpp",
+    "line": 662
    },
-   "hash": "2cc3d64b32a0",
-   "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues. Side effects: May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.",
+   "hash": "f0b8ceca3263",
+   "desc": "Processes quest completion by destroying required and source items based on bonding rules and repeatability status, removing the timed quest, and storing reward items if storage capacity allows. Side effects: Destroys specific item instances from player inventory or world; removes the quest from active tracking; stores new reward items in the player's bag/equipment slots.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
