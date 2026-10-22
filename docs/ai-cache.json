@@ -13216,9 +13216,9 @@
   }
  },
  "Player::Update@216ef278:qwen3-5-4b": {
-  "hash": "f0b8ceca3263",
-  "desc": "Updates the player's current quest by destroying required and drop items based on bonding rules and repeatability status, removing the timed quest, and storing/rewarding selected quest reward items if storage is possible. Side effects: Destroys specific item instances from the player's inventory or bags; removes a timed quest entry; stores new reward items in the player's inventory; sends new item notifications to the client.",
-  "raw": "{\"what\": \"Updates the player's current quest by destroying required and drop items based on bonding rules and repeatability status, removing the timed quest, and storing/rewarding selected quest reward items if storage is possible.\", \"effects\": \"Destroys specific item instances from the player's inventory or bags; removes a timed quest entry; stores new reward items in the player's inventory; sends new item notifications to the client.\"}",
+  "hash": "2cc3d64b32a0",
+  "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.",
+  "raw": "{\"what\": \"Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "Update",
@@ -13227,11 +13227,11 @@
    "line": 1097,
    "access": "public",
    "impl": {
-    "file": "src/server/game/Entities/Player/PlayerQuest.cpp",
-    "line": 662
+    "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
+    "line": 58
    },
-   "hash": "f0b8ceca3263",
-   "desc": "Updates the player's current quest by destroying required and drop items based on bonding rules and repeatability status, removing the timed quest, and storing/rewarding selected quest reward items if storage is possible. Side effects: Destroys specific item instances from the player's inventory or bags; removes a timed quest entry; stores new reward items in the player's inventory; sends new item notifications to the client.",
+   "hash": "2cc3d64b32a0",
+   "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -23692,43 +23692,43 @@
   }
  },
  "Player::UpdatePosition@0ec7271b:qwen3-5-4b": {
-  "hash": "cc443b75de94",
-  "desc": "Updates the player's position and orientation by delegating to the base Unit class, then conditionally updates the player's zone, sets a group update flag if in a group, cancels any active trade with a trader outside interaction distance, and checks area exploration status.",
-  "raw": "{\"what\": \"Updates the player's position and orientation by delegating to the base Unit class, then conditionally updates the player's zone, sets a group update flag if in a group, cancels any active trade with a trader outside interaction distance, and checks area exploration status.\", \"effects\": \"none\"}",
+  "hash": "d3479ba49603",
+  "desc": "Updates the player's position and orientation by delegating to the base Unit class, optionally updating their zone/area ID if required, setting a group update flag if in a group, and canceling any active trade if the player is too far from their trader.",
+  "raw": "{\"what\": \"Updates the player's position and orientation by delegating to the base Unit class, optionally updating their zone/area ID if required, setting a group update flag if in a group, and canceling any active trade if the player is too far from their trader.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "UpdatePosition",
    "sig": "bool UpdatePosition(float x, float y, float z, float orientation, bool teleport = false)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2012,
+   "line": 2015,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 1181
+    "line": 1187
    },
-   "hash": "cc443b75de94",
-   "desc": "Updates the player's position and orientation by delegating to the base Unit class, then conditionally updates the player's zone, sets a group update flag if in a group, cancels any active trade with a trader outside interaction distance, and checks area exploration status.",
+   "hash": "d3479ba49603",
+   "desc": "Updates the player's position and orientation by delegating to the base Unit class, optionally updating their zone/area ID if required, setting a group update flag if in a group, and canceling any active trade if the player is too far from their trader.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Player::UpdatePosition@690ef82a:qwen3-5-4b": {
-  "hash": "cfeacfe54580",
-  "desc": "Updates the player's position by delegating to the base Unit class, optionally updating their zone and area, setting group update flags, canceling nearby trades if distance exceeds a threshold, and checking for area exploration or outdoor status changes.",
-  "raw": "{\"what\": \"Updates the player's position by delegating to the base Unit class, optionally updating their zone and area, setting group update flags, canceling nearby trades if distance exceeds a threshold, and checking for area exploration or outdoor status changes.\", \"effects\": \"none\"}",
+  "hash": "ebd43de6d59b",
+  "desc": "Updates the player's position by delegating to the base Unit class, optionally updating their zone and area ID if required, setting a flag for group position updates, and canceling any active trade if the player is too far from their trader. Side effects: May trigger zone/area updates, set group update flags, and cancel an ongoing trade.",
+  "raw": "{\"what\": \"Updates the player's position by delegating to the base Unit class, optionally updating their zone and area ID if required, setting a flag for group position updates, and canceling any active trade if the player is too far from their trader.\", \"effects\": \"May trigger zone/area updates, set group update flags, and cancel an ongoing trade.\"}",
   "entry": {
    "class": "Player",
    "name": "UpdatePosition",
    "sig": "bool UpdatePosition(const Position& pos, bool teleport = false)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2013,
+   "line": 2016,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 1181
+    "line": 1187
    },
-   "hash": "cfeacfe54580",
-   "desc": "Updates the player's position by delegating to the base Unit class, optionally updating their zone and area, setting group update flags, canceling nearby trades if distance exceeds a threshold, and checking for area exploration or outdoor status changes.",
+   "hash": "ebd43de6d59b",
+   "desc": "Updates the player's position by delegating to the base Unit class, optionally updating their zone and area ID if required, setting a flag for group position updates, and canceling any active trade if the player is too far from their trader. Side effects: May trigger zone/area updates, set group update flags, and cancel an ongoing trade.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43448,6 +43448,27 @@
    "impl": null,
    "hash": "631f55b3bf47",
    "desc": "Sets the gossip script's active state to the provided boolean value",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Creature::ClearInteractionStopsOutOfRange@9c4d0d40:qwen3-5-4b": {
+  "hash": "48614b3a5225",
+  "desc": "Removes interaction stops for creatures located more than 2.5 units away from the specified player by iterating through stored GUIDs and clearing their interaction stops if they are out of range.",
+  "raw": "{\"what\": \"Removes interaction stops for creatures located more than 2.5 units away from the specified player by iterating through stored GUIDs and clearing their interaction stops if they are out of range.\", \"effects\": \"None\"}",
+  "entry": {
+   "class": "Creature",
+   "name": "ClearInteractionStopsOutOfRange",
+   "sig": "void ClearInteractionStopsOutOfRange(Player* player)",
+   "file": "src/server/game/Entities/Creature/Creature.h",
+   "line": 99,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 3253
+   },
+   "hash": "48614b3a5225",
+   "desc": "Removes interaction stops for creatures located more than 2.5 units away from the specified player by iterating through stored GUIDs and clearing their interaction stops if they are out of range.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
