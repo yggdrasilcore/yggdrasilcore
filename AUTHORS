@@ -23,6 +23,7 @@ Development of this project dates back to 2004, and was developed under various 
 Authorship is assigned for each commit within the git history, which is stored in these git repositories:
 * github.com/cmangos/mangos-svn (History from MaNGOS project from 2005-2008, originally hosted at http://mangos.svn.sourceforge.net)
 * github.com/TrinityCore/TrinityCore
+* github.com/azerothcore/azerothcore-wotlk
 * github.com/yggdrasilcore/yggdrasilcore
 
 Unfortunately, we have no detailed information on the history of the WoWD project;
