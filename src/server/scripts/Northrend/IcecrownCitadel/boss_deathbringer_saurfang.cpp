@@ -676,11 +676,11 @@ public:
                         return;
 
                     events.ScheduleEvent(EVENT_INTRO_ALLIANCE_6, 7s, 0, PHASE_INTRO_A);
-                    events.ScheduleEvent(EVENT_INTRO_FINISH, 8s, 0, PHASE_INTRO_A);
+                    events.ScheduleEvent(EVENT_INTRO_FINISH, 12s, 0, PHASE_INTRO_A);
 
                     events.ScheduleEvent(EVENT_INTRO_HORDE_4, 6500ms, 0, PHASE_INTRO_H);
                     events.ScheduleEvent(EVENT_INTRO_HORDE_9, 48200ms, 0, PHASE_INTRO_H);
-                    events.ScheduleEvent(EVENT_INTRO_FINISH, 55700ms, 0, PHASE_INTRO_H);
+                    events.ScheduleEvent(EVENT_INTRO_FINISH, 53200ms, 0, PHASE_INTRO_H);
                     break;
                 case ACTION_MARK_OF_THE_FALLEN_CHAMPION:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, false, -SPELL_MARK_OF_THE_FALLEN_CHAMPION))
