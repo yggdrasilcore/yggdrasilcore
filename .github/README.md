@@ -27,7 +27,7 @@ As an AzerothCore-based framework, Yggdrasilcore is designed to be highly modula
 
 ## Differences from upstream AzerothCore
 
-Yggdrasilcore is based on the `mod-playerbots` branch of AzerothCore and only cherry-picks upstream changes after the 2025-10-25 mass merge. The main differences from upstream, as of 2026-10-22, are:
+The following is an excerpt of some of our improvements implemented, versus the upstream issues, per 2026-10-22:
 
 1. **Playerbots branch baseline.** We are based on the `mod-playerbots` branch of AzerothCore, including commits [up to 3918708](https://github.com/mod-playerbots/azerothcore-wotlk/commit/39187083b04ede6a095e32b39ac4ae4e22dee22f) (2025-10-25), giving us native support for playerbots-based projects.
 2. **Thread safety and UAF hardening.** We have more or less entirely threadproofed and use-after-free-proofed the core. Upstream is riddled with race conditions, and many AzerothCore-based projects see random, near-untraceable crashes from upstream threading and UAF issues. For example, the runtime `CharacterCache` upstream is an unordered list with no locks, so a read (e.g. sending mail or processing auctions) can segfault if it is mutated simultaneously by a character create or delete.
