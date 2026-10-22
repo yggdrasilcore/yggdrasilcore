@@ -24567,22 +24567,22 @@
   }
  },
  "Player::learnSkillRewardedSpells@7708d0ec:qwen3-5-4b": {
-  "hash": "cbe25bedba46",
-  "desc": "Iterates through abilities associated with a specific skill line, filtering them by acquisition method and character class/race compatibility. It checks if the current skill value requires unlearning an older spell or learning a new one based on the ability's minimum rank. Side effects: May remove existing spells from the player's active spell list (unlearn) or prepare to add new spells (learn), potentially affecting the player's available spell selection.",
-  "raw": "{\"what\": \"Iterates through abilities associated with a specific skill line, filtering them by acquisition method and character class/race compatibility. It checks if the current skill value requires unlearning an older spell or learning a new one based on the ability's minimum rank.\", \"effects\": \"May remove existing spells from the player's active spell list (unlearn) or prepare to add new spells (learn), potentially affecting the player's available spell selection.\"}",
+  "hash": "f89bb074ea48",
+  "desc": "Retrieves the race and class masks for the player, then fetches all abilities associated with a specific skill line and sorts them by their minimum skill line rank in ascending order.",
+  "raw": "{\"what\": \"Retrieves the race and class masks for the player, then fetches all abilities associated with a specific skill line and sorts them by their minimum skill line rank in ascending order.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "learnSkillRewardedSpells",
    "sig": "void learnSkillRewardedSpells(uint32 id, uint32 value)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2079,
+   "line": 2082,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 12077
+    "line": 12168
    },
-   "hash": "cbe25bedba46",
-   "desc": "Iterates through abilities associated with a specific skill line, filtering them by acquisition method and character class/race compatibility. It checks if the current skill value requires unlearning an older spell or learning a new one based on the ability's minimum rank. Side effects: May remove existing spells from the player's active spell list (unlearn) or prepare to add new spells (learn), potentially affecting the player's available spell selection.",
+   "hash": "f89bb074ea48",
+   "desc": "Retrieves the race and class masks for the player, then fetches all abilities associated with a specific skill line and sorts them by their minimum skill line rank in ascending order.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -36111,9 +36111,9 @@
   }
  },
  "Unit::SetCharmedBy@c84b4c1a:qwen3-5-4b": {
-  "hash": "3b7b0eff60c8",
-  "desc": "Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmed units, prevents self-charming, and checks for invalid combinations like possessing non-player units. Side effects: Removes mounted state auras from the unit and potentially the charmer if they are players; may throw an exception (throw 1) for vehicle charm mismatches.",
-  "raw": "{\n  \"what\": \"Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmed units, prevents self-charming, and checks for invalid combinations like possessing non-player units.\",\n  \"effects\": \"Removes mounted state auras from the unit and potentially the charmer if they are players; may throw an exception (throw 1) for vehicle charm mismatches.\"\n}",
+  "hash": "f7787c8b1da4",
+  "desc": "Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmers on mounts/vehicles, prevents self-charming, and checks for invalid charm types or illegal states (like a player on a transport trying to charm). Side effects: May remove SPELL_AURA_MOUNTED from the unit or the charmer if they are mounted; may throw an exception if attempting to charm a vehicle with an incompatible kit; logs debug/fatal messages for specific conditions.",
+  "raw": "{\n  \"what\": \"Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmers on mounts/vehicles, prevents self-charming, and checks for invalid charm types or illegal states (like a player on a transport trying to charm).\",\n  \"effects\": \"May remove SPELL_AURA_MOUNTED from the unit or the charmer if they are mounted; may throw an exception if attempting to charm a vehicle with an incompatible kit; logs debug/fatal messages for specific conditions.\"\n}",
   "entry": {
    "class": "Unit",
    "name": "SetCharmedBy",
@@ -36123,10 +36123,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 18393
+    "line": 18416
    },
-   "hash": "3b7b0eff60c8",
-   "desc": "Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmed units, prevents self-charming, and checks for invalid combinations like possessing non-player units. Side effects: Removes mounted state auras from the unit and potentially the charmer if they are players; may throw an exception (throw 1) for vehicle charm mismatches.",
+   "hash": "f7787c8b1da4",
+   "desc": "Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmers on mounts/vehicles, prevents self-charming, and checks for invalid charm types or illegal states (like a player on a transport trying to charm). Side effects: May remove SPELL_AURA_MOUNTED from the unit or the charmer if they are mounted; may throw an exception if attempting to charm a vehicle with an incompatible kit; logs debug/fatal messages for specific conditions.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43384,6 +43384,27 @@
    },
    "hash": "e6012f8f6155",
    "desc": "Selects a charmed AI group target within a specified distance by iterating through the player's group members, filtering for valid targets based on world presence, distance, line of sight, hostility status, and attack validity, then returning the member with the highest priority order.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Player::SendItemRetrievalMail@0433cad0:qwen3-5-4b": {
+  "hash": "98768704ce72",
+  "desc": "Delegates the sending of an item retrieval mail to a template function by passing the item entry and count as a vector.",
+  "raw": "{\"what\": \"Delegates the sending of an item retrieval mail to a template function by passing the item entry and count as a vector.\", \"effects\": \"none\"}",
+  "entry": {
+   "class": "Player",
+   "name": "SendItemRetrievalMail",
+   "sig": "void SendItemRetrievalMail(Item* item)",
+   "file": "src/server/game/Entities/Player/Player.h",
+   "line": 1641,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Player/PlayerMisc.cpp",
+    "line": 439
+   },
+   "hash": "98768704ce72",
+   "desc": "Delegates the sending of an item retrieval mail to a template function by passing the item entry and count as a vector.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
