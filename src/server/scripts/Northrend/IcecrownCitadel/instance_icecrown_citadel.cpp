@@ -491,16 +491,23 @@ public:
                         creature->UpdateEntry(NPC_SE_MURADIN_BRONZEBEARD, true);
                         creature->RemoveVehicleKit();
                         creature->LoadEquipment();
-                        if (GetBossState(DATA_DEATHBRINGER_SAURFANG) == DONE || GetBossState(DATA_DEATHBRINGER_SAURFANG) == IN_PROGRESS)
-                            creature->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                     }
+
+                    // Event NPC can no longer be talked to once the fight has started or ended.
+                    if (GetBossState(DATA_DEATHBRINGER_SAURFANG) == DONE || GetBossState(DATA_DEATHBRINGER_SAURFANG) == IN_PROGRESS)
+                        creature->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+
                     DeathbringerSaurfangEventGUID = creature->GetGUID();
-                    creature->LastUsedScriptID = creature->GetScriptId();
+                    creature->LastUsedScriptID = creature->GetScriptID();
                     HideSaurfangEventNpc(creature);
                     break;
                 case NPC_SE_MURADIN_BRONZEBEARD:
                     if (creature->IsSummon())
                         break;
+
+                    // Event NPC can no longer be talked to once the fight has started or ended.
+                    if (GetBossState(DATA_DEATHBRINGER_SAURFANG) == DONE || GetBossState(DATA_DEATHBRINGER_SAURFANG) == IN_PROGRESS)
+                        creature->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
 
                     DeathbringerSaurfangEventGUID = creature->GetGUID();
                     HideSaurfangEventNpc(creature);
