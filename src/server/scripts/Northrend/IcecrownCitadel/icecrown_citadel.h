@@ -133,6 +133,7 @@ enum DataTypes
     DATA_ORGRIMS_HAMMER             = 42,
     DATA_SAURFANG_CAMP              = 43,
     DATA_SAURFANG_OUTRO_ZEPPELIN    = 44,
+    DATA_SAURFANG_EVENT_SPAWN       = 45,
 
     // pussywizard:
     DATA_BUFF_AVAILABLE             = 251,

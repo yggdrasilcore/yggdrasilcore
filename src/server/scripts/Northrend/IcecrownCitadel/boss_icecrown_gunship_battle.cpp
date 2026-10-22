@@ -902,6 +902,7 @@ public:
             _axethrowersYellCooldown = time_t(0);
             _rocketeersYellCooldown = time_t(0);
             checkTimer = 1000;
+            _exitingShip = false;
         }
 
         void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
@@ -997,12 +998,13 @@ public:
                     points[i].z = SaurfangExitPath[i].GetPositionZ();
                 }
                 Movement::PointsArray path(points, points + SaurfangExitPathSize);
+                _instance->SetData(DATA_SAURFANG_EVENT_SPAWN, IN_PROGRESS);
                 me->SetWalk(true);
                 Movement::MoveSplineInit init(me);
                 init.DisableTransportPathTransformations();
                 init.MovebyPath(path, 0);
                 init.Launch();
-                me->DespawnOrUnsummon(18s);
+                _exitingShip = true;
             }
         }
 
@@ -1027,6 +1029,14 @@ public:
 
 		void UpdateAI(uint32 diff) override
 		{
+            if (_exitingShip && me->movespline->Finalized())
+            {
+                _exitingShip = false;
+                _instance->SetData(DATA_SAURFANG_EVENT_SPAWN, DONE);
+                me->DespawnOrUnsummon();
+                return;
+            }
+
 			if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS)
 			{
 				Player* nearestPlayer = me->SelectNearestPlayer(200.0f);
@@ -1233,6 +1243,7 @@ public:
         time_t _axethrowersYellCooldown;
         time_t _rocketeersYellCooldown;
         uint16 checkTimer;
+        bool _exitingShip;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -1258,6 +1269,7 @@ public:
             _riflemanYellCooldown = time_t(0);
             _mortarYellCooldown = time_t(0);
             checkTimer = 1000;
+            _exitingShip = false;
         }
 
         void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
@@ -1354,12 +1366,13 @@ public:
                     points[i].z = MuradinExitPath[i].GetPositionZ();
                 }
                 Movement::PointsArray path(points, points + MuradinExitPathSize);
+                _instance->SetData(DATA_SAURFANG_EVENT_SPAWN, IN_PROGRESS);
                 me->SetWalk(true);
                 Movement::MoveSplineInit init(me);
                 init.DisableTransportPathTransformations();
                 init.MovebyPath(path, 0);
                 init.Launch();
-                me->DespawnOrUnsummon(18s);
+                _exitingShip = true;
             }
         }
 
@@ -1384,6 +1397,14 @@ public:
 
 		void UpdateAI(uint32 diff) override
 		{
+            if (_exitingShip && me->movespline->Finalized())
+            {
+                _exitingShip = false;
+                _instance->SetData(DATA_SAURFANG_EVENT_SPAWN, DONE);
+                me->DespawnOrUnsummon();
+                return;
+            }
+
 			if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS)
 			{
 				Player* nearestPlayer = me->SelectNearestPlayer(200.0f);
@@ -1590,6 +1611,7 @@ public:
         time_t _riflemanYellCooldown;
         time_t _mortarYellCooldown;
         uint16 checkTimer;
+        bool _exitingShip;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
