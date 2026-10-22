@@ -90,7 +90,10 @@ public:
     void PauseMovementForInteraction(Player* caster);
     // Releases this creature if it was stopped by the given player.
     void ClearInteractionStop(Player* player);
+    void ForceClearInteractionStop();
     void ResumeInteractionMovement();
+    void SetGossipScriptActive(bool active) { _gossipScriptActive = active; }
+    [[nodiscard]] bool IsGossipScriptActive() const { return _gossipScriptActive; }
     // Logout failover: releases every creature stopped by the given player.
     static void ClearInteractionStopsBy(Player* player);
 
@@ -562,6 +565,7 @@ private:
     uint32 m_waypointID;
     uint32 m_path_id;
     InteractionStopResume _interactionStopResume;
+    bool _gossipScriptActive = false;
 
     // Formation variable
     CreatureGroup* m_formation;

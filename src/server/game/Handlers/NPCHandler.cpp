@@ -323,6 +323,7 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
         }
     }
 
+    unit->SetGossipScriptActive(true);
     if (!sScriptMgr->OnGossipHello(_player, unit))
     {
         //        _player->TalkedToCreature(unit->GetEntry(), unit->GetGUID());
@@ -330,6 +331,7 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
         _player->SendPreparedGossip(unit);
     }
     unit->AI()->sGossipHello(_player);
+    unit->SetGossipScriptActive(false);
 }
 
 /*void WorldSession::HandleGossipSelectOptionOpcode(WorldPacket & recvData)
