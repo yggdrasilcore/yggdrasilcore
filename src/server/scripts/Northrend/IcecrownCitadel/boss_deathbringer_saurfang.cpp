@@ -278,6 +278,7 @@ Position const chargePos[6] =
 // Grip of Agony hangs each of them at his own height, between 6 and 12 yards over the floor.
 // Positioning reference: https://www.youtube.com/watch?v=aCnza7FiJ3A
 //                        https://www.youtube.com/watch?v=vsvh2z6jqCs
+//                        https://www.youtube.com/watch?v=BYIly4KoEqY
 Position const chokePos[6] =
 {
     {-514.4834f, 2211.334f, 549.2887f, 0.0f}, // High Overlord Saurfang/Muradin Bronzebeard
@@ -809,28 +810,12 @@ _guardList.push_back(guard->GetGUID());
                     _events.ScheduleEvent(EVENT_OUTRO_WALK, 15s + 300ms);
                     break;
                 case ACTION_EVADE:
-                    {
-                        float x, y, z, o;
-                        me->GetMotionMaster()->Clear();
-                        me->GetHomePosition(x, y, z, o);
-                        me->SetPosition(x, y, z, o);
-                        me->StopMovingOnCurrentPos();
-                        me->SetDisableGravity(false);
-                        EnterEvadeMode();
-                        for (ObjectGuid const& guid : _guardList)
-                        {
-                            Creature* guard = ObjectAccessor::GetCreature(*me, guid);
-                            if (!guard)
-                                continue;
+                    // Wipe handling: the party despawns in the grip and comes back at its spawn points.
+                    for (ObjectGuid const& guid : _guardList)
+                        if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
+                            guard->DespawnOnEvade(3s);
 
-                            guard->GetMotionMaster()->Clear();
-                            guard->GetHomePosition(x, y, z, o);
-                            guard->SetPosition(x, y, z, o);
-                            guard->StopMovingOnCurrentPos();
-                            guard->SetDisableGravity(false);
-                            guard->AI()->EnterEvadeMode();
-                        }
-                    }
+                    me->DespawnOnEvade(3s);
                     break;
                 default:
                     break;
@@ -1114,28 +1099,12 @@ _guardList.push_back(guard->GetGUID());
                     _events.ScheduleEvent(EVENT_OUTRO_A_SAURFANG_ARRIVES, 57s + 700ms);
                     break;
                 case ACTION_EVADE:
-                    {
-                        float x, y, z, o;
-                        me->GetMotionMaster()->Clear();
-                        me->GetHomePosition(x, y, z, o);
-                        me->SetPosition(x, y, z, o);
-                        me->StopMovingOnCurrentPos();
-                        me->SetDisableGravity(false);
-                        EnterEvadeMode();
-                        for (ObjectGuid const& guid : _guardList)
-                        {
-                            Creature* guard = ObjectAccessor::GetCreature(*me, guid);
-                            if (!guard)
-                                continue;
+                    // Wipe handling: the party despawns in the grip and comes back at its spawn points.
+                    for (ObjectGuid const& guid : _guardList)
+                        if (Creature* guard = ObjectAccessor::GetCreature(*me, guid))
+                            guard->DespawnOnEvade(3s);
 
-                            guard->GetMotionMaster()->Clear();
-                            guard->GetHomePosition(x, y, z, o);
-                            guard->SetPosition(x, y, z, o);
-                            guard->StopMovingOnCurrentPos();
-                            guard->SetDisableGravity(false);
-                            guard->AI()->EnterEvadeMode();
-                        }
-                    }
+                    me->DespawnOnEvade(3s);
                     break;
                 default:
                     break;
