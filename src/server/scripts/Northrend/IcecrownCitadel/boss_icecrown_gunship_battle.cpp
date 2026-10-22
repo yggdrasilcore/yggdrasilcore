@@ -1892,9 +1892,12 @@ public:
 
     struct npc_gunship_mageAI : public gunship_npc_AI
     {
+        uint32 _shadowChannelingRecastTimer;
+
         npc_gunship_mageAI(Creature* creature) : gunship_npc_AI(creature)
         {
             me->m_CombatDistance = 70.0f;
+            _shadowChannelingRecastTimer = 0;
         }
 
         void AttackStart(Unit* target) override
@@ -1936,6 +1939,27 @@ public:
             if (me->GetReactState() == REACT_PASSIVE)
                 return;
             gunship_npc_AI::UpdateAI(diff);
+
+            // If the channeling aura breaks (interrupt/stun/CC) it never comes back on its own;
+            // retry the cast once per second until the CC clears and it sticks.
+            if (_shadowChannelingRecastTimer)
+            {
+                if (diff >= _shadowChannelingRecastTimer)
+                {
+                    _shadowChannelingRecastTimer = 0;
+                    if (!me->HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_CONFUSED | UNIT_STATE_POSSESSED))
+                        me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, false);
+                }
+                else
+                    _shadowChannelingRecastTimer -= diff;
+                return;
+            }
+
+            if (!me->HasAura(SPELL_SHADOW_CHANNELING) && !me->HasUnitState(UNIT_STATE_STUNNED | UNIT_STATE_CONFUSED | UNIT_STATE_POSSESSED | UNIT_STATE_CASTING))
+            {
+                me->CastSpell((Unit*)nullptr, SPELL_SHADOW_CHANNELING, false);
+                _shadowChannelingRecastTimer = 1000;
+            }
         }
 
         bool CanAIAttack(Unit const*  /*target*/) const override
