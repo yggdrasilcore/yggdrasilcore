@@ -8008,6 +8008,15 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
                 // get next RR player (for next loot)
                 if (groupRules && !go->loot.empty())
                     group->UpdateLooterGuid(go);
+
+                if (groupRules)
+                {
+                    GuidUnorderedSet const& allowedLooters = go->GetAllowedLooters();
+                    if (!allowedLooters.empty())
+                        for (ObjectGuid const& allowedGuid : allowedLooters)
+                            if (Player* allowedPlayer = ObjectAccessor::FindPlayer(allowedGuid))
+                                loot->FillNotNormalLootFor(allowedPlayer);
+                }
             }
             if (GameObjectTemplateAddon const* addon = go->GetTemplateAddon())
                 loot->generateMoneyLoot(addon->mingold, addon->maxgold);
@@ -11875,6 +11884,12 @@ void Player::SendInitialPacketsAfterAddToMap()
     }
     else if (GetRaidDifficulty() != GetStoredRaidDifficulty())
         SendRaidDifficulty(GetGroup() != nullptr);
+
+    // Re-send any pending group loot rolls to this player when they enter a dungeon/raid.
+    if (Map* map = GetMap())
+        if (map->IsDungeon() || map->IsRaid())
+            if (Group* group = GetGroup())
+                group->SendPendingRollsToPlayer(this, map);
 }
 
 void Player::SendUpdateToOutOfRangeGroupMembers()
