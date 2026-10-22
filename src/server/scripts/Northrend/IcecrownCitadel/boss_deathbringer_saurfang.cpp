@@ -1042,6 +1042,8 @@ public:
             // ACTION_START_EVENT and never comes back for an instance that has beaten him.
             if (uint32 const state = _instance->GetBossState(DATA_DEATHBRINGER_SAURFANG); state != DONE && state != IN_PROGRESS)
                 me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+            else
+                me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->SetReactState(REACT_PASSIVE);
         }
 

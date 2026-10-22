@@ -491,6 +491,8 @@ public:
                         creature->UpdateEntry(NPC_SE_MURADIN_BRONZEBEARD, true);
                         creature->RemoveVehicleKit();
                         creature->LoadEquipment();
+                        if (GetBossState(DATA_DEATHBRINGER_SAURFANG) == DONE || GetBossState(DATA_DEATHBRINGER_SAURFANG) == IN_PROGRESS)
+                            creature->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
                     }
                     DeathbringerSaurfangEventGUID = creature->GetGUID();
                     creature->LastUsedScriptID = creature->GetScriptId();
