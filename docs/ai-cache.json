@@ -6419,9 +6419,9 @@
   }
  },
  "Bag::GetItemCount@4bcc58cc:qwen3-5-4b": {
-  "hash": "5c7c1719b14d",
-  "desc": "Returns the total count of items with a specific entry ID in the bag, optionally excluding a specified item and including gem counts if the excluded item is a gem socket.",
-  "raw": "{\"what\": \"Returns the total count of items with a specific entry ID in the bag, optionally excluding a specified item and including gem counts if the excluded item is a gem socket.\", \"effects\": \"none\"}",
+  "hash": "ceed39acf32b",
+  "desc": "Returns the total count of items with a specific entry ID in the bag, including gem counts if the specified item has socket properties.",
+  "raw": "{\"what\": \"Returns the total count of items with a specific entry ID in the bag, including gem counts if the specified item has socket properties.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Bag",
    "name": "GetItemCount",
@@ -6429,8 +6429,12 @@
    "file": "src/server/game/Entities/Item/Container/Bag.h",
    "line": 42,
    "access": "public",
-   "hash": "5c7c1719b14d",
-   "desc": "Returns the total count of items with a specific entry ID in the bag, optionally excluding a specified item and including gem counts if the excluded item is a gem socket.",
+   "impl": {
+    "file": "src/server/game/Entities/Item/Container/Bag.cpp",
+    "line": 188
+   },
+   "hash": "ceed39acf32b",
+   "desc": "Returns the total count of items with a specific entry ID in the bag, including gem counts if the specified item has socket properties.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -13212,9 +13216,9 @@
   }
  },
  "Player::Update@216ef278:qwen3-5-4b": {
-  "hash": "f0b8ceca3263",
-  "desc": "Updates the player's current quest by destroying required and drop items based on their bonding status and repeatability, removing the timed quest, and storing/rewarding selected quest reward items. Side effects: Destroys specific item instances from the player's inventory or world; removes a timed quest instance; stores new reward items in the player's bags; sends new item notifications to clients.",
-  "raw": "{\"what\": \"Updates the player's current quest by destroying required and drop items based on their bonding status and repeatability, removing the timed quest, and storing/rewarding selected quest reward items.\", \"effects\": \"Destroys specific item instances from the player's inventory or world; removes a timed quest instance; stores new reward items in the player's bags; sends new item notifications to clients.\"}",
+  "hash": "2cc3d64b32a0",
+  "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues. Side effects: May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.",
+  "raw": "{\"what\": \"Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.\", \"effects\": \"May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.\"}",
   "entry": {
    "class": "Player",
    "name": "Update",
@@ -13223,11 +13227,11 @@
    "line": 1097,
    "access": "public",
    "impl": {
-    "file": "src/server/game/Entities/Player/PlayerQuest.cpp",
-    "line": 662
+    "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
+    "line": 57
    },
-   "hash": "f0b8ceca3263",
-   "desc": "Updates the player's current quest by destroying required and drop items based on their bonding status and repeatability, removing the timed quest, and storing/rewarding selected quest reward items. Side effects: Destroys specific item instances from the player's inventory or world; removes a timed quest instance; stores new reward items in the player's bags; sends new item notifications to clients.",
+   "hash": "2cc3d64b32a0",
+   "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues. Side effects: May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -13407,9 +13411,9 @@
   }
  },
  "Player::SendInitialPacketsAfterAddToMap@6a6e3c58:qwen3-5-4b": {
-  "hash": "028a1b56b8bf",
-  "desc": "Resets time synchronization, sends initial packets to the client, applies specific aura effects (like fear, transform, water walk, etc.) to send state updates, fixes mount block logic, and updates zone information.",
-  "raw": "{\"what\": \"Resets time synchronization, sends initial packets to the client, applies specific aura effects (like fear, transform, water walk, etc.) to send state updates, fixes mount block logic, and updates zone information.\", \"effects\": \"none\"}",
+  "hash": "64e5208fd2df",
+  "desc": "Synchronizes the player's state with the client after being added to a map by updating visibility, resetting and sending time sync, applying specific aura effects for client communication, synchronizing flight capabilities, and fixing mount states.",
+  "raw": "{\"what\": \"Synchronizes the player's state with the client after being added to a map by updating visibility, resetting and sending time sync, applying specific aura effects for client communication, synchronizing flight capabilities, and fixing mount states.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "SendInitialPacketsAfterAddToMap",
@@ -13419,10 +13423,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 11680
+    "line": 11780
    },
-   "hash": "028a1b56b8bf",
-   "desc": "Resets time synchronization, sends initial packets to the client, applies specific aura effects (like fear, transform, water walk, etc.) to send state updates, fixes mount block logic, and updates zone information.",
+   "hash": "64e5208fd2df",
+   "desc": "Synchronizes the player's state with the client after being added to a map by updating visibility, resetting and sending time sync, applying specific aura effects for client communication, synchronizing flight capabilities, and fixing mount states.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -14619,9 +14623,9 @@
   }
  },
  "Player::GetItemCount@65db0752:qwen3-5-4b": {
-  "hash": "ca3ee895bb97",
-  "desc": "Returns the total count of a specific item type across all inventory slots, including equipment, keyrings, bags, and optionally bank storage. It also calculates gem counts within socketed items if the skipItem has gem properties.",
-  "raw": "{\"what\": \"Returns the total count of a specific item type across all inventory slots, including equipment, keyrings, bags, and optionally bank storage. It also calculates gem counts within socketed items if the skipItem has gem properties.\", \"effects\": \"none\"}",
+  "hash": "c4a087eb66b3",
+  "desc": "Returns the total quantity of a specific item found in all inventory slots, bank bags, and equipped items (including gems), while optionally skipping a specified item instance.",
+  "raw": "{\"what\": \"Returns the total quantity of a specific item found in all inventory slots, bank bags, and equipped items (including gems), while optionally skipping a specified item instance.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "GetItemCount",
@@ -14631,10 +14635,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerStorage.cpp",
-    "line": 327
+    "line": 328
    },
-   "hash": "ca3ee895bb97",
-   "desc": "Returns the total count of a specific item type across all inventory slots, including equipment, keyrings, bags, and optionally bank storage. It also calculates gem counts within socketed items if the skipItem has gem properties.",
+   "hash": "c4a087eb66b3",
+   "desc": "Returns the total quantity of a specific item found in all inventory slots, bank bags, and equipped items (including gems), while optionally skipping a specified item instance.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -15114,9 +15118,9 @@
   }
  },
  "Player::CanEquipUniqueItem@d689c7b1:qwen3-5-4b": {
-  "hash": "c122019f1509",
-  "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other items with matching enchantment gems (within specific enchantment slots) are already equipped or exceed their limit categories.",
-  "raw": "{\"what\": \"Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other items with matching enchantment gems (within specific enchantment slots) are already equipped or exceed their limit categories.\", \"effects\": \"none\"}",
+  "hash": "d0a6451d717e",
+  "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then iterating through enchantment slots to verify compatibility with any enchanted gems, accounting for gem limit categories and current equipment status.",
+  "raw": "{\"what\": \"Checks if a unique item can be equipped by first validating against the item's template restrictions, then iterating through enchantment slots to verify compatibility with any enchanted gems, accounting for gem limit categories and current equipment status.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "CanEquipUniqueItem",
@@ -15126,18 +15130,18 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 13872
+    "line": 14014
    },
-   "hash": "c122019f1509",
-   "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other items with matching enchantment gems (within specific enchantment slots) are already equipped or exceed their limit categories.",
+   "hash": "d0a6451d717e",
+   "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then iterating through enchantment slots to verify compatibility with any enchanted gems, accounting for gem limit categories and current equipment status.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Player::CanEquipUniqueItem@c6c220c2:qwen3-5-4b": {
-  "hash": "1c6759e8d1a7",
-  "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other items with matching enchantment slots and gem IDs are already equipped (accounting for limit categories), returning an equip result based on these checks.",
-  "raw": "{\"what\": \"Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other items with matching enchantment slots and gem IDs are already equipped (accounting for limit categories), returning an equip result based on these checks.\", \"effects\": \"none\"}",
+  "hash": "d1b0ec91a94d",
+  "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other gems with the same enchantment limit category are already equipped (unless the current item is not equipped).",
+  "raw": "{\"what\": \"Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other gems with the same enchantment limit category are already equipped (unless the current item is not equipped).\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "CanEquipUniqueItem",
@@ -15147,10 +15151,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 13872
+    "line": 14014
    },
-   "hash": "1c6759e8d1a7",
-   "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other items with matching enchantment slots and gem IDs are already equipped (accounting for limit categories), returning an equip result based on these checks.",
+   "hash": "d1b0ec91a94d",
+   "desc": "Checks if a unique item can be equipped by first validating against the item's template restrictions, then verifying that no other gems with the same enchantment limit category are already equipped (unless the current item is not equipped).",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -28416,22 +28420,22 @@
   }
  },
  "Player::CanSeeSpellClickOn@e4922d15:qwen3-5-4b": {
-  "hash": "715ae72620d2",
-  "desc": "Checks if a player can see and interact with a spell click option for a specific creature by verifying the creature has the SPELLCLICK flag, retrieving its spell click bounds, and validating if any spell within those bounds meets all required conditions for the current player and creature.",
-  "raw": "{\n  \"what\": \"Checks if a player can see and interact with a spell click option for a specific creature by verifying the creature has the SPELLCLICK flag, retrieving its spell click bounds, and validating if any spell within those bounds meets all required conditions for the current player and creature.\",\n  \"effects\": \"none\"\n}",
+  "hash": "5b9fa2e9a4fe",
+  "desc": "Checks if a player can see and interact with a spell click option for a specific creature by verifying the creature has the SPELLCLICK flag, possesses valid spell click bounds, and meets all required conditions for at least one spell in those bounds.",
+  "raw": "{\n  \"what\": \"Checks if a player can see and interact with a spell click option for a specific creature by verifying the creature has the SPELLCLICK flag, possesses valid spell click bounds, and meets all required conditions for at least one spell in those bounds.\",\n  \"effects\": \"none\"\n}",
   "entry": {
    "class": "Player",
    "name": "CanSeeSpellClickOn",
    "sig": "bool CanSeeSpellClickOn(Creature const* creature) const",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2543,
+   "line": 2554,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 14363
+    "line": 14509
    },
-   "hash": "715ae72620d2",
-   "desc": "Checks if a player can see and interact with a spell click option for a specific creature by verifying the creature has the SPELLCLICK flag, retrieving its spell click bounds, and validating if any spell within those bounds meets all required conditions for the current player and creature.",
+   "hash": "5b9fa2e9a4fe",
+   "desc": "Checks if a player can see and interact with a spell click option for a specific creature by verifying the creature has the SPELLCLICK flag, possesses valid spell click bounds, and meets all required conditions for at least one spell in those bounds.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
