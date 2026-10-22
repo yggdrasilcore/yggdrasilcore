@@ -94,6 +94,12 @@ static uint16 GetCheckPacketSize(WardenCheck const* check)
 
 void WardenWin::SendPayload()
 {
+    if (_dataSent)
+    {
+        _sendPayload = true;
+        return;
+    }
+
     LOG_DEBUG("warden", "Injecting warden payload!");
 
     _serverTicks = GameTime::GetGameTimeMS().count();
@@ -105,7 +111,7 @@ void WardenWin::SendPayload()
 
     // Register an addon message listener and point it to the aformentioned function
     const uint16 idTwo = 9001;
-    std::string strTwo = "local f=CreateFrame('Frame');f.a = true;f:RegisterEvent('CHAT_MSG_ADDON');f:SetScript('OnEvent', function(s,_,a,b,c,d) if _G['wh'](a, c, d) then if(b) == 'false' then s.a = false end if(s.a) then loadstring(b)()end end end)";
+    std::string strTwo = "local f=_G['whf'];if not f then f=CreateFrame('Frame');_G['whf']=f;f:RegisterEvent('CHAT_MSG_ADDON');f:SetScript('OnEvent',function(s,_,a,b,c,d)if _G['wh'](a,c,d)then if b=='false' then s.a=false end if s.a then loadstring(b)()end end end)end f.a=true";
 
     // Build check request
     ByteBuffer buff;
