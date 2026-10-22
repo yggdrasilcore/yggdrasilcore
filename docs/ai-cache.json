@@ -13216,9 +13216,9 @@
   }
  },
  "Player::Update@216ef278:qwen3-5-4b": {
-  "hash": "2cc3d64b32a0",
-  "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues. Side effects: May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.",
-  "raw": "{\"what\": \"Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.\", \"effects\": \"May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.\"}",
+  "hash": "f0b8ceca3263",
+  "desc": "Updates the player's current quest by destroying required and drop items based on bonding rules and repeatability status, removing the timed quest, and storing/rewarding selected quest reward items if storage is possible. Side effects: Destroys specific item instances from the player's inventory or bags; removes a timed quest entry; stores new reward items in the player's inventory; sends new item notifications to the client.",
+  "raw": "{\"what\": \"Updates the player's current quest by destroying required and drop items based on bonding rules and repeatability status, removing the timed quest, and storing/rewarding selected quest reward items if storage is possible.\", \"effects\": \"Destroys specific item instances from the player's inventory or bags; removes a timed quest entry; stores new reward items in the player's inventory; sends new item notifications to the client.\"}",
   "entry": {
    "class": "Player",
    "name": "Update",
@@ -13227,11 +13227,11 @@
    "line": 1097,
    "access": "public",
    "impl": {
-    "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 57
+    "file": "src/server/game/Entities/Player/PlayerQuest.cpp",
+    "line": 662
    },
-   "hash": "2cc3d64b32a0",
-   "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues. Side effects: May send new mail to the client, increment unReadMails counter, update cinematic camera location, set MustDelayTeleport flag, and process queued spells.",
+   "hash": "f0b8ceca3263",
+   "desc": "Updates the player's current quest by destroying required and drop items based on bonding rules and repeatability status, removing the timed quest, and storing/rewarding selected quest reward items if storage is possible. Side effects: Destroys specific item instances from the player's inventory or bags; removes a timed quest entry; stores new reward items in the player's inventory; sends new item notifications to the client.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -13678,9 +13678,9 @@
   }
  },
  "Player::ContinueTaxiFlight@a9128a3d:qwen3-5-4b": {
-  "hash": "5908560bae4e",
-  "desc": "Retrieves the taxi source node, logs a debug message if valid, fetches the appropriate mount display ID for the player's team and map, retrieves the current taxi path, and calculates the distance from the player's position to each node in the path to determine the optimal starting point.",
-  "raw": "{\"what\": \"Retrieves the taxi source node, logs a debug message if valid, fetches the appropriate mount display ID for the player's team and map, retrieves the current taxi path, and calculates the distance from the player's position to each node in the path to determine the optimal starting point.\", \"effects\": \"none\"}",
+  "hash": "8d50982f024e",
+  "desc": "Resumes the character's taxi flight by retrieving the source node, calculating the current position on the taxi path using distance calculations between nodes, and preparing to find the specific segment containing the player.",
+  "raw": "{\"what\": \"Resumes the character's taxi flight by retrieving the source node, calculating the current position on the taxi path using distance calculations between nodes, and preparing to find the specific segment containing the player.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "ContinueTaxiFlight",
@@ -13690,10 +13690,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 10509
+    "line": 10597
    },
-   "hash": "5908560bae4e",
-   "desc": "Retrieves the taxi source node, logs a debug message if valid, fetches the appropriate mount display ID for the player's team and map, retrieves the current taxi path, and calculates the distance from the player's position to each node in the path to determine the optimal starting point.",
+   "hash": "8d50982f024e",
+   "desc": "Resumes the character's taxi flight by retrieving the source node, calculating the current position on the taxi path using distance calculations between nodes, and preparing to find the specific segment containing the player.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -21481,22 +21481,22 @@
   }
  },
  "Player::UpdatePvPState@50d2c2aa:qwen3-5-4b": {
-  "hash": "a038cbcedb91",
-  "desc": "Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying to activate PvP mode if necessary, or handling the transition out of PvP mode when entering a friendly area. Side effects: May modify pvpInfo.EndTimer and call UpdatePvP(true, true) depending on current location and PvP status.",
-  "raw": "{\n  \"what\": \"Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying to activate PvP mode if necessary, or handling the transition out of PvP mode when entering a friendly area.\",\n  \"effects\": \"May modify pvpInfo.EndTimer and call UpdatePvP(true, true) depending on current location and PvP status.\"\n}",
+  "hash": "c8574c3cf444",
+  "desc": "Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying or taxiing to trigger PvP engagement; conversely, it checks if the player is in a friendly area and toggles off PvP if conditions are met. Side effects: May update internal PvP flags, timers, and potentially change the player's combat status based on location and flight/taxi state.",
+  "raw": "{\n  \"what\": \"Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying or taxiing to trigger PvP engagement; conversely, it checks if the player is in a friendly area and toggles off PvP if conditions are met.\",\n  \"effects\": \"May update internal PvP flags, timers, and potentially change the player's combat status based on location and flight/taxi state.\"\n}",
   "entry": {
    "class": "Player",
    "name": "UpdatePvPState",
    "sig": "void UpdatePvPState()",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 1834,
+   "line": 1837,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 1492
+    "line": 1493
    },
-   "hash": "a038cbcedb91",
-   "desc": "Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying to activate PvP mode if necessary, or handling the transition out of PvP mode when entering a friendly area. Side effects: May modify pvpInfo.EndTimer and call UpdatePvP(true, true) depending on current location and PvP status.",
+   "hash": "c8574c3cf444",
+   "desc": "Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying or taxiing to trigger PvP engagement; conversely, it checks if the player is in a friendly area and toggles off PvP if conditions are met. Side effects: May update internal PvP flags, timers, and potentially change the player's combat status based on location and flight/taxi state.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
