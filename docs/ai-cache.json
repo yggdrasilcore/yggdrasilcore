@@ -15072,9 +15072,9 @@
   }
  },
  "Player::CanEquipNewItem@e40587e3:qwen3-5-4b": {
-  "hash": "10d458f2457a",
-  "desc": "Creates a temporary item instance from the provided item ID and checks if it can be equipped into the specified inventory slot, optionally swapping with an existing item. Side effects: Destroys the temporary item instance after checking; returns EQUIP_ERR_ITEM_NOT_FOUND if the item does not exist.",
-  "raw": "{\n  \"what\": \"Creates a temporary item instance from the provided item ID and checks if it can be equipped into the specified inventory slot, optionally swapping with an existing item.\",\n  \"effects\": \"Destroys the temporary item instance after checking; returns EQUIP_ERR_ITEM_NOT_FOUND if the item does not exist.\"\n}",
+  "hash": "24d1cc7f3cdc",
+  "desc": "Creates a temporary item instance from the provided item ID, attempts to equip it into the specified inventory slot (handling random property updates and queue management), and returns the result of the equipment attempt.",
+  "raw": "{\n  \"what\": \"Creates a temporary item instance from the provided item ID, attempts to equip it into the specified inventory slot (handling random property updates and queue management), and returns the result of the equipment attempt.\",\n  \"effects\": \"None\"\n}",
   "entry": {
    "class": "Player",
    "name": "CanEquipNewItem",
@@ -15084,10 +15084,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerStorage.cpp",
-    "line": 1816
+    "line": 1817
    },
-   "hash": "10d458f2457a",
-   "desc": "Creates a temporary item instance from the provided item ID and checks if it can be equipped into the specified inventory slot, optionally swapping with an existing item. Side effects: Destroys the temporary item instance after checking; returns EQUIP_ERR_ITEM_NOT_FOUND if the item does not exist.",
+   "hash": "24d1cc7f3cdc",
+   "desc": "Creates a temporary item instance from the provided item ID, attempts to equip it into the specified inventory slot (handling random property updates and queue management), and returns the result of the equipment attempt.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -26577,22 +26577,22 @@
   }
  },
  "Player::HandleFall@01677e41:qwen3-5-4b": {
-  "hash": "750841d5a81b",
-  "desc": "Calculates the vertical distance fallen and applies fall damage logic, reducing it based on safe fall auras, immunity status, or specific protective effects like Gust of Wind or Divine Protection. Side effects: May reduce player health if no protective auras or immunities are active; may trigger 'Gust of Wind' effect if aura 43621 is present.",
-  "raw": "{\"what\": \"Calculates the vertical distance fallen and applies fall damage logic, reducing it based on safe fall auras, immunity status, or specific protective effects like Gust of Wind or Divine Protection.\", \"effects\": \"May reduce player health if no protective auras or immunities are active; may trigger 'Gust of Wind' effect if aura 43621 is present.\"}",
+  "hash": "e34ce7f33e16",
+  "desc": "Calculates the vertical distance fallen and applies environmental fall damage to the player based on a linear formula, modified by various auras (Safe Fall, Gust of Wind, Divine Protection) and immunity checks. Side effects: Reduces or removes health; logs debug information",
+  "raw": "{\"what\": \"Calculates the vertical distance fallen and applies environmental fall damage to the player based on a linear formula, modified by various auras (Safe Fall, Gust of Wind, Divine Protection) and immunity checks.\", \"effects\": \"Reduces or removes health; logs debug information\"}",
   "entry": {
    "class": "Player",
    "name": "HandleFall",
    "sig": "void HandleFall(MovementInfo const& movementInfo)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2337,
+   "line": 2340,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 13935
+    "line": 14079
    },
-   "hash": "750841d5a81b",
-   "desc": "Calculates the vertical distance fallen and applies fall damage logic, reducing it based on safe fall auras, immunity status, or specific protective effects like Gust of Wind or Divine Protection. Side effects: May reduce player health if no protective auras or immunities are active; may trigger 'Gust of Wind' effect if aura 43621 is present.",
+   "hash": "e34ce7f33e16",
+   "desc": "Calculates the vertical distance fallen and applies environmental fall damage to the player based on a linear formula, modified by various auras (Safe Fall, Gust of Wind, Divine Protection) and immunity checks. Side effects: Reduces or removes health; logs debug information",
    "ai": true,
    "model": "qwen3.5:4b"
   }
