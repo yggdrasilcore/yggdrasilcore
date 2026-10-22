@@ -63,6 +63,40 @@ Loot* Roll::getLoot()
     return getTarget();
 }
 
+static void SendRollWonItemViaMail(Player* player, LootItem const* lootItem, uint32 itemId)
+{
+    Item* mailItem = Item::CreateItem(itemId, lootItem->count, player, false, lootItem->randomPropertyId);
+    if (!mailItem)
+        return;
+
+    AllowedLooterSet looters = lootItem->GetAllowedLooters();
+    ItemTemplate const* proto = mailItem->GetTemplate();
+    // Preserve the 2-hour group trade window the item would have had if stored directly.
+    if (looters.size() > 1 && proto->GetMaxStackSize() == 1 &&
+        (proto->Bonding == BIND_WHEN_PICKED_UP || proto->Bonding == BIND_QUEST_ITEM) &&
+        sWorld->getBoolConfig(CONFIG_SET_BOP_ITEM_TRADEABLE))
+    {
+        mailItem->SetBinding(true);
+        mailItem->SetSoulboundTradeable(looters);
+        mailItem->SetUInt32Value(ITEM_FIELD_CREATE_PLAYED_TIME, player->GetTotalPlayedTime());
+
+        std::string lootersStr;
+        for (ObjectGuid const& guid : looters)
+        {
+            if (!lootersStr.empty())
+                lootersStr += ' ';
+            lootersStr += std::to_string(guid.GetCounter());
+        }
+
+        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_ITEM_BOP_TRADE);
+        stmt->SetData(0, mailItem->GetGUID().GetCounter());
+        stmt->SetData(1, lootersStr);
+        CharacterDatabase.Execute(stmt);
+    }
+
+    player->SendItemRetrievalMail(mailItem);
+}
+
 Group::Group() : m_leaderName(""), m_groupType(GROUPTYPE_NORMAL),
     m_dungeonDifficulty(DUNGEON_DIFFICULTY_NORMAL), m_raidDifficulty(RAID_DIFFICULTY_10MAN_NORMAL),
     m_bfGroup(nullptr), m_bgGroup(nullptr), m_lootMethod(FREE_FOR_ALL), m_lootThreshold(ITEM_QUALITY_UNCOMMON),
@@ -947,6 +981,50 @@ void Group::SendLootStartRoll(uint32 CountDown, uint32 mapid, const Roll& r)
     }
 }
 
+void Group::SendPendingRollsToPlayer(Player* player, Map* map)
+{
+    for (Roll* roll : RollId)
+    {
+        auto itr = roll->playerVote.find(player->GetGUID());
+        if (itr == roll->playerVote.end())
+            continue;
+
+        if (itr->second != NOT_EMITED_YET)
+            continue;
+
+        Loot* loot = roll->getLoot();
+        if (!loot)
+            continue;
+
+        // Get remaining time from the loot source object
+        uint32 remainingTime = 60000;
+        WorldObject* lootedObject = nullptr;
+        if (GameObject* go = loot->sourceGameObject)
+        {
+            remainingTime = go->m_groupLootTimer;
+            lootedObject = go;
+        }
+        else if (!loot->sourceWorldObjectGUID.IsEmpty())
+        {
+            if (Creature* creature = map->GetCreature(loot->sourceWorldObjectGUID))
+            {
+                remainingTime = creature->m_groupLootTimer;
+                lootedObject = creature;
+            }
+        }
+
+        bool canNeed = true;
+        if (GetLootMethod() == NEED_BEFORE_GREED)
+        {
+            ItemTemplate const* proto = sObjectMgr->GetItemTemplate(roll->itemid);
+            if (proto && lootedObject)
+                canNeed = (player->CanRollForItemInLFG(proto, lootedObject) == EQUIP_ERR_OK);
+        }
+
+        SendLootStartRollToPlayer(remainingTime, map->GetId(), player, canNeed, *roll);
+    }
+}
+
 void Group::SendLootStartRollToPlayer(uint32 countDown, uint32 mapId, Player* p, bool canNeed, Roll const& r)
 {
     std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
@@ -1111,7 +1189,12 @@ void Group::GroupLoot(Loot* loot, WorldObject* pLootedObject)
                 Player* member = itr->GetSource();
                 if (!member || !member->GetSession())
                     continue;
-                if (member->IsAtLootRewardDistance(pLootedObject))
+
+                bool canLoot = member->IsAtLootRewardDistance(pLootedObject);
+                if (!canLoot && !pLootedObject->GetAllowedLooters().empty())
+                    canLoot = pLootedObject->HasAllowedLooter(member->GetGUID());
+
+                if (canLoot)
                 {
                     r->totalPlayersRolling++;
 
@@ -1197,7 +1280,11 @@ void Group::GroupLoot(Loot* loot, WorldObject* pLootedObject)
             if (!member || !member->GetSession())
                 continue;
 
-            if (member->IsAtLootRewardDistance(pLootedObject))
+            bool canLoot = member->IsAtLootRewardDistance(pLootedObject);
+            if (!canLoot && !pLootedObject->GetAllowedLooters().empty())
+                canLoot = pLootedObject->HasAllowedLooter(member->GetGUID());
+
+            if (canLoot)
             {
                 r->totalPlayersRolling++;
 
@@ -1264,7 +1351,11 @@ void Group::NeedBeforeGreed(Loot* loot, WorldObject* lootedObject)
                 if (!playerToRoll || !playerToRoll->GetSession())
                     continue;
 
-                if (playerToRoll->IsAtGroupRewardDistance(lootedObject))
+                bool canLoot = playerToRoll->IsAtGroupRewardDistance(lootedObject);
+                if (!canLoot && !lootedObject->GetAllowedLooters().empty())
+                    canLoot = lootedObject->HasAllowedLooter(playerToRoll->GetGUID());
+
+                if (canLoot)
                 {
                     r->totalPlayersRolling++;
 
@@ -1416,6 +1507,7 @@ void Group::MasterLoot(Loot* loot, WorldObject* pLootedObject)
     }
 
     std::vector<Player*> looters;
+    bool hasAllowedLooters = !pLootedObject->GetAllowedLooters().empty();
     for (GroupReference* itr = GetFirstMember(); itr != nullptr; itr = itr->next())
     {
         Player* looter = itr->GetSource();
@@ -1424,7 +1516,11 @@ void Group::MasterLoot(Loot* loot, WorldObject* pLootedObject)
             continue;
         }
 
-        if (looter->IsAtLootRewardDistance(pLootedObject))
+        bool canLoot = looter->IsAtLootRewardDistance(pLootedObject);
+        if (!canLoot && hasAllowedLooters)
+            canLoot = pLootedObject->HasAllowedLooter(looter->GetGUID());
+
+        if (canLoot)
         {
             looters.push_back(looter);
         }
@@ -1514,7 +1610,18 @@ void Group::EndRoll(Loot* pLoot, Map* allowedMap)
     {
         if ((*itr)->getLoot() == pLoot)
         {
-            CountTheRoll(itr, allowedMap);           //i don't have to edit player votes, who didn't vote ... he will pass
+            Roll* roll = *itr;
+            for (auto& [playerGuid, vote] : roll->playerVote)
+            {
+                if (vote != NOT_EMITED_YET)
+                    continue;
+
+                vote = PASS;
+                ++roll->totalPass;
+                SendLootRoll(roll->itemGUID, playerGuid, 128, ROLL_PASS, *roll);
+            }
+
+            CountTheRoll(itr, allowedMap);
             itr = RollId.begin();
         }
         else
@@ -1567,7 +1674,7 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
 
             if (maxguid) // pussywizard: added condition
             {
-                SendLootRollWon(ObjectGuid::Empty, maxguid, maxresul, ROLL_NEED, *roll);
+                SendLootRollWon(roll->itemGUID, maxguid, maxresul, ROLL_NEED, *roll);
                 player = ObjectAccessor::FindPlayer(maxguid);
 
                 if (player)
@@ -1585,7 +1692,7 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                         AllowedLooterSet looters = item->GetAllowedLooters();
                         Item* _item = player->StoreNewItem(dest, roll->itemid, true, item->randomPropertyId, looters);
                         if (_item)
-                            sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, _item->GetCount(), NEED, roll);
+                            sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, item->count, NEED, roll);
                         player->UpdateLootAchievements(item, roll->getLoot());
                     }
                     else
@@ -1593,6 +1700,12 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                         item->is_blocked = false;
                         item->rollWinnerGUID = player->GetGUID();
                         player->SendEquipError(msg, nullptr, nullptr, roll->itemid);
+                        if (msg == EQUIP_ERR_INVENTORY_FULL)
+                        {
+                            // Only mail when bags are genuinely full. Unique/max-count failures must
+                            // leave the item on the corpse so it can be re-rolled or freely looted.
+                            SendRollWonItemViaMail(player, item, roll->itemid);
+                        }
                     }
                 }
             }
@@ -1634,7 +1747,7 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
 
             if (maxguid) // pussywizard: added condition
             {
-                SendLootRollWon(ObjectGuid::Empty, maxguid, maxresul, rollvote, *roll);
+                SendLootRollWon(roll->itemGUID, maxguid, maxresul, rollvote, *roll);
                 player = ObjectAccessor::FindPlayer(maxguid);
 
                 if (player)
@@ -1655,7 +1768,7 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                             AllowedLooterSet looters = item->GetAllowedLooters();
                             Item* _item = player->StoreNewItem(dest, roll->itemid, true, item->randomPropertyId, looters);
                             if (_item)
-                                sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, _item->GetCount(), GREED, roll);
+                                sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, item->count, GREED, roll);
                             player->UpdateLootAchievements(item, roll->getLoot());
                         }
                         else
@@ -1663,6 +1776,12 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                             item->is_blocked = false;
                             item->rollWinnerGUID = player->GetGUID();
                             player->SendEquipError(msg, nullptr, nullptr, roll->itemid);
+                            if (msg == EQUIP_ERR_INVENTORY_FULL)
+                            {
+                                // Only mail when bags are genuinely full. Unique/max-count failures must
+                                // leave the item on the corpse so it can be re-rolled or freely looted.
+                                SendRollWonItemViaMail(player, item, roll->itemid);
+                            }
                         }
                     }
                     else if (rollvote == DISENCHANT)

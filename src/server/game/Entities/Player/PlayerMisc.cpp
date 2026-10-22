@@ -515,3 +515,25 @@ void Player::SendItemRetrievalMail(std::vector<std::pair<uint32, uint32>> mailIt
 
     CharacterDatabase.CommitTransaction(trans);
 }
+
+void Player::SendItemRetrievalMail(Item* item)
+{
+    if (!item)
+    {
+        LOG_ERROR("entities.player.items", "> SendItemRetrievalMail(Item*): item is null");
+        return;
+    }
+
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+
+    item->SaveToDB(trans);
+
+    MailSender sender(MAIL_CREATURE, 34337 /* The Postmaster */);
+    MailDraft draft("Recovered Item", "We recovered a lost item in the twisting nether and noted that it was yours.$B$BPlease find said object enclosed.");
+
+    draft.AddItem(item);
+
+    draft.SendMailTo(trans, MailReceiver(this, GetGUID().GetCounter()), sender);
+
+    CharacterDatabase.CommitTransaction(trans);
+}

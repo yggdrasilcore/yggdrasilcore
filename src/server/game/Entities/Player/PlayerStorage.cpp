@@ -345,7 +345,7 @@ uint32 Player::GetItemCount(uint32 item, bool inBankAlso, Item* skipItem) const
     if (skipItem && skipItem->GetTemplate()->GemProperties)
         for (uint8 i = EQUIPMENT_SLOT_START; i < INVENTORY_SLOT_ITEM_END; ++i)
             if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-                if (pItem != skipItem && pItem->GetTemplate()->Socket[0].Color)
+                if (pItem != skipItem && pItem->HasSocket())
                     count += pItem->GetGemCountWithID(item);
 
     if (inBankAlso)
@@ -363,7 +363,7 @@ uint32 Player::GetItemCount(uint32 item, bool inBankAlso, Item* skipItem) const
         if (skipItem && skipItem->GetTemplate()->GemProperties)
             for (uint8 i = BANK_SLOT_ITEM_START; i < BANK_SLOT_ITEM_END; ++i)
                 if (Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i))
-                    if (pItem != skipItem && pItem->GetTemplate()->Socket[0].Color)
+                    if (pItem != skipItem && pItem->HasSocket())
                         count += pItem->GetGemCountWithID(item);
     }
 
@@ -752,7 +752,7 @@ bool Player::HasItemOrGemWithIdEquipped(uint32 item, uint32 count, uint8 except_
                 continue;
 
             Item* pItem = GetItemByPos(INVENTORY_SLOT_BAG_0, i);
-            if (pItem && pItem->GetTemplate()->Socket[0].Color)
+            if (pItem && pItem->HasSocket())
             {
                 tempcount += pItem->GetGemCountWithID(item);
                 if (tempcount >= count)
@@ -1821,6 +1821,10 @@ InventoryResult Player::CanEquipNewItem(uint8 slot, uint16& dest, uint32 item, b
     if (pItem)
     {
         InventoryResult result = CanEquipItem(slot, dest, pItem, swap);
+        // Random-property items queue themselves on creation (SetItemRandomProperties
+        // -> SetState(ITEM_CHANGED, owner)); the probe must leave the update queue
+        // before deletion or the queue keeps a pointer to freed memory.
+        pItem->RemoveFromUpdateQueueOf(const_cast<Player*>(this));
         delete pItem;
         return result;
     }
@@ -2320,6 +2324,35 @@ InventoryResult Player::CanUseItem(ItemTemplate const* proto) const
     if ((proto->AllowableClass & getClassMask()) == 0 || (proto->AllowableRace & getRaceMask()) == 0)
     {
         return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
+    }
+
+    if (proto->InventoryType == INVTYPE_RELIC)
+    {
+        switch (proto->SubClass)
+        {
+            case ITEM_SUBCLASS_ARMOR_LIBRAM:
+                if (!IsClass(CLASS_PALADIN, CLASS_CONTEXT_EQUIP_RELIC))
+                    return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
+                break;
+            case ITEM_SUBCLASS_ARMOR_IDOL:
+                if (!IsClass(CLASS_DRUID, CLASS_CONTEXT_EQUIP_RELIC))
+                    return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
+                break;
+            case ITEM_SUBCLASS_ARMOR_TOTEM:
+                if (!IsClass(CLASS_SHAMAN, CLASS_CONTEXT_EQUIP_RELIC))
+                    return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
+                break;
+            case ITEM_SUBCLASS_ARMOR_MISC:
+                if (!IsClass(CLASS_WARLOCK, CLASS_CONTEXT_EQUIP_RELIC))
+                    return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
+                break;
+            case ITEM_SUBCLASS_ARMOR_SIGIL:
+                if (!IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_EQUIP_RELIC))
+                    return EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
+                break;
+            default:
+                break;
+        }
     }
 
     if (proto->RequiredSkill != 0)
@@ -5361,6 +5394,11 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
     m_taxi.LoadTaxiMask(fields[22].Get<std::string_view>());            // must be before InitTaxiNodesForLevel
 
     uint32 extraflags = fields[36].Get<uint16>();
+
+    // Mirror before the gate below so saved bits survive when the gate
+    // skips effect application; otherwise the next SaveToDB writes 0
+    // over them.
+    m_ExtraFlags = extraflags;
 
     _LoadPetStable(fields[37].Get<uint8>(), holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_PET_SLOTS));
 

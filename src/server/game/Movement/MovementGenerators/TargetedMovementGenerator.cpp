@@ -569,12 +569,19 @@ void ChaseMovementGenerator<T>::MovementInform(T* owner)
 
 //-----------------------------------------------//
 
+// Sniffed: a pet catching up to its owner tops out at 2.6x the owner's current run speed.
+constexpr float FOLLOW_CATCHUP_MAX_MULTIPLIER = 2.6f;
+
 static Optional<float> GetVelocity(Unit* owner, Unit* target, G3D::Vector3 const& dest, bool playerPet)
 {
     Optional<float> speed = {};
     if (!owner->IsInCombat() && !owner->IsVehicle() && !owner->HasUnitFlag(UNIT_FLAG_POSSESSED) &&
         (owner->IsPet() || owner->IsGuardian() || owner->GetGUID() == target->GetCritterGUID() || owner->GetCharmerOrOwnerGUID() == target->GetGUID()))
     {
+        // Guardians without a pet bar (Mirror Image, Shaman Elementals, ...) keep their own run speed.
+        if (owner->IsGuardian() && !owner->IsControllableGuardian())
+            return speed;
+
         uint32 moveFlags = target->GetUnitMovementFlags();
         if (target->movespline->isWalking())
         {
@@ -588,7 +595,7 @@ static Optional<float> GetVelocity(Unit* owner, Unit* target, G3D::Vector3 const
             float distance = owner->GetDistance2d(dest.x, dest.y) - target->GetObjectSize() - (*speed / 2.f);
             if (distance > 0.f)
             {
-                float multiplier = 1.f + (distance / 10.f);
+                float const multiplier = std::min(1.f + (distance / 10.f), FOLLOW_CATCHUP_MAX_MULTIPLIER);
                 *speed *= multiplier;
             }
         }

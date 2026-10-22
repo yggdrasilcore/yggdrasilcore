@@ -16,6 +16,7 @@
  */
 
 #include "Player.h"
+#include <algorithm>
 #include "AccountMgr.h"
 #include "AchievementMgr.h"
 #include "AreaDefines.h"
@@ -185,6 +186,7 @@ Player::Player(WorldSession* session): Unit(), m_mover(this)
 
     m_zoneUpdateId = uint32(-1);
     m_zoneUpdateTimer = 0;
+    m_lastLocalChannelUpdate = 0;
 
     m_nextSave = sWorld->getIntConfig(CONFIG_INTERVAL_SAVE);
 
@@ -2867,6 +2869,66 @@ void Player::SendInitialSpells()
     GetSession()->SendPacket(&data);
 }
 
+void Player::SendUnlearnSpells()
+{
+    WorldPacket data(SMSG_SEND_UNLEARN_SPELLS, 4 + 4 * m_spells.size());
+
+    uint32 spellCount = 0;
+    size_t countPos = data.wpos();
+    data << uint32(spellCount);
+
+    for (auto const& itr : m_spells)
+    {
+        if (itr.second->State == PLAYERSPELL_REMOVED || itr.second->Active)
+            continue;
+
+        auto skillLineAbilities = sSpellMgr->GetSkillLineAbilityMapBounds(itr.first);
+        if (skillLineAbilities.first == skillLineAbilities.second)
+            continue;
+
+        // Client already hides ranks that have a superseding rank
+        bool hasSupercedingRank = false;
+        for (auto slaItr = skillLineAbilities.first; slaItr != skillLineAbilities.second; ++slaItr)
+        {
+            if (slaItr->second->SupercededBySpell)
+            {
+                hasSupercedingRank = true;
+                break;
+            }
+        }
+        if (hasSupercedingRank)
+            continue;
+
+        uint32 nextRank = sSpellMgr->GetNextSpellInChain(itr.first);
+        if (!nextRank || !HasSpell(nextRank))
+            continue;
+
+        data << uint32(itr.first);
+        ++spellCount;
+    }
+
+    data.put<uint32>(countPos, spellCount);
+    SendDirectMessage(&data);
+}
+
+bool Player::IsUnlearnNeededForSpell(uint32 spellId)
+{
+    SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(spellId);
+    if (spellInfo->IsRanked() && !spellInfo->IsStackableWithRanks())
+    {
+        auto skillLineAbilities = sSpellMgr->GetSkillLineAbilityMapBounds(spellId);
+        if (skillLineAbilities.first != skillLineAbilities.second)
+        {
+            for (auto itr = skillLineAbilities.first; itr != skillLineAbilities.second; ++itr)
+                if (itr->second->SupercededBySpell)
+                    return false;
+
+            return true;
+        }
+    }
+    return false;
+}
+
 void Player::RemoveMail(uint32 id)
 {
     for (PlayerMails::iterator itr = m_mail.begin(); itr != m_mail.end(); ++itr)
@@ -3092,6 +3154,10 @@ bool Player::addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool
                 if (nextSpellInfo->GetRank() < spellInfo->GetRank())
                 {
                     itr->second->Active = false;
+
+                    if (!isBeingLoaded() && IsUnlearnNeededForSpell(spellId))
+                        SendUnlearnSpells();
+
                     if (IsInWorld())
                     {
                         WorldPacket data(SMSG_SUPERCEDED_SPELL, 4 + 4);
@@ -3106,6 +3172,10 @@ bool Player::addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool
                     PlayerSpellMap::iterator itr2 = m_spells.find(spellInfo->Id);
                     if (itr2 != m_spells.end())
                         itr2->second->Active = false;
+
+                    if (!isBeingLoaded() && IsUnlearnNeededForSpell(spellId))
+                        SendUnlearnSpells();
+
                     return false;
                 }
             }
@@ -3113,12 +3183,14 @@ bool Player::addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool
         }
     }
 
+    if (!isBeingLoaded() && IsUnlearnNeededForSpell(spellId))
+        SendUnlearnSpells();
+
     return true;
 }
 
 bool Player::CheckSkillLearnedBySpell(uint32 spellId)
 {
-    if (!sWorld->getBoolConfig(CONFIG_VALIDATE_SKILL_LEARNED_BY_SPELLS))
         return true;
 
     SkillLineAbilityMapBounds skill_bounds = sSpellMgr->GetSkillLineAbilityMapBounds(spellId);
@@ -7937,6 +8009,15 @@ void Player::SendLoot(ObjectGuid guid, LootType loot_type)
                 // get next RR player (for next loot)
                 if (groupRules && !go->loot.empty())
                     group->UpdateLooterGuid(go);
+
+                if (groupRules)
+                {
+                    GuidUnorderedSet const& allowedLooters = go->GetAllowedLooters();
+                    if (!allowedLooters.empty())
+                        for (ObjectGuid const& allowedGuid : allowedLooters)
+                            if (Player* allowedPlayer = ObjectAccessor::FindPlayer(allowedGuid))
+                                loot->FillNotNormalLootFor(allowedPlayer);
+                }
             }
             if (GameObjectTemplateAddon const* addon = go->GetTemplateAddon())
                 loot->generateMoneyLoot(addon->mingold, addon->maxgold);
@@ -10533,24 +10614,39 @@ void Player::ContinueTaxiFlight()
 
     TaxiPathNodeList const& nodeList = sTaxiPathNodesByPath[path];
 
-    float bestDist = SIZE_OF_GRIDS * SIZE_OF_GRIDS; // xinef: large value
-    float currDist = 0.0f;
+    // Use triangle inequality to find the segment the player is on.
+    // When distPrev + distNext < distNodes, the player projects between
+    // the two nodes of the segment. Resume from the end node (i).
+    float distPrev;
+    float distNext =
+        (nodeList[0]->x - GetPositionX()) * (nodeList[0]->x - GetPositionX()) +
+        (nodeList[0]->y - GetPositionY()) * (nodeList[0]->y - GetPositionY()) +
+        (nodeList[0]->z - GetPositionZ()) * (nodeList[0]->z - GetPositionZ());
 
-    // xinef: changed to -1, we dont want to catch last node
-    for (uint32 i = 0; i < nodeList.size() - 1; ++i)
+    for (uint32 i = 1; i < nodeList.size(); ++i)
     {
         TaxiPathNodeEntry const* node = nodeList[i];
-        TaxiPathNodeEntry const* nextNode = nodeList[i + 1];
+        TaxiPathNodeEntry const* prevNode = nodeList[i - 1];
 
-        // xinef: skip nodes at another map, get last valid node on current map
-        if (nextNode->mapid != GetMapId() || node->mapid != GetMapId())
+        // skip nodes at another map
+        if (node->mapid != GetMapId())
             continue;
 
-        currDist = (node->x - GetPositionX()) * (node->x - GetPositionX()) + (node->y - GetPositionY()) * (node->y - GetPositionY()) + (node->z - GetPositionZ()) * (node->z - GetPositionZ());
-        if (currDist < bestDist)
+        distPrev = distNext;
+        distNext =
+            (node->x - GetPositionX()) * (node->x - GetPositionX()) +
+            (node->y - GetPositionY()) * (node->y - GetPositionY()) +
+            (node->z - GetPositionZ()) * (node->z - GetPositionZ());
+
+        float distNodes =
+            (node->x - prevNode->x) * (node->x - prevNode->x) +
+            (node->y - prevNode->y) * (node->y - prevNode->y) +
+            (node->z - prevNode->z) * (node->z - prevNode->z);
+
+        if (distPrev + distNext < distNodes)
         {
             startNode = i;
-            bestDist = currDist;
+            break;
         }
     }
 
@@ -11671,9 +11767,7 @@ void Player::SendInitialPacketsBeforeAddToMap()
 
     SendInitialSpells();
 
-    data.Initialize(SMSG_SEND_UNLEARN_SPELLS, 4);
-    data << uint32(0);                                      // count, for (count) uint32;
-    GetSession()->SendPacket(&data);
+    SendUnlearnSpells();
 
     SendInitialActionButtons();
     m_reputationMgr->SendInitialReputations();
@@ -11723,6 +11817,12 @@ void Player::SendInitialPacketsAfterAddToMap()
         if (!auraList.empty())
             auraList.front()->HandleEffect(this, AURA_EFFECT_HANDLE_SEND_FOR_CLIENT, true);
     }
+
+    // Explicitly synchronize CAN_FLY state with client on login to prevent
+    // players from retaining flight ability after disconnecting during a
+    // teleport from a flyable to non-flyable zone (e.g. entering an instance).
+    if (!HasIncreaseMountedFlightSpeedAura() && !HasFlyAura())
+        SetCanFly(false);
 
     // Fix mount, update block gets messed somewhere
     {
@@ -11806,6 +11906,12 @@ void Player::SendInitialPacketsAfterAddToMap()
     }
     else if (GetRaidDifficulty() != GetStoredRaidDifficulty())
         SendRaidDifficulty(GetGroup() != nullptr);
+
+    // Re-send any pending group loot rolls to this player when they enter a dungeon/raid.
+    if (Map* map = GetMap())
+        if (map->IsDungeon() || map->IsRaid())
+            if (Group* group = GetGroup())
+                group->SendPendingRollsToPlayer(this, map);
 }
 
 void Player::SendUpdateToOutOfRangeGroupMembers()
@@ -12100,7 +12206,17 @@ void Player::learnSkillRewardedSpells(uint32 skill_id, uint32 skill_value)
 {
     uint32 raceMask  = getRaceMask();
     uint32 classMask = getClassMask();
-    for (SkillLineAbilityEntry const* pAbility : GetSkillLineAbilitiesBySkillLine(skill_id))
+
+    // Get all abilities for this skill and sort by MinSkillLineRank (lowest to highest)
+    auto abilities = GetSkillLineAbilitiesBySkillLine(skill_id);
+    std::vector<SkillLineAbilityEntry const*> sortedAbilities(abilities.begin(), abilities.end());
+    std::sort(sortedAbilities.begin(), sortedAbilities.end(),
+        [](SkillLineAbilityEntry const* a, SkillLineAbilityEntry const* b)
+        {
+            return a->MinSkillLineRank < b->MinSkillLineRank;
+        });
+
+    for (SkillLineAbilityEntry const* pAbility : sortedAbilities)
     {
         SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(pAbility->Spell);
         if (!spellInfo)
@@ -12963,6 +13079,14 @@ void Player::ResurectUsingRequestData()
 
 void Player::SetClientControl(Unit* target, bool allowMove, bool packetOnly /*= false*/)
 {
+    ASSERT(target);
+    // refuse to grant control if target is charmed by someone else
+    if (target->IsCharmed() && (GetGUID() != target->GetCharmerGUID()))
+    {
+        LOG_ERROR("entities.player", "Player '{}' attempt to client control '{}', which is charmed by GUID {}", GetName(), target->GetName(), target->GetCharmerGUID().ToString());
+        return;
+    }
+
     WorldPacket data(SMSG_CLIENT_CONTROL_UPDATE, target->GetPackGUID().size() + 1);
     data << target->GetPackGUID();
     data << uint8((allowMove && !target->HasUnitState(UNIT_STATE_FLEEING | UNIT_STATE_CONFUSED)) ? 1 : 0);
@@ -13912,8 +14036,11 @@ InventoryResult Player::CanEquipUniqueItem(Item* pItem, uint8 eslot, uint32 limi
         return res;
 
     // check unique-equipped on gems
-    for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + 3; ++enchant_slot)
+    for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot <= PRISMATIC_ENCHANTMENT_SLOT; ++enchant_slot)
     {
+        if (enchant_slot == BONUS_ENCHANTMENT_SLOT)
+            continue;
+
         uint32 enchant_id = pItem->GetEnchantmentId(EnchantmentSlot(enchant_slot));
         if (!enchant_id)
             continue;
@@ -13966,29 +14093,34 @@ InventoryResult Player::CanEquipUniqueItem(ItemTemplate const* itemProto, uint8 
     return EQUIP_ERR_OK;
 }
 
+static constexpr float   FALL_DMG_EQU_SLOPE         = 0.018f;
+static constexpr float   FALL_DMG_EQU_INTERCEPT     = -0.2426f;
+static constexpr float   MIN_FALL_DMG_DIST          = 13.48f;       // Minimum fall distance that deals damage
+// 13.48 can be calculated by resolving damageperc to 0 in the fall damage equation below, and assuming safe_fall reduction = 0
+
+static constexpr uint32  SPELL_GUST_OF_WIND         = 43621;
+static constexpr uint32  SPELL_DIVINE_PROTECTION    = 498;
+
 void Player::HandleFall(MovementInfo const& movementInfo)
 {
     // calculate total z distance of the fall
     float z_diff = m_lastFallZ - movementInfo.pos.GetPositionZ();
 
     //Players with low fall distance, Feather Fall or physical immunity (charges used) are ignored
-    // 14.57 can be calculated by resolving damageperc formula below to 0
-    if (z_diff >= 14.57f && !isDead() && !IsGameMaster() && !GetCommandStatus(CHEAT_GOD) &&
+    // 13.48 can be calculated by resolving damageperc formula below to 0
+    if (z_diff >= MIN_FALL_DMG_DIST && !isDead() && !IsGameMaster() && !GetCommandStatus(CHEAT_GOD) &&
             !HasHoverAura() && !HasFeatherFallAura() &&
             !HasFlyAura())
     {
         //Safe fall, fall height reduction
         int32 safe_fall = GetTotalAuraModifier(SPELL_AURA_SAFE_FALL);
 
-        float damageperc = 0.018f * (z_diff - safe_fall) - 0.2426f;
+        float damageperc = FALL_DMG_EQU_SLOPE * (z_diff - safe_fall) + FALL_DMG_EQU_INTERCEPT;
         uint32 original_health = GetHealth(), final_damage = 0;
 
         if (damageperc > 0 && !IsImmunedToDamageOrSchool(SPELL_SCHOOL_MASK_NORMAL))
         {
             uint32 damage = (uint32)(damageperc * GetMaxHealth() * sWorld->getRate(RATE_DAMAGE_FALL));
-
-            //float height = movementInfo.pos.m_positionZ;
-            //UpdateGroundPositionZ(movementInfo.pos.m_positionX, movementInfo.pos.m_positionY, height);
 
             if (damage > 0)
             {
@@ -13996,15 +14128,11 @@ void Player::HandleFall(MovementInfo const& movementInfo)
                 if (damage > GetMaxHealth())
                     damage = GetMaxHealth();
 
-                // Gust of Wind
-                if (HasAura(43621))
+                if (HasAura(SPELL_GUST_OF_WIND))
                     damage = GetMaxHealth() / 2;
 
-                // Divine Protection
-                if (HasAura(498))
-                {
+                if (HasAura(SPELL_DIVINE_PROTECTION))
                     damage /= 2;
-                }
 
                 final_damage = EnvironmentalDamage(DAMAGE_FALL, damage);
             }
@@ -14401,7 +14529,7 @@ bool Player::CanSeeSpellClickOn(Creature const* c) const
 
     SpellClickInfoMapBounds clickPair = sObjectMgr->GetSpellClickInfoMapBounds(c->GetEntry());
     if (clickPair.first == clickPair.second)
-        return true;
+        return false;
 
     for (SpellClickInfoContainer::const_iterator itr = clickPair.first; itr != clickPair.second; ++itr)
     {
@@ -15462,6 +15590,15 @@ void Player::ActivateSpec(uint8 spec)
             ++iter;
     }
 
+    // Recheck shapeshift bonus auras: drop and re-apply form-tied passives
+    // so buffs from talents missing in the new spec (e.g. Master Shapeshifter) go away
+    Unit::AuraEffectList const& shapeshiftAuras = GetAuraEffectsByType(SPELL_AURA_MOD_SHAPESHIFT);
+    for (AuraEffect* aurEff : shapeshiftAuras)
+    {
+        aurEff->HandleShapeshiftBoosts(this, false);
+        aurEff->HandleShapeshiftBoosts(this, true);
+    }
+
     sScriptMgr->OnPlayerAfterSpecSlotChanged(this, GetActiveSpec());
 }
 
@@ -15694,6 +15831,24 @@ void Player::PrepareCharmAISpells()
                 m_charmAISpells[SPELL_ROOT_OR_FEAR] = spellInfo->Id;
                 break;
             }
+        }
+    }
+
+    // The selection above can leave a lower rank of a spell chain in a slot (e.g. the
+    // secondary damage slot for a caster whose top spells are ranks of one chain). While
+    // charmed the player should cast the highest rank it knows, so walk each slot up its
+    // chain to the top learned rank.
+    for (uint32& charmSpellId : m_charmAISpells)
+    {
+        if (!charmSpellId)
+            continue;
+
+        while (uint32 nextRank = sSpellMgr->GetNextSpellInChain(charmSpellId))
+        {
+            if (!HasActiveSpell(nextRank))
+                break;
+
+            charmSpellId = nextRank;
         }
     }
 }

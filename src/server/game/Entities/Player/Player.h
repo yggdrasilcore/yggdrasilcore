@@ -1638,6 +1638,7 @@ public:
     [[nodiscard]] PlayerMails const& GetMails() const { return m_mail; }
     void SendItemRetrievalMail(uint32 itemEntry, uint32 count); // Item retrieval mails sent by The Postmaster (34337)
     void SendItemRetrievalMail(std::vector<std::pair<uint32, uint32>> mailItems); // Item retrieval mails sent by The Postmaster (34337)
+    void SendItemRetrievalMail(Item* item); // Item retrieval mail for a pre-created item (preserves trade window data)
 
     /*********************************************************/
     /*** MAILED ITEMS SYSTEM ***/
@@ -1681,6 +1682,8 @@ public:
 
     void SendProficiency(ItemClass itemClass, uint32 itemSubclassMask);
     void SendInitialSpells();
+    void SendUnlearnSpells();
+    static bool IsUnlearnNeededForSpell(uint32 spellId);
     void SendLearnPacket(uint32 spellId, bool learn);
     bool addSpell(uint32 spellId, uint8 addSpecMask, bool updateActive, bool temporary = false, bool learnFromSkill = false);
     bool _addSpell(uint32 spellId, uint8 addSpecMask, bool temporary, bool learnFromSkill = false);
@@ -2641,6 +2644,7 @@ public:
 protected:
     uint32 GetSpellQueueWindow() const;
     void ProcessSpellQueue();
+    Unit* SelectCharmedAIGroupTarget(float distance) const;
 
 public:
     std::deque<PendingSpellCastRequest> SpellQueue;
@@ -2868,6 +2872,7 @@ protected:
 
     uint32 m_zoneUpdateId;
     uint32 m_zoneUpdateTimer;
+    uint32 m_lastLocalChannelUpdate;
     uint32 m_areaUpdateId;
 
     uint32 m_deathTimer;
