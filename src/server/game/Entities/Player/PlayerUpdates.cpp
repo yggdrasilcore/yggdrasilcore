@@ -1493,7 +1493,7 @@ void Player::UpdatePvPState()
 {
     UpdateFFAPvPState();
 
-    if (pvpInfo.IsHostile && !IsInFlight()) // in hostile area, not on a taxi
+    if (pvpInfo.IsHostile && !IsInFlight() && !m_taxi.empty()) // in hostile area, not on a taxi
     {
         if (!IsPvP() || pvpInfo.EndTimer != 0)
             UpdatePvP(true, true);
