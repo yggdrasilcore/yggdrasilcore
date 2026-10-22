@@ -102,11 +102,14 @@ void Player::Update(uint32 p_time)
     UpdateAfkReport(now);
 
     // Channel updates run on a 5s cadence per player instead of every zone
-    // change, so border crossings collapse into the latest zone.
-    if (m_zoneUpdateId != uint32(-1))
+    // change, so border crossings collapse into the latest zone. A fresh
+    // login is excluded: the client joins the built-in local channels itself
+    // once loading completes, and joining here first would turn that client
+    // request into a no-op, leaving the player out of the channel.
+    if (m_zoneUpdateId != uint32(-1) && m_lastLocalChannelUpdate)
     {
         uint32 nowMs = getMSTime();
-        if ((!m_lastLocalChannelUpdate || nowMs - m_lastLocalChannelUpdate >= 5000) &&
+        if (nowMs - m_lastLocalChannelUpdate >= 5000 &&
             (!GetSession()->PlayerLoading() || IsBeingTeleportedFar()))
         {
             UpdateLocalChannels(m_zoneUpdateId);
