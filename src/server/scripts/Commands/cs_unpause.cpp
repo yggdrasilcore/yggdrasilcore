@@ -19,9 +19,6 @@
 
 using namespace Ycore::ChatCommands;
 
-// Manual release command: ".unpause <creature guid>". Normally the client
-// reports interaction window closes through Warden, but this remains as a
-// fallback. Only removes the stop aura if it was placed by the requesting player.
 class unpause_commandscript : public CommandScript
 {
 public:
