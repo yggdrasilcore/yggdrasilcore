@@ -46,12 +46,10 @@ At Yggdrasilcore, we actively promote collaboration with other MaNGOS-based open
 * vMaNGOS: https://github.com/vmangos
 * and others
 
-It is strictly required for any contributor importing code to credit the original author by:
+When porting fixes, we recommend adding the original authors from other projects by:
 - linking the original PR (or commit)
 - adding a [Co-authored-by](https://docs.github.com/en/pull-requests/committing-changes-to-your-project/creating-and-editing-commits/creating-a-commit-with-multiple-authors) line in the PR description
 
 This will automatically include the original author in our list of [Contributors](https://github.com/yggdrasilcore/yggdrasilcore/graphs/contributors).
-
-If you notice a violation of the above, please report it to the Staff immediately.
 
 We encourage other projects to adopt similar practices to promote healthy cross-project collaboration and proper attribution.
