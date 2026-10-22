@@ -1240,6 +1240,11 @@ public:
                                 loot->RemoveGameObjectFlag(GO_FLAG_LOCKED | GO_FLAG_NOT_SELECTABLE | GO_FLAG_NODESPAWN);
                             }
 
+                            // The friendly event NPC (Saurfang on Horde, Muradin on Alliance) can no
+                            // longer be talked to once Deathbringer's death has started the outro.
+                            if (Creature* eventNpc = instance->GetCreature(DeathbringerSaurfangEventGUID))
+                                eventNpc->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+
                             // Not raised here: DONE fires the moment the boss dies. The outro asks
                             // via SetData(DATA_SAURFANG_CAMP); OnPlayerEnter covers saved instances.
                             // FAIL is treated like NOT_STARTED: a wipe leaves it in FAIL for good in
