@@ -1387,6 +1387,9 @@ public:
                 {
                     GunshipGUID = gunship->GetGUID();
                     gunship->setActive(false);
+                    // The ship stays inactive until the intro; load its static passengers now so
+                    // the hull NPC exists when the encounter frames are engaged after a wipe.
+                    gunship->LoadStaticPassengers();
                 }
             }
         }
