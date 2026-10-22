@@ -704,6 +704,8 @@ void MotionMaster::MoveCirclePath(float x, float y, float z, float radius, bool 
                     point.x, point.y, _owner->GetGUID().ToString());
                 return;
             }
+
+            point.z += _owner->GetHoverHeight();
         }
 
         init.Path().push_back(point);
