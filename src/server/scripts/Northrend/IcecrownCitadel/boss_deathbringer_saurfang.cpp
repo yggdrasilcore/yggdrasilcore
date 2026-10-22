@@ -833,7 +833,7 @@ _guardList.push_back(guard->GetGUID());
             if (spell->Id == SPELL_GRIP_OF_AGONY)
             {
                 me->SetDisableGravity(true);
-                me->GetMotionMaster()->MovePoint(POINT_CHOKE, chokePos[0]);
+                me->GetMotionMaster()->MovePoint(POINT_CHOKE, chokePos[0], FORCED_MOVEMENT_WALK);
             }
         }
 
@@ -1128,7 +1128,7 @@ _guardList.push_back(guard->GetGUID());
             if (spell->Id == SPELL_GRIP_OF_AGONY)
             {
                 me->SetDisableGravity(true);
-                me->GetMotionMaster()->MovePoint(POINT_CHOKE, chokePos[0]);
+                me->GetMotionMaster()->MovePoint(POINT_CHOKE, chokePos[0], FORCED_MOVEMENT_WALK);
             }
         }
 
@@ -1602,7 +1602,7 @@ public:
             if (spell->Id == SPELL_GRIP_OF_AGONY)
             {
                 me->SetDisableGravity(true);
-                me->GetMotionMaster()->MovePoint(POINT_CHOKE, chokePos[_index]);
+                me->GetMotionMaster()->MovePoint(POINT_CHOKE, chokePos[_index], FORCED_MOVEMENT_WALK);
             }
         }
 
