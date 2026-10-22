@@ -92,7 +92,11 @@ void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket& recvData)
 
     // Stop the npc if moving
     creature->PauseMovementForInteraction(_player);
-    creature->SetHomePosition(creature->GetPosition());
+
+    // Update home position for patrolling NPCs only (prevents drift for stationary NPCs)
+    if (creature->GetDefaultMovementType() == WAYPOINT_MOTION_TYPE ||
+        creature->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
+        creature->SetHomePosition(creature->GetPosition());
 
     if (sScriptMgr->OnGossipHello(_player, creature))
         return;
