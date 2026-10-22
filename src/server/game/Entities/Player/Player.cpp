@@ -186,6 +186,7 @@ Player::Player(WorldSession* session): Unit(), m_mover(this)
 
     m_zoneUpdateId = uint32(-1);
     m_zoneUpdateTimer = 0;
+    m_lastLocalChannelUpdate = 0;
 
     m_nextSave = sWorld->getIntConfig(CONFIG_INTERVAL_SAVE);
 

@@ -2872,6 +2872,7 @@ protected:
 
     uint32 m_zoneUpdateId;
     uint32 m_zoneUpdateTimer;
+    uint32 m_lastLocalChannelUpdate;
     uint32 m_areaUpdateId;
 
     uint32 m_deathTimer;
