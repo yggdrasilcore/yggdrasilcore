@@ -2093,7 +2093,10 @@ public:
         {
             gunship_npc_AI::MovementInform(type, pointId);
             if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH)
+            {
                 me->SetControlled(true, UNIT_STATE_ROOT);
+                me->SetEmoteState(EMOTE_STATE_READY_RIFLE);
+            }
         }
 
         void UpdateAI(uint32 /*diff*/) override
