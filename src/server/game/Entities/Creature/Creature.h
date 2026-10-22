@@ -96,6 +96,7 @@ public:
     [[nodiscard]] bool IsGossipScriptActive() const { return _gossipScriptActive; }
     // Logout failover: releases every creature stopped by the given player.
     static void ClearInteractionStopsBy(Player* player);
+    static void ClearInteractionStopsOutOfRange(Player* player);
 
     struct InteractionStopResume
     {
