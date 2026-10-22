@@ -18,6 +18,7 @@
 #include "AreaDefines.h"
 #include "Battleground.h"
 #include "CreatureScript.h"
+#include "DBCStores.h"
 #include "ObjectMgr.h"
 #include "Pet.h"
 #include "Player.h"
@@ -378,20 +379,74 @@ class spell_item_magic_dust : public SpellScript
     }
 };
 
+enum ToyTrainSet
+{
+    GO_TOY_TRAIN = 193963,
+};
+
+// The pulse itself is a 5 yard spell in DBC. The aura is cleaned up once the
+// player is farther than this from any toy train, which also covers the train
+// being destroyed before the aura expires.
+static constexpr float TOY_TRAIN_AURA_RANGE = 20.0f;
+
 class spell_item_toy_train_set : public SpellScript
 {
     PrepareSpellScript(spell_item_toy_train_set)
 
+    void FilterTargets(std::list<WorldObject*>& targets)
+    {
+        targets.remove_if([](WorldObject const* target) { return !target->IsPlayer(); });
+    }
+
     void HandleScriptEffect(SpellEffIndex effIndex)
     {
         PreventHitDefaultEffect(effIndex);
-        if (Unit* target = GetHitUnit())
-            target->HandleEmoteCommand(EMOTE_ONESHOT_TRAIN);
+
+        Player* target = GetHitPlayer();
+        if (!target)
+            return;
+
+        target->HandleEmoteCommand(EMOTE_ONESHOT_TRAIN);
+
+        // EmotesTextSound.dbc holds the per race/gender "choo choo" voice line.
+        // SMSG_EMOTE only carries the animation, so play the sound explicitly.
+        if (EmotesTextSoundEntry const* soundEntry = FindTextSoundEmoteFor(TEXT_EMOTE_TRAIN, target->getRace(), target->getGender()))
+            target->PlayDistanceSound(soundEntry->SoundId);
     }
 
     void Register() override
     {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_item_toy_train_set::FilterTargets, EFFECT_ALL, TARGET_UNIT_SRC_AREA_ALLY);
         OnEffectHitTarget += SpellEffectFn(spell_item_toy_train_set::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+class spell_item_toy_train_set_aura : public AuraScript
+{
+    PrepareAuraScript(spell_item_toy_train_set_aura);
+
+    void CalcPeriodic(AuraEffect const* /*aurEff*/, bool& isPeriodic, int32& amplitude)
+    {
+        // The dummy aura is not periodic in DBC. Tick it once per second so we
+        // can notice when the player leaves the train or the train is gone.
+        isPeriodic = true;
+        amplitude = 1 * IN_MILLISECONDS;
+    }
+
+    void HandlePeriodic(AuraEffect const* /*aurEff*/)
+    {
+        Unit* target = GetTarget();
+        if (!target)
+            return;
+
+        if (!target->FindNearestGameObject(GO_TOY_TRAIN, TOY_TRAIN_AURA_RANGE))
+            GetAura()->Remove();
+    }
+
+    void Register() override
+    {
+        DoEffectCalcPeriodic += AuraEffectCalcPeriodicFn(spell_item_toy_train_set_aura::CalcPeriodic, EFFECT_1, SPELL_AURA_DUMMY);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_item_toy_train_set_aura::HandlePeriodic, EFFECT_1, SPELL_AURA_DUMMY);
     }
 };
 
@@ -4339,7 +4394,7 @@ void AddSC_item_spell_scripts()
     RegisterSpellScript(spell_item_goblin_gumbo_kettle);
     RegisterSpellScript(spell_item_with_mount_speed);
     RegisterSpellScript(spell_item_magic_dust);
-    RegisterSpellScript(spell_item_toy_train_set);
+    RegisterSpellAndAuraScriptPair(spell_item_toy_train_set, spell_item_toy_train_set_aura);
     RegisterSpellScript(spell_item_rocket_chicken);
     RegisterSpellScript(spell_item_sleepy_willy);
     RegisterSpellScript(spell_item_lil_phylactery);

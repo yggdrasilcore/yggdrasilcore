@@ -1893,6 +1893,56 @@ public:
     }
 };
 
+enum ToyTrainSetGO
+{
+    TOY_TRAIN_GO_PULSE          = 61551,
+    TOY_TRAIN_GO_WRECK          = 62943,
+    TOY_TRAIN_GO_LIL_XT         = 76092,
+    TOY_TRAIN_GO_ACTION_WRECKED = 1,
+};
+
+struct go_toy_train_set : public GameObjectAI
+{
+    go_toy_train_set(GameObject* go) : GameObjectAI(go), _pulseTimer(3 * IN_MILLISECONDS), _deleting(false) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (diff < _pulseTimer)
+        {
+            _pulseTimer -= diff;
+            return;
+        }
+
+        me->CastSpell(nullptr, TOY_TRAIN_GO_PULSE);
+        _pulseTimer = 6 * IN_MILLISECONDS;
+    }
+
+    void SpellHit(Unit* /*unit*/, SpellInfo const* spellInfo) override
+    {
+        if (spellInfo->Id == TOY_TRAIN_GO_WRECK || spellInfo->Id == TOY_TRAIN_GO_LIL_XT)
+            DeleteTrain();
+    }
+
+    void DoAction(int32 action) override
+    {
+        if (action == TOY_TRAIN_GO_ACTION_WRECKED)
+            DeleteTrain();
+    }
+
+private:
+    void DeleteTrain()
+    {
+        if (_deleting)
+            return;
+
+        _deleting = true;
+        me->Delete();
+    }
+
+    uint32 _pulseTimer;
+    bool _deleting;
+};
+
 void AddSC_go_scripts()
 {
     new go_seer_of_zebhalak();
@@ -1933,4 +1983,5 @@ void AddSC_go_scripts()
     new go_massive_seaforium_charge();
     new go_veil_skith_cage();
     new go_bells();
+    RegisterGameObjectAI(go_toy_train_set);
 }
