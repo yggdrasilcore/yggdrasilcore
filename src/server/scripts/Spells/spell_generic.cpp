@@ -4032,6 +4032,36 @@ public:
         return true;
     }
 
+    SpellCastResult CheckCast()
+    {
+        Player* caster = GetCaster()->ToPlayer();
+        if (!caster || !caster->IsInWater())
+            return SPELL_CAST_OK;
+
+        uint32 ground = 0;
+        switch (caster->GetBaseSkillValue(SKILL_RIDING))
+        {
+            case 0:
+                ground = _mount0;
+                break;
+            case 75:
+                ground = _mount60;
+                break;
+            case 150:
+            case 225:
+            case 300:
+                ground = _mount100;
+                break;
+            default:
+                break;
+        }
+
+        if (!ground)
+            return SPELL_FAILED_ONLY_ABOVEWATER;
+
+        return SPELL_CAST_OK;
+    }
+
     void HandleMount(SpellEffIndex effIndex)
     {
         PreventHitDefaultEffect(effIndex);
@@ -4108,6 +4138,7 @@ public:
 
     void Register() override
     {
+        OnCheckCast += SpellCheckCastFn(spell_gen_mount::CheckCast);
         OnEffectHitTarget += SpellEffectFn(spell_gen_mount::HandleMount, EFFECT_2, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 
