@@ -498,7 +498,7 @@ public:
                         creature->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
 
                     DeathbringerSaurfangEventGUID = creature->GetGUID();
-                    creature->LastUsedScriptID = creature->GetScriptID();
+                    creature->LastUsedScriptID = creature->GetScriptId();
                     HideSaurfangEventNpc(creature);
                     break;
                 case NPC_SE_MURADIN_BRONZEBEARD:
