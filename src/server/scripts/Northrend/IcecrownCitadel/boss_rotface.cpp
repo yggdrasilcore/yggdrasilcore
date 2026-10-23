@@ -81,6 +81,7 @@ enum Events
     // Rotface
     EVENT_UNROOT,
     EVENT_SLIME_SPRAY,
+    EVENT_SLIME_SPRAY_END,
     EVENT_HASTEN_INFECTIONS,
     EVENT_MUTATED_INFECTION,
     EVENT_ROTFACE_OOZE_FLOOD,
@@ -275,6 +276,9 @@ public:
                     me->SetControlled(false, UNIT_STATE_ROOT);
                     me->DisableRotate(false);
                     break;
+                case EVENT_SLIME_SPRAY_END:
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    break;
                 case EVENT_SLIME_SPRAY:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, NonTankTargetSelector(me)))
                     {
@@ -283,6 +287,8 @@ public:
                             me->SetFacingToObject(c);
                             Talk(EMOTE_SLIME_SPRAY);
                             DoCastSelf(SPELL_SLIME_SPRAY);
+                            me->SetReactState(REACT_PASSIVE);
+                            events.ScheduleEvent(EVENT_SLIME_SPRAY_END, 5100ms);
                         }
                     }
                     events.DelayEvents(1ms);
