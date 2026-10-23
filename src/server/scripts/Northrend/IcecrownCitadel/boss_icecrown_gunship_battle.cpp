@@ -15,6 +15,9 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
+#include <utility>
+
 #include "AchievementCriteriaScript.h"
 #include "AreaDefines.h"
 #include "Config.h"
@@ -2172,7 +2175,7 @@ public:
             if (me->HasSpellCooldown(SPELL_ROCKET_ARTILLERY_EXPLOSION))
                 return;
 
-            Player* target = SelectArtilleryTarget();
+            Unit* target = SelectArtilleryTarget();
             if (!target)
                 return;
 
@@ -2180,7 +2183,7 @@ public:
             me->_AddCreatureSpellCooldown(SPELL_ROCKET_ARTILLERY_EXPLOSION, 0, 9000);
         }
 
-        Player* SelectArtilleryTarget()
+        Unit* SelectArtilleryTarget()
         {
             std::vector<Player*> targets;
             std::vector<ObjectGuid> guids = me->GetMap()->CopyPlayerGuids();
@@ -2203,10 +2206,44 @@ public:
                 targets.push_back(player);
             }
 
-            if (targets.empty())
+            if (!targets.empty())
+                return Ycore::Containers::SelectRandomContainerElement(targets);
+
+            std::list<Creature*> hulls;
+            me->GetCreatureListWithEntryInGrid(hulls, NPC_GUNSHIP_HULL, ARTILLERY_MAX_DISTANCE);
+
+            std::vector<std::pair<float, Creature*>> nearestHulls;
+            for (Creature* hull : hulls)
+            {
+                if (!hull || !hull->IsInWorld() || hull->GetMap() != me->GetMap() || !hull->IsAlive())
+                    continue;
+
+                float distance = me->GetDistance(hull);
+                if (distance <= ARTILLERY_MIN_DISTANCE || distance >= ARTILLERY_MAX_DISTANCE)
+                    continue;
+
+                if (!hull->GetTransport() || hull->GetTransport() == me->GetTransport())
+                    continue;
+
+                nearestHulls.emplace_back(distance, hull);
+            }
+
+            if (nearestHulls.empty())
                 return nullptr;
 
-            return Ycore::Containers::SelectRandomContainerElement(targets);
+            std::sort(nearestHulls.begin(), nearestHulls.end(), [](std::pair<float, Creature*> const& left, std::pair<float, Creature*> const& right)
+            {
+                return left.first < right.first;
+            });
+
+            if (nearestHulls.size() > 3)
+                nearestHulls.resize(3);
+
+            std::vector<Creature*> hullTargets;
+            for (std::pair<float, Creature*> const& hull : nearestHulls)
+                hullTargets.push_back(hull.second);
+
+            return Ycore::Containers::SelectRandomContainerElement(hullTargets);
         }
 
         bool CanAIAttack(Unit const*  /*target*/) const override
