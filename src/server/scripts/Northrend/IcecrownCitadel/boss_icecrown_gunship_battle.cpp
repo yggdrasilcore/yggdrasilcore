@@ -2203,6 +2203,9 @@ public:
                 if (!player->GetTransport() || player->GetTransport() == me->GetTransport())
                     continue;
 
+                if (!me->IsWithinLOSInMap(player))
+                    continue;
+
                 targets.push_back(player);
             }
 
@@ -2223,6 +2226,9 @@ public:
                     continue;
 
                 if (!hull->GetTransport() || hull->GetTransport() == me->GetTransport())
+                    continue;
+
+                if (!me->IsWithinLOSInMap(hull))
                     continue;
 
                 nearestHulls.emplace_back(distance, hull);
