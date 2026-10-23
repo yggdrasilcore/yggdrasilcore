@@ -99,7 +99,7 @@ void Warden::Update(uint32 const diff)
         return;
     }
 
-    if (_sendPayload) // Hack fix to immediately process warden injections on reload
+    if (_sendPayload && !_dataSent) // Hack fix to immediately process warden injections on reload
     {
         SendPayload();
         return;
