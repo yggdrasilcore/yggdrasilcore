@@ -475,6 +475,9 @@ public:
                 return;
 
             instance->HandleGameObject(instance->GetGuidData(GO_SAURFANG_S_DOOR), false);
+
+            if (id == POINT_SAURFANG && events.IsInPhase(PHASE_INTRO_A))
+                events.ScheduleEvent(EVENT_INTRO_ALLIANCE_2, 0ms, 0, PHASE_INTRO_A);
         }
 
         void SpellHitTarget(Unit*  /*target*/, SpellInfo const* spell) override
@@ -667,7 +670,6 @@ public:
                     me->SetWalk(false);
                     me->GetMotionMaster()->MovePoint(POINT_SAURFANG, deathbringerPos.GetPositionX(), deathbringerPos.GetPositionY(), deathbringerPos.GetPositionZ());
 
-                    events.ScheduleEvent(EVENT_INTRO_ALLIANCE_2, 2500ms, 0, PHASE_INTRO_A);
                     events.ScheduleEvent(EVENT_INTRO_ALLIANCE_3, 20s, 0, PHASE_INTRO_A);
                     events.ScheduleEvent(EVENT_INTRO_HORDE_2, 5s, 0, PHASE_INTRO_H);
                     break;
