@@ -773,6 +773,9 @@ public:
                     ship->CastSpell(ship, SPELL_AWARD_REPUTATION_BOSS_KILL, true);
                 }
 
+                // Boarding adds keep their original transport after teleporting, because
+                // SPELL_TELEPORT_TO_ENEMY_SHIP only rewrites their transport offset. Despawn
+                // them from both ships so none stay on the opposing deck after the encounter.
                 for (uint8 i = 0; i < 2; ++i)
                     if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(i == 0 ? DATA_ICECROWN_GUNSHIP_BATTLE : DATA_ENEMY_GUNSHIP)))
                         if (MotionTransport* t = go->ToMotionTransport())
@@ -787,6 +790,19 @@ public:
                                     c->DespawnOrUnsummon(1ms);
                             }
                         }
+
+                // Boarding portals are summoned at world coordinates and are not transport
+                // passengers, so look for them around both ships.
+                std::list<Creature*> portals;
+                me->GetCreatureListWithEntryInGrid(portals, NPC_TELEPORT_PORTAL, 250.0f);
+                me->GetCreatureListWithEntryInGrid(portals, NPC_TELEPORT_EXIT, 250.0f);
+                if (Creature* otherShip = _instance->GetCreature(me->GetEntry() == NPC_ORGRIMS_HAMMER ? DATA_THE_SKYBREAKER : DATA_ORGRIMS_HAMMER))
+                {
+                    otherShip->GetCreatureListWithEntryInGrid(portals, NPC_TELEPORT_PORTAL, 250.0f);
+                    otherShip->GetCreatureListWithEntryInGrid(portals, NPC_TELEPORT_EXIT, 250.0f);
+                }
+                for (Creature* portal : portals)
+                    portal->DespawnOrUnsummon(1ms);
             }
             else
             {
@@ -1086,6 +1102,14 @@ public:
                 }
                 else
                     checkTimer -= diff;
+            }
+
+            if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
+            {
+                _events.CancelEvent(EVENT_ADDS);
+                _events.CancelEvent(EVENT_CHECK_RIFLEMAN);
+                _events.CancelEvent(EVENT_CHECK_MORTAR);
+                _events.CancelEvent(EVENT_SUMMON_MAGE);
             }
 
             UpdateVictim();
@@ -1449,6 +1473,14 @@ public:
                     checkTimer -= diff;
             }
 
+            if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
+            {
+                _events.CancelEvent(EVENT_ADDS);
+                _events.CancelEvent(EVENT_CHECK_RIFLEMAN);
+                _events.CancelEvent(EVENT_CHECK_MORTAR);
+                _events.CancelEvent(EVENT_SUMMON_MAGE);
+            }
+
             UpdateVictim();
             _events.Update(diff);
 
@@ -1779,6 +1811,9 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
     {
         if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH && Slot)
         {
+            if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
+                return;
+
             me->SetFacingTo(Slot->TargetPosition.GetOrientation());
             me->m_Events.AddEventAtOffset(new BattleExperienceEvent(me), BattleExperienceEvent::ExperiencedTimes[0]);
             me->CastSpell(me, SPELL_BATTLE_EXPERIENCE, true);
