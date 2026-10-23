@@ -1027,7 +1027,7 @@ public:
             me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             me->SetCanFly(false);
             me->SetDisableGravity(false);
-            me->SetReactState(REACT_AGGRESSIVE);
+            me->SetReactState(REACT_DEFENSIVE);
         }
 
         void TryFinishGauntlet()
