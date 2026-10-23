@@ -560,7 +560,7 @@ public:
 		_caster->GetMap()->DoForAllPlayers([](Player* player)
 		{
 			if (Transport* transport = player->GetTransport())
-				transport->RemovePassenger(player);
+				transport->RemovePassenger(player, true);
 		});
 		
 		_caster->CastSpell(_caster, _spellId, true);
@@ -608,7 +608,7 @@ public:
         _caster->GetMap()->DoForAllPlayers([](Player* player)
         {
             if (Transport* transport = player->GetTransport())
-                transport->RemovePassenger(player);
+                transport->RemovePassenger(player, true);
         });
         
         _caster->CastSpell(_caster, SPELL_TELEPORT_PLAYERS_ON_VICTORY, true);
