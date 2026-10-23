@@ -1032,7 +1032,13 @@ public:
                     break;
                 case GO_THE_SKYBREAKER_A:
                 case GO_ORGRIMS_HAMMER_H:
-                    GunshipGUID.Clear();
+                    if (GunshipGUID == go->GetGUID())
+                        GunshipGUID.Clear();
+                    break;
+                case GO_THE_SKYBREAKER_H:
+                case GO_ORGRIMS_HAMMER_A:
+                    if (EnemyGunshipGUID == go->GetGUID())
+                        EnemyGunshipGUID.Clear();
                     break;
                 default:
                     break;
@@ -1377,18 +1383,60 @@ public:
             return true;
         }
 
+        void RepairGunshipHull(Transport* transport)
+        {
+            if (!transport)
+                return;
+
+            MotionTransport* gunship = transport->ToMotionTransport();
+            if (!gunship)
+                return;
+
+            if (gunship->GetStaticPassengers().empty())
+                gunship->LoadStaticPassengers();
+
+            for (WorldObject* passenger : gunship->GetStaticPassengers())
+                if (Creature* hull = passenger->ToCreature())
+                    if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
+                    {
+                        if (!hull->IsAlive())
+                        {
+                            hull->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
+                            hull->setDeathState(DeathState::Alive);
+                        }
+                        hull->SetFullHealth();
+                    }
+        }
+
         void SpawnGunship()
         {
-            if (!GunshipGUID && instance->HavePlayers())
+            if (!instance->HavePlayers())
+                return;
+
+            if (GunshipGUID)
             {
-                SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, NOT_STARTED);
-                uint32 gunshipEntry = GetTeamIdInInstance() == TEAM_HORDE ? GO_ORGRIMS_HAMMER_H : GO_THE_SKYBREAKER_A;
-                if (MotionTransport* gunship = sTransportMgr->CreateTransport(gunshipEntry, 0, instance))
+                if (Transport* existing = instance->GetTransport(GunshipGUID))
                 {
-                    GunshipGUID = gunship->GetGUID();
-                    gunship->setActive(false);
+                    RepairGunshipHull(existing);
+                    return;
                 }
+
+                GunshipGUID.Clear();
             }
+
+            uint32 gunshipEntry = GetTeamIdInInstance() == TEAM_HORDE ? GO_ORGRIMS_HAMMER_H : GO_THE_SKYBREAKER_A;
+            MotionTransport* gunship = sTransportMgr->CreateTransport(gunshipEntry, 0, instance);
+            if (!gunship)
+            {
+                Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 5s);
+                return;
+            }
+
+            SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, NOT_STARTED);
+            GunshipGUID = gunship->GetGUID();
+            gunship->setActive(false);
+            gunship->LoadStaticPassengers();
+            RepairGunshipHull(gunship);
         }
 
         // Hidden rather than despawned: a despawned creature leaves the map and its guid would no
