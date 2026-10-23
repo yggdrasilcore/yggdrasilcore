@@ -477,7 +477,12 @@ public:
             instance->HandleGameObject(instance->GetGuidData(GO_SAURFANG_S_DOOR), false);
 
             if (id == POINT_SAURFANG && events.IsInPhase(PHASE_INTRO_A))
+            {
                 events.ScheduleEvent(EVENT_INTRO_ALLIANCE_2, 0ms, 0, PHASE_INTRO_A);
+                events.ScheduleEvent(EVENT_INTRO_ALLIANCE_3, 17s + 500ms, 0, PHASE_INTRO_A);
+                if (Creature* eventNpc = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_SAURFANG_EVENT_NPC)))
+                    eventNpc->AI()->DoAction(ACTION_CONTINUE_INTRO);
+            }
         }
 
         void SpellHitTarget(Unit*  /*target*/, SpellInfo const* spell) override
@@ -670,7 +675,6 @@ public:
                     me->SetWalk(false);
                     me->GetMotionMaster()->MovePoint(POINT_SAURFANG, deathbringerPos.GetPositionX(), deathbringerPos.GetPositionY(), deathbringerPos.GetPositionZ());
 
-                    events.ScheduleEvent(EVENT_INTRO_ALLIANCE_3, 20s, 0, PHASE_INTRO_A);
                     events.ScheduleEvent(EVENT_INTRO_HORDE_2, 5s, 0, PHASE_INTRO_H);
                     break;
                 case ACTION_CONTINUE_INTRO:
@@ -1077,7 +1081,6 @@ _guardList.push_back(guard->GetGUID());
                         Talk(SAY_INTRO_ALLIANCE_1);
                         _outroZeppelinWait = 0;
                         _events.SetPhase(PHASE_INTRO_A);
-                        _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_4, 29500ms, 0, PHASE_INTRO_A);
                         _instance->HandleGameObject(_instance->GetGuidData(GO_SAURFANG_S_DOOR), true);
 
                         if (GameObject* teleporter = ObjectAccessor::GetGameObject(*me, _instance->GetGuidData(GO_SCOURGE_TRANSPORTER_SAURFANG)))
@@ -1105,6 +1108,9 @@ _guardList.push_back(guard->GetGUID());
                     _events.ScheduleEvent(EVENT_OUTRO_A_READY, 43s + 600ms);
                     _events.ScheduleEvent(EVENT_OUTRO_A_FORM_LINE, 45s + 600ms);
                     _events.ScheduleEvent(EVENT_OUTRO_A_SAURFANG_ARRIVES, 57s + 700ms);
+                    break;
+                case ACTION_CONTINUE_INTRO:
+                    _events.ScheduleEvent(EVENT_INTRO_ALLIANCE_4, 27s, 0, PHASE_INTRO_A);
                     break;
                 case ACTION_EVADE:
                     // Wipe handling: the party despawns in the grip and comes back at its spawn points.
