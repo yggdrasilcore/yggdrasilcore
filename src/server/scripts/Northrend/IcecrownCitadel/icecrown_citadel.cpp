@@ -1024,6 +1024,11 @@ public:
 
         void EnterEvadeMode(EvadeReason why) override
         {
+            // Re-enable flight before the home movement is generated; otherwise
+            // she paths home on the ground instead of returning to her aerial spawn.
+            me->SetCanFly(true);
+            me->SetDisableGravity(true);
+
             BossAI::EnterEvadeMode(why);
 
             // Resetting Svalna restarts the whole Frostwing gauntlet: trash respawns
