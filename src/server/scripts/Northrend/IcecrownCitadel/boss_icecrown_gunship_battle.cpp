@@ -543,55 +543,72 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 }
 
+static void ClearGunshipHullRespawnTimes(Transport* transport)
+{
+    if (!transport)
+        return;
+
+    if (MotionTransport* mt = transport->ToMotionTransport())
+        for (WorldObject* passenger : mt->GetStaticPassengers())
+            if (Creature* hull = passenger->ToCreature())
+                if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
+                    transport->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
+}
+
 class ResetEncounterEvent : public BasicEvent
 {
 public:
-    ResetEncounterEvent(Unit* caster, uint32 spellId, ObjectGuid otherTransport) : _caster(caster), _spellId(spellId), _otherTransport(otherTransport) { }
+    ResetEncounterEvent(Unit* owner, uint32 spellId, ObjectGuid casterTransport, ObjectGuid otherTransport) : _owner(owner), _spellId(spellId), _casterTransport(casterTransport), _otherTransport(otherTransport) { }
 
-	bool Execute(uint64, uint32) override
-	{
-		
-		if (!_caster || !_caster->IsInWorld())
-			return true;
+    bool Execute(uint64, uint32) override
+    {
+        if (!_owner || !_owner->IsInWorld())
+            return true;
 
-        if (InstanceScript* instance = _caster->GetInstanceScript())
+        Map* map = _owner->GetMap();
+
+        if (InstanceScript* instance = _owner->GetInstanceScript())
             DisengageGunshipEncounterFrames(instance);
-		
-		_caster->GetMap()->DoForAllPlayers([](Player* player)
-		{
-			if (Transport* transport = player->GetTransport())
-				transport->RemovePassenger(player, true);
-		});
-		
-		_caster->CastSpell(_caster, _spellId, true);
-		
-		Transport* casterTransport = _caster->GetTransport();
-		Transport* otherTransport = ObjectAccessor::GetTransport(*_caster, _otherTransport);
-		
-		if (casterTransport)
-		{
-			if (MotionTransport* mt = casterTransport->ToMotionTransport())
-				mt->UnloadNonStaticPassengers();
-		}
 
-		if (otherTransport)
-		{
-			if (MotionTransport* mt = otherTransport->ToMotionTransport())
-				mt->UnloadNonStaticPassengers();
-		}
-		
-		if (casterTransport)
-			casterTransport->AddObjectToRemoveList();
-		
-		if (otherTransport)
-			otherTransport->AddObjectToRemoveList();
+        map->DoForAllPlayers([](Player* player)
+        {
+            if (Transport* transport = player->GetTransport())
+                transport->RemovePassenger(player, true);
+        });
 
-		return true;
-	}
+        _owner->CastSpell(_owner, _spellId, true);
+
+        Transport* casterTransport = map->GetTransport(_casterTransport);
+        Transport* otherTransport = map->GetTransport(_otherTransport);
+
+        ClearGunshipHullRespawnTimes(casterTransport);
+        ClearGunshipHullRespawnTimes(otherTransport);
+
+        if (casterTransport)
+        {
+            if (MotionTransport* mt = casterTransport->ToMotionTransport())
+                mt->UnloadNonStaticPassengers();
+        }
+
+        if (otherTransport)
+        {
+            if (MotionTransport* mt = otherTransport->ToMotionTransport())
+                mt->UnloadNonStaticPassengers();
+        }
+
+        if (casterTransport)
+            casterTransport->AddObjectToRemoveList();
+
+        if (otherTransport)
+            otherTransport->AddObjectToRemoveList();
+
+        return true;
+    }
 
 private:
-    Unit* _caster;
+    Unit* _owner;
     uint32 _spellId;
+    ObjectGuid _casterTransport;
     ObjectGuid _otherTransport;
 };
 
@@ -639,6 +656,13 @@ public:
         npc_gunshipAI(Creature* creature) : NullCreatureAI(creature), _instance(creature->GetInstanceScript()), _teamIdInInstance(TeamId(creature->GetInstanceScript()->GetData(DATA_TEAMID_IN_INSTANCE))), _died(false), _summonedFirstMage(false)
         {
             me->SetRegeneratingHealth(false);
+
+            if (!me->IsAlive())
+            {
+                me->GetMap()->RemoveCreatureRespawnTime(me->GetSpawnId());
+                me->setDeathState(DeathState::Alive);
+            }
+            me->SetFullHealth();
         }
 
         void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
@@ -766,7 +790,10 @@ public:
             else
             {
                 uint32 teleportSpellId = _teamIdInInstance == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
-                me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
+                Unit* resetOwner = me;
+                if (Creature* enemyShip = _instance->GetCreature(DATA_ENEMY_GUNSHIP))
+                    resetOwner = enemyShip;
+                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, me->GetTransport()->GetGUID(), _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
             }
         }
 
@@ -1018,7 +1045,9 @@ public:
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-					me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId,
+                        me->GetTransport() ? me->GetTransport()->GetGUID() : ObjectGuid::Empty,
+                        _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
 					
                     return;
 				}
@@ -1377,7 +1406,9 @@ public:
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H  : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-					me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId,
+                        me->GetTransport() ? me->GetTransport()->GetGUID() : ObjectGuid::Empty,
+                        _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
                         
 					return;
 				}
