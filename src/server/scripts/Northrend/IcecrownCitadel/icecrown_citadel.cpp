@@ -323,6 +323,8 @@ private:
 class FrostwingGauntletRespawner
 {
 public:
+    explicit FrostwingGauntletRespawner(bool resetSvalna = true) : _resetSvalna(resetSvalna) { }
+
     void operator()(Creature* creature)
     {
         switch (creature->GetOriginalEntry())
@@ -341,6 +343,9 @@ public:
                 creature->AI()->DoAction(ACTION_RESET_EVENT);
                 break;
             case NPC_SISTER_SVALNA: // she never dies or the event is over
+                if (!_resetSvalna)
+                    return;
+
                 creature->AI()->DoAction(ACTION_RESET_EVENT);
                 creature->AI()->EnterEvadeMode();
                 creature->AI()->Reset();
@@ -355,6 +360,9 @@ public:
 
         creature->SetRespawnTime(5);
     }
+
+private:
+    bool _resetSvalna;
 };
 
 class CaptainSurviveTalk : public BasicEvent
@@ -1012,6 +1020,17 @@ public:
             me->SetCanFly(true);
             me->SetDisableGravity(true);
             me->SendMovementFlagUpdate();
+        }
+
+        void EnterEvadeMode(EvadeReason why) override
+        {
+            BossAI::EnterEvadeMode(why);
+
+            // Resetting Svalna restarts the whole Frostwing gauntlet: trash respawns
+            // and Crok returns to the start so the area trigger runs the event again.
+            FrostwingGauntletRespawner respawner(false);
+            Ycore::CreatureWorker<FrostwingGauntletRespawner> worker(me, respawner);
+            Cell::VisitObjects(me, worker, 333.0f);
         }
 
         bool HasAliveGauntletVrykul()
