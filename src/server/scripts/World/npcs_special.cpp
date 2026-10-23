@@ -2799,6 +2799,182 @@ private:
     ObjectGuid _target;
 };
 
+enum LilXt
+{
+    SPELL_LIL_XT_SLEEP         = 76116,
+    SPELL_LIL_XT_DANCE         = 76114,
+    SPELL_LIL_XT_DESTROY_TRAIN = 76092,
+    TEXT_LIL_XT_HELLO          = 0,
+    TEXT_LIL_XT_TIRED          = 1,
+    TEXT_LIL_XT_TRAIN_BROKEN   = 2,
+    TEXT_LIL_XT_NEW_TOYS       = 3,
+    MOVEID_LIL_XT_JUMP         = 1,
+};
+
+struct npc_lil_xt : public CreatureAI
+{
+    npc_lil_xt(Creature* creature) : CreatureAI(creature),
+        _sleepTimer(urand(35, 45) * IN_MILLISECONDS),
+        _danceTimer(urand(100, 105) * IN_MILLISECONDS),
+        _trainTimer(5 * IN_MILLISECONDS) { }
+
+    void Reset() override
+    {
+        _trainPhase = PHASE_NONE;
+        _trainGuid.Clear();
+        _trainTimer = 5 * IN_MILLISECONDS;
+        _sleepTimer = urand(35, 45) * IN_MILLISECONDS;
+        _danceTimer = urand(100, 105) * IN_MILLISECONDS;
+
+        Talk(TEXT_LIL_XT_HELLO);
+        FollowOwner();
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (_trainPhase != PHASE_NONE)
+        {
+            UpdateTrainEvent(diff);
+            return;
+        }
+
+        if (_sleepTimer <= diff)
+        {
+            DoCastSelf(SPELL_LIL_XT_SLEEP);
+            Talk(TEXT_LIL_XT_TIRED);
+            _sleepTimer = 120 * IN_MILLISECONDS;
+        }
+        else
+            _sleepTimer -= diff;
+
+        if (_danceTimer <= diff)
+        {
+            DoCastSelf(SPELL_LIL_XT_DANCE);
+            _danceTimer = 120 * IN_MILLISECONDS;
+        }
+        else
+            _danceTimer -= diff;
+
+        if (_trainTimer <= diff)
+        {
+            _trainTimer = 30 * IN_MILLISECONDS;
+            if (TryStartTrainEvent())
+                return;
+        }
+        else
+            _trainTimer -= diff;
+
+        if (Unit* owner = me->GetCharmerOrOwner())
+            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
+                me->GetMotionMaster()->MoveFollow(owner, 1.1f, 2.0f);
+    }
+
+    void MovementInform(uint32 /*type*/, uint32 id) override
+    {
+        if (id != MOVEID_LIL_XT_JUMP || _trainPhase != PHASE_JUMP)
+            return;
+
+        _trainPhase = PHASE_DESTROY;
+        _trainTimer = 0;
+    }
+
+private:
+    enum TrainPhase
+    {
+        PHASE_NONE,
+        PHASE_DELAY,
+        PHASE_JUMP,
+        PHASE_DESTROY,
+        PHASE_RESUME,
+    };
+
+    void FollowOwner()
+    {
+        if (Unit* owner = me->GetCharmerOrOwner())
+            me->GetMotionMaster()->MoveFollow(owner, 1.1f, 2.0f);
+    }
+
+    bool TryStartTrainEvent()
+    {
+        GameObject* train = me->FindNearestGameObject(GO_TOY_TRAIN, 15.0f);
+        if (!train)
+            return false;
+
+        _trainGuid = train->GetGUID();
+        _trainPhase = PHASE_DELAY;
+        _trainTimer = 5 * IN_MILLISECONDS;
+
+        me->GetMotionMaster()->Clear(false);
+        me->StopMoving();
+        me->GetMotionMaster()->MoveIdle();
+
+        Talk(TEXT_LIL_XT_NEW_TOYS);
+        return true;
+    }
+
+    void UpdateTrainEvent(uint32 diff)
+    {
+        if (_trainTimer > diff)
+        {
+            _trainTimer -= diff;
+            return;
+        }
+
+        GameObject* train = nullptr;
+        if (_trainPhase != PHASE_RESUME)
+        {
+            train = ObjectAccessor::GetGameObject(*me, _trainGuid);
+            if (!train)
+            {
+                EndTrainEvent(false);
+                return;
+            }
+        }
+
+        switch (_trainPhase)
+        {
+            case PHASE_DELAY:
+                _trainPhase = PHASE_JUMP;
+                me->GetMotionMaster()->MoveJump(train->GetPosition(), 10.0f, 10.0f, MOVEID_LIL_XT_JUMP);
+                _trainTimer = 3 * IN_MILLISECONDS;
+                break;
+            case PHASE_JUMP:
+                _trainPhase = PHASE_DESTROY;
+                _trainTimer = 0;
+                break;
+            case PHASE_DESTROY:
+                me->CastSpell(me, SPELL_LIL_XT_DESTROY_TRAIN, false);
+                _trainPhase = PHASE_RESUME;
+                _trainTimer = 7 * IN_MILLISECONDS;
+                break;
+            case PHASE_RESUME:
+                EndTrainEvent(true);
+                break;
+            default:
+                EndTrainEvent(false);
+                break;
+        }
+    }
+
+    void EndTrainEvent(bool brokeTrain)
+    {
+        _trainPhase = PHASE_NONE;
+        _trainGuid.Clear();
+        _trainTimer = 30 * IN_MILLISECONDS;
+
+        FollowOwner();
+
+        if (brokeTrain)
+            Talk(TEXT_LIL_XT_TRAIN_BROKEN);
+    }
+
+    TrainPhase _trainPhase = PHASE_NONE;
+    uint32 _sleepTimer;
+    uint32 _danceTimer;
+    uint32 _trainTimer;
+    ObjectGuid _trainGuid;
+};
+
 void AddSC_npcs_special()
 {
     new npc_elder_clearwater();
@@ -2826,4 +3002,5 @@ void AddSC_npcs_special()
     RegisterCreatureAI(npc_crashin_thrashin_robot);
     RegisterCreatureAI(npc_controller);
     RegisterCreatureAI(npc_train_wrecker);
+    RegisterCreatureAI(npc_lil_xt);
 }
