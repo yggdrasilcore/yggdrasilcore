@@ -148,8 +148,8 @@ enum Spells
 
     // Skybreaker Mortar Soldier
     // Kor'kron Rocketeer
-    SPELL_ROCKET_ARTILLERY_A                = 70609,
-    SPELL_ROCKET_ARTILLERY_H                = 69678,
+    SPELL_ROCKET_ARTILLERY_EXPLOSION        = 69679,
+    SPELL_RIDE_VEHICLE                      = 70510,
 
     // Murading Bronzebeard
     // High Overlord Saurfang
@@ -2158,24 +2158,52 @@ public:
             }
         }
 
+        static constexpr float ARTILLERY_MIN_DISTANCE = 60.0f;
+        static constexpr float ARTILLERY_MAX_DISTANCE = 180.0f;
+
         void UpdateAI(uint32 /*diff*/) override
         {
             if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
                 return;
-            if (me->GetReactState() == REACT_PASSIVE)
-                return;
-
-            UpdateVictim();
 
             if (me->HasUnitState(UNIT_STATE_CASTING))
                 return;
 
-            uint32 spellId = me->GetEntry() == NPC_SKYBREAKER_MORTAR_SOLDIER ? SPELL_ROCKET_ARTILLERY_A : SPELL_ROCKET_ARTILLERY_H;
-            if (me->HasSpellCooldown(spellId))
+            if (me->HasSpellCooldown(SPELL_ROCKET_ARTILLERY_EXPLOSION))
                 return;
 
-            DoCastAOE(spellId, true);
-            me->_AddCreatureSpellCooldown(spellId, 0, 9000);
+            Player* target = SelectArtilleryTarget();
+            if (!target)
+                return;
+
+            me->CastSpell(target, SPELL_ROCKET_ARTILLERY_EXPLOSION, true);
+            me->_AddCreatureSpellCooldown(SPELL_ROCKET_ARTILLERY_EXPLOSION, 0, 9000);
+        }
+
+        Player* SelectArtilleryTarget()
+        {
+            std::vector<Player*> targets;
+            std::vector<ObjectGuid> guids = me->GetMap()->CopyPlayerGuids();
+            for (ObjectGuid const& playerGuid : guids)
+            {
+                Player* player = ObjectAccessor::FindPlayer(playerGuid);
+                if (!player || !player->IsInWorld() || player->GetMap() != me->GetMap() || !player->IsAlive())
+                    continue;
+
+                float distance = me->GetDistance(player);
+                if (distance <= ARTILLERY_MIN_DISTANCE || distance >= ARTILLERY_MAX_DISTANCE)
+                    continue;
+
+                if (player->HasAura(SPELL_RIDE_VEHICLE))
+                    continue;
+
+                targets.push_back(player);
+            }
+
+            if (targets.empty())
+                return nullptr;
+
+            return Ycore::Containers::SelectRandomContainerElement(targets);
         }
 
         bool CanAIAttack(Unit const*  /*target*/) const override
