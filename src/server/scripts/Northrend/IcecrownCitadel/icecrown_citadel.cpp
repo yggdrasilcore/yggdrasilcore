@@ -1005,7 +1005,7 @@ public:
         void Reset() override
         {
             _Reset();
-            me->SetImmuneToAll(true);
+            me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             me->SetReactState(REACT_PASSIVE);
             me->SetCanFly(true);
             me->SetDisableGravity(true);
@@ -1024,7 +1024,7 @@ public:
         void FinishGauntlet()
         {
             events.CancelEvent(EVENT_SVALNA_CHECK_VRYKUL);
-            me->SetImmuneToAll(false);
+            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             me->SetCanFly(false);
             me->SetDisableGravity(false);
             me->SetReactState(REACT_AGGRESSIVE);
@@ -1109,7 +1109,7 @@ public:
                     break;
                 case ACTION_START_GAUNTLET:
                     me->setActive(true);
-                    me->SetImmuneToAll(true);
+                    me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                     me->SetReactState(REACT_PASSIVE);
                     events.ScheduleEvent(EVENT_SVALNA_START, 25s);
                     break;
