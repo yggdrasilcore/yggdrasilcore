@@ -527,6 +527,22 @@ static void DisengageGunshipEncounterFrames(InstanceScript* instance)
         instance->SendEncounterUnit(ENCOUNTER_FRAME_DISENGAGE, orgrimsHammer);
 }
 
+static void EngageGunshipEncounterFrames(InstanceScript* instance)
+{
+    if (!instance)
+        return;
+
+    bool const horde = instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE;
+    Creature* enemyShip = instance->GetCreature(horde ? DATA_THE_SKYBREAKER : DATA_ORGRIMS_HAMMER);
+    Creature* friendlyShip = instance->GetCreature(horde ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER);
+    if (!enemyShip || !friendlyShip)
+        return;
+
+    instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, enemyShip, 1);
+    instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, friendlyShip, 2);
+    friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
+}
+
 class ResetEncounterEvent : public BasicEvent
 {
 public:
@@ -914,13 +930,7 @@ public:
                 _events.ScheduleEvent(EVENT_INTRO_H_6, 11s);
                 _events.ScheduleEvent(EVENT_KEEP_PLAYER_IN_COMBAT, 1ms);
 
-                if (Creature* skybreaker = _instance->GetCreature(DATA_THE_SKYBREAKER))
-                    _instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, skybreaker, 1);
-                if (Creature* orgrimsHammer = _instance->GetCreature(DATA_ORGRIMS_HAMMER))
-                {
-                    _instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, orgrimsHammer, 2);
-                    orgrimsHammer->CastSpell(orgrimsHammer, SPELL_CHECK_FOR_PLAYERS, true);
-                }
+                EngageGunshipEncounterFrames(_instance);
             }
             else if (action == ACTION_SPAWN_MAGE)
             {
@@ -1271,13 +1281,7 @@ public:
                 _events.ScheduleEvent(EVENT_INTRO_A_7, 11s);
                 _events.ScheduleEvent(EVENT_KEEP_PLAYER_IN_COMBAT, 1ms);
 
-                if (Creature* orgrimsHammer = _instance->GetCreature(DATA_ORGRIMS_HAMMER))
-                    _instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, orgrimsHammer, 1);
-                if (Creature* skybreaker = _instance->GetCreature(DATA_THE_SKYBREAKER))
-                {
-                    _instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, skybreaker, 2);
-                    skybreaker->CastSpell(skybreaker, SPELL_CHECK_FOR_PLAYERS, true);
-                }
+                EngageGunshipEncounterFrames(_instance);
             }
             else if (action == ACTION_SPAWN_MAGE)
             {
