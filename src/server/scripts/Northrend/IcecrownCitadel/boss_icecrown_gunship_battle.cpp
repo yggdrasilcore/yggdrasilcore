@@ -2008,6 +2008,13 @@ public:
         {
             if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
                 return;
+
+            if (!me->FindNearestCreature(NPC_TELEPORT_PORTAL, 10.0f))
+            {
+                me->RemoveAura(SPELL_SHADOW_CHANNELING);
+                return;
+            }
+
             if (me->GetReactState() == REACT_PASSIVE)
                 return;
             gunship_npc_AI::UpdateAI(diff);
