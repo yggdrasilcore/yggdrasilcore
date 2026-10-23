@@ -2197,6 +2197,9 @@ public:
                 if (player->HasAura(SPELL_RIDE_VEHICLE))
                     continue;
 
+                if (!player->GetTransport() || player->GetTransport() == me->GetTransport())
+                    continue;
+
                 targets.push_back(player);
             }
 
