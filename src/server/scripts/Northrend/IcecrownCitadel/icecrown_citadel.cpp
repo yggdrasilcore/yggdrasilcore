@@ -1007,6 +1007,8 @@ public:
             _Reset();
             me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             me->SetReactState(REACT_PASSIVE);
+            // The template carries CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE, so the
+            // core leaves movement flags alone and this script stays authoritative.
             me->SetCanFly(true);
             me->SetDisableGravity(true);
             me->SendMovementFlagUpdate();
