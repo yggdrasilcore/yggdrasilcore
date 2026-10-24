@@ -94,9 +94,8 @@ static uint16 GetCheckPacketSize(WardenCheck const* check)
 
 void WardenWin::SendPayload()
 {
-    // Payload injection does not depend on the anticheat check cycle. If the
-    // client module is not ready yet, or a request is still in flight, keep the
-    // flag set so Warden::Update() sends the payloads as soon as possible.
+    // Keep payload injection independent of the anticheat check cycle and
+    // defer it until the client module and any in-flight request are ready.
     if (!_initialized || _dataSent)
     {
         _sendPayload = true;
@@ -119,9 +118,8 @@ void WardenWin::SendPayload()
         payloadMgr->RegisterPayload(strTwo, idTwo, true);
         payloadMgr->RegisterPayload(_interactionUnpausePayload, _interactionUnpausePayloadId, true);
 
-        // Remove any bootstrap payloads that have not been sent yet before
-        // queueing the fresh set, so repeated QueuePayload() calls do not
-        // duplicate them.
+        // Drop unsent bootstrap payloads so repeated QueuePayload() calls
+        // do not duplicate them.
         payloadMgr->DequeuePayload(idOne);
         payloadMgr->DequeuePayload(idTwo);
         payloadMgr->DequeuePayload(_interactionUnpausePayloadId);
@@ -140,9 +138,8 @@ void WardenWin::SendPayload()
         return;
     }
 
-    // Warden packets are truncated to ~512 bytes client side. Send as many
-    // queued payloads as fit and leave the remainder queued so the next request
-    // can deliver it without waiting for the regular check hold-off.
+    // Warden packets are truncated to ~512 bytes client-side. Send as many
+    // payloads as fit and leave the rest queued for the next request.
     constexpr uint16 maxPayloadPacketSize = 500;
     uint16 expectedSize = 4; // command + timing check + trailing xor byte
     std::vector<uint16> payloadIds;
@@ -399,14 +396,10 @@ bool WardenWin::IsCheckInProgress()
     return _checkInProgress;
 }
 
-/**
-* @brief Immediately send queued Warden payloads without running anticheat checks.
-*/
+// Send queued payloads without running anticheat checks.
 void WardenWin::ForceChecks()
 {
-    // ForceChecks() is used by modules to push Lua payloads to the client. Do
-    // not run the anticheat check cycle here; send the queued payloads on their
-    // own as soon as the client can accept a request.
+    // Defer until the client module and any in-flight request are ready.
     _sendPayload = true;
 
     if (!_initialized || _dataSent)
@@ -471,9 +464,8 @@ void WardenWin::RequestChecks()
         }
     );
 
-    // Custom payloads are a separate transport and must not depend on the Lua
-    // anticheat check pool. Queue all of them up front so injection still works
-    // when Lua checks (or all checks) are disabled.
+    // Deliver custom payloads independently of the Lua anticheat check pool.
+    // This keeps injection working when Lua checks are disabled.
     for (auto it = _payloadMgr.QueuedPayloads.rbegin(); it != _payloadMgr.QueuedPayloads.rend(); ++it)
         _CurrentChecks.push_front(*it);
 
