@@ -129,6 +129,9 @@ enum Spells
     SPELL_AETHER_SHIELD             = 71463,
     SPELL_HURL_SPEAR                = 71466,
 
+    // Ymirjar Vrykul
+    SPELL_WARLORDS_PRESENCE         = 71244,
+
     // Captain Arnath
     SPELL_DOMINATE_MIND             = 14515,
     SPELL_FLASH_HEAL_NORMAL         = 71595,
@@ -227,6 +230,7 @@ enum EventTypes
     EVENT_SVALNA_COMBAT                 = 37,
     EVENT_IMPALING_SPEAR                = 38,
     EVENT_AETHER_SHIELD                 = 39,
+    EVENT_SVALNA_CHECK_VRYKUL           = 60,
 
     // Captain Arnath
     EVENT_ARNATH_FLASH_HEAL             = 40,
@@ -319,6 +323,8 @@ private:
 class FrostwingGauntletRespawner
 {
 public:
+    explicit FrostwingGauntletRespawner(bool resetSvalna = true) : _resetSvalna(resetSvalna) { }
+
     void operator()(Creature* creature)
     {
         switch (creature->GetOriginalEntry())
@@ -337,6 +343,9 @@ public:
                 creature->AI()->DoAction(ACTION_RESET_EVENT);
                 break;
             case NPC_SISTER_SVALNA: // she never dies or the event is over
+                if (!_resetSvalna)
+                    return;
+
                 creature->AI()->DoAction(ACTION_RESET_EVENT);
                 creature->AI()->EnterEvadeMode();
                 creature->AI()->Reset();
@@ -351,6 +360,9 @@ public:
 
         creature->SetRespawnTime(5);
     }
+
+private:
+    bool _resetSvalna;
 };
 
 class CaptainSurviveTalk : public BasicEvent
@@ -998,14 +1010,61 @@ public:
         {
         }
 
+        void SetFlying(bool enable)
+        {
+            me->SetCanFly(enable);
+            me->SetDisableGravity(enable);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER,
+                enable ? UNIT_BYTE1_FLAG_FLY : UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
+        }
+
         void Reset() override
         {
             _Reset();
-            me->SetImmuneToAll(true);
+            me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             me->SetReactState(REACT_PASSIVE);
-            me->SetCanFly(true);
-            me->SetDisableGravity(true);
-            me->SendMovementFlagUpdate();
+            SetFlying(true);
+        }
+
+        void EnterEvadeMode(EvadeReason why) override
+        {
+            SetFlying(true);
+
+            BossAI::EnterEvadeMode(why);
+
+            FrostwingGauntletRespawner respawner(false);
+            Ycore::CreatureWorker<FrostwingGauntletRespawner> worker(me, respawner);
+            Cell::VisitObjects(me, worker, 333.0f);
+        }
+
+        bool HasAliveGauntletVrykul()
+        {
+            std::list<Creature*> vrykul;
+            FrostwingVrykulSearcher check(me, 333.0f);
+            Ycore::CreatureListSearcher<FrostwingVrykulSearcher> searcher(me, vrykul, check);
+            Cell::VisitObjects(me, searcher, 333.0f);
+            return !vrykul.empty();
+        }
+
+        void FinishGauntlet()
+        {
+            events.CancelEvent(EVENT_SVALNA_CHECK_VRYKUL);
+            me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+            SetFlying(false);
+            me->SetReactState(REACT_DEFENSIVE);
+            DoZoneInCombat(nullptr, 150.0f);
+        }
+
+        void TryFinishGauntlet()
+        {
+            if (HasAliveGauntletVrykul())
+            {
+                events.ScheduleEvent(EVENT_SVALNA_CHECK_VRYKUL, 2s);
+                return;
+            }
+
+            FinishGauntlet();
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -1036,10 +1095,7 @@ public:
             _JustEngagedWith();
             me->LowerPlayerDamageReq(me->GetMaxHealth());
             if (Creature* crok = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_CROK_SCOURGEBANE)))
-            {
                 crok->AI()->Talk(SAY_CROK_COMBAT_SVALNA);
-                crok->AI()->AttackStart(me);
-            }
             events.ScheduleEvent(EVENT_SVALNA_COMBAT, 9s);
             events.ScheduleEvent(EVENT_IMPALING_SPEAR, 15s, 20s);
         }
@@ -1079,6 +1135,8 @@ public:
                     break;
                 case ACTION_START_GAUNTLET:
                     me->setActive(true);
+                    me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
+                    me->SetReactState(REACT_PASSIVE);
                     events.ScheduleEvent(EVENT_SVALNA_START, 25s);
                     break;
                 case ACTION_RESURRECT_CAPTAINS:
@@ -1110,11 +1168,8 @@ public:
             if (type != EFFECT_MOTION_TYPE || id != POINT_LAND)
                 return;
 
-            me->SetImmuneToAll(false);
-            me->SetCanFly(false);
-            me->SetDisableGravity(false);
-            me->SetReactState(REACT_AGGRESSIVE);
-            DoZoneInCombat(nullptr, 150.0f);
+            SetFlying(false);
+            TryFinishGauntlet();
         }
 
         void SpellHitTarget(Unit* target, SpellInfo const* spell) override
@@ -1160,6 +1215,9 @@ public:
                     break;
                 case EVENT_SVALNA_COMBAT:
                     Talk(SAY_SVALNA_AGGRO);
+                    break;
+                case EVENT_SVALNA_CHECK_VRYKUL:
+                    TryFinishGauntlet();
                     break;
                 case EVENT_IMPALING_SPEAR:
                     if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0, 0.0f, true, false, -SPELL_IMPALING_SPEAR))
@@ -1604,6 +1662,45 @@ public:
         SummonList summons;
         bool isRanged;
 
+        bool HasWarlordInCombat()
+        {
+            std::list<Creature*> warlords;
+            me->GetCreaturesWithEntryInRange(warlords, 100.0f, NPC_YMIRJAR_WARLORD);
+            for (Creature* warlord : warlords)
+                if (warlord->IsAlive() && warlord->IsInCombat())
+                    return true;
+
+            return false;
+        }
+
+        void UpdateWarlordsPresence()
+        {
+            if (me->GetEntry() != NPC_YMIRJAR_WARLORD && !HasWarlordInCombat())
+                me->RemoveAurasDueToSpell(SPELL_WARLORDS_PRESENCE);
+        }
+
+        void JustDied(Unit* /*killer*/) override
+        {
+            if (me->GetEntry() != NPC_YMIRJAR_WARLORD)
+                return;
+
+            me->RemoveAurasDueToSpell(SPELL_WARLORDS_PRESENCE);
+
+            std::list<Creature*> warlords;
+            me->GetCreaturesWithEntryInRange(warlords, 100.0f, NPC_YMIRJAR_WARLORD);
+            for (Creature* warlord : warlords)
+                if (warlord != me && warlord->IsAlive() && warlord->IsInCombat())
+                    return;
+
+            std::list<Creature*> vrykul;
+            FrostwingVrykulSearcher check(me, 100.0f);
+            Ycore::CreatureListSearcher<FrostwingVrykulSearcher> searcher(me, vrykul, check);
+            Cell::VisitObjects(me, searcher, 100.0f);
+            for (Creature* vrykulCreature : vrykul)
+                if (vrykulCreature->GetEntry() != NPC_YMIRJAR_WARLORD)
+                    vrykulCreature->RemoveAurasDueToSpell(SPELL_WARLORDS_PRESENCE);
+        }
+
         void AttackStart(Unit* victim) override
         {
             if (me->GetEntry() == NPC_YMIRJAR_FROSTBINDER)
@@ -1620,6 +1717,14 @@ public:
             me->CallForHelp(8.5f);
             if (me->GetEntry() == NPC_YMIRJAR_FROSTBINDER)
                 me->SetHover(true);
+
+            if (me->GetEntry() == NPC_YMIRJAR_WARLORD)
+                me->AddAura(SPELL_WARLORDS_PRESENCE, me);
+            else
+            {
+                UpdateWarlordsPresence();
+                events.ScheduleEvent(51, 2s);
+            }
         }
 
         void JustSummoned(Creature* summon) override
@@ -1744,6 +1849,10 @@ public:
                 case 42: // Summon Undead
                     me->CastSpell(me->GetVictim(), 69516, false);
                     events.Repeat(45s);
+                    break;
+                case 51: // Warlord's Presence
+                    UpdateWarlordsPresence();
+                    events.Repeat(2s);
                     break;
                 default:
                     break;
