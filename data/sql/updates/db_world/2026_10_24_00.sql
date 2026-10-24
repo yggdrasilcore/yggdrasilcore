@@ -1,6 +1,6 @@
--- Sister Svalna owns her movement flags in the ICC script: she hovers over the
--- gauntlet and then lands. Her creature_template_movement row has Flight =
--- DisableGravity, so Creature::UpdateMovementFlags() would otherwise re-apply or
--- clear the gravity flag on every terrain update and fight the script. 512 is
--- CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE, which makes the script authoritative.
+-- Give core full control of movement flags for Svalna, to script flight anims
 UPDATE `creature_template` SET `flags_extra` = `flags_extra`|512 WHERE `entry` IN (37126, 38258);
+
+-- Stop spear throws from bringing players into combat with Svalna
+UPDATE `spell_dbc` SET `AttributesEx3` = `AttributesEx3` | 131072 WHERE `ID` = 70078;
+UPDATE `spell_dbc` SET `AttributesEx3` = `AttributesEx3` | 131072 WHERE `ID` = 70196;

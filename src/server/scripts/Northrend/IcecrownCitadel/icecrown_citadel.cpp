@@ -1014,9 +1014,6 @@ public:
         {
             me->SetCanFly(enable);
             me->SetDisableGravity(enable);
-            // The movement flags only control physics. The anim tier is what tells
-            // the client to keep using the flying animation set while stationary
-            // or casting, instead of switching to the ground "air stand" pose.
             me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER,
                 enable ? UNIT_BYTE1_FLAG_FLY : UNIT_BYTE1_FLAG_GROUND);
             me->SendMovementFlagUpdate();
@@ -1027,21 +1024,15 @@ public:
             _Reset();
             me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             me->SetReactState(REACT_PASSIVE);
-            // The template carries CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE, so the
-            // core leaves movement flags alone and this script stays authoritative.
             SetFlying(true);
         }
 
         void EnterEvadeMode(EvadeReason why) override
         {
-            // Re-enable flight before the home movement is generated; otherwise
-            // she paths home on the ground instead of returning to her aerial spawn.
             SetFlying(true);
 
             BossAI::EnterEvadeMode(why);
 
-            // Resetting Svalna restarts the whole Frostwing gauntlet: trash respawns
-            // and Crok returns to the start so the area trigger runs the event again.
             FrostwingGauntletRespawner respawner(false);
             Ycore::CreatureWorker<FrostwingGauntletRespawner> worker(me, respawner);
             Cell::VisitObjects(me, worker, 333.0f);
@@ -1062,6 +1053,7 @@ public:
             me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
             SetFlying(false);
             me->SetReactState(REACT_DEFENSIVE);
+            DoZoneInCombat(nullptr, 150.0f);
         }
 
         void TryFinishGauntlet()
