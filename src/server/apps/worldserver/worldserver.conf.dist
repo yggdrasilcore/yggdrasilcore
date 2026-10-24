@@ -1184,6 +1184,27 @@ PacketSpoof.BanDuration = 86400
 Warden.Enabled = 1
 
 #
+#    Warden.EnableChecks
+#        Description: Enable Warden anticheat checks (memory, page, MPQ, driver,
+#                     module and Lua checks).
+#                     When disabled, Warden still loads and modules can continue
+#                     to inject Lua payloads through it.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled, payload injection only)
+
+Warden.EnableChecks = 1
+
+#
+#    Warden.EnableLuaChecks
+#        Description: Enable Warden Lua anticheat checks.
+#                     Disabling this does not affect Lua payload injection used
+#                     by modules; it only stops real Lua checks from being sent.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled, Lua payload injection still works)
+
+Warden.EnableLuaChecks = 1
+
+#
 #    Warden.NumMemChecks
 #        Description: Number of Warden memory checks that are sent to the client each cycle.
 #        Default:     3 - (Enabled)

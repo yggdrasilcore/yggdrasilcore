@@ -90,6 +90,7 @@ private:
 
     std::list<uint16> _CurrentChecks;
     std::list<uint16> _PendingChecks;
+    bool _bootstrapSent;
 };
 
 #endif // _WARDEN_WIN_H
