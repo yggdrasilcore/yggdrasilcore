@@ -43288,9 +43288,9 @@
   }
  },
  "Vehicle::RemovePassenger@e7059b26:qwen3-5-4b": {
-  "hash": "77a0e507785f",
-  "desc": "Removes a passenger from the vehicle by resetting their seat data, updating NPC flags based on seat capabilities, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.",
-  "raw": "{\n  \"what\": \"Removes a passenger from the vehicle by resetting their seat data, updating NPC flags based on seat capabilities, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.\",\n  \"effects\": \"none\"\n}",
+  "hash": "1ea40ae6d863",
+  "desc": "Removes a passenger unit from the vehicle by resetting its seat data, adjusting NPC flags based on seat capabilities and ownership, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.",
+  "raw": "{\"what\": \"Removes a passenger unit from the vehicle by resetting its seat data, adjusting NPC flags based on seat capabilities and ownership, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Vehicle",
    "name": "RemovePassenger",
@@ -43300,10 +43300,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Vehicle/Vehicle.cpp",
-    "line": 604
+    "line": 605
    },
-   "hash": "77a0e507785f",
-   "desc": "Removes a passenger from the vehicle by resetting their seat data, updating NPC flags based on seat capabilities, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.",
+   "hash": "1ea40ae6d863",
+   "desc": "Removes a passenger unit from the vehicle by resetting its seat data, adjusting NPC flags based on seat capabilities and ownership, removing specific unit flags if applicable, and handling charm removal for player-controlled vehicles.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
