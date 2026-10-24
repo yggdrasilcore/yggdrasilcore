@@ -41,7 +41,7 @@ static constexpr char _luaEvalPostfix[] = ",'GUILD')end";
 static_assert((sizeof(_luaEvalPrefix)-1 + sizeof(_luaEvalMidfix)-1 + sizeof(_luaEvalPostfix)-1 + WARDEN_MAX_LUA_CHECK_LENGTH) == 255);
 
 static constexpr uint16 _interactionUnpausePayloadId = 8999;
-static constexpr char _interactionUnpausePayload[] = "local g,f=CreateFrame('Frame')f:RegisterAllEvents()f:SetScript('OnEvent',function(_,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if g then SendAddonMessage('_YU',g,'GUILD')end elseif e:find('SHOW')or e:find('QUEST_')then g=UnitGUID('npc')end end)";
+static constexpr char _interactionUnpausePayload[] = "local f=CreateFrame('Frame')local g;f:RegisterAllEvents()f:SetScript('OnEvent',function(_,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if g then SendAddonMessage('_YU',g,'GUILD')end elseif e:find('SHOW')or e:find('QUEST_')then g=UnitGUID('npc')end end)";
 
 static_assert(sizeof(_interactionUnpausePayload) - 1 <= 255);
 
@@ -343,14 +343,14 @@ bool WardenWin::IsCheckInProgress()
 }
 
 /**
-* @brief Force call RequestChecks() so they are sent immediately, this interrupts warden and breaks result.
+* @brief Force call RequestChecks() so they are sent immediately.
 */
 void WardenWin::ForceChecks()
 {
     if (_dataSent)
     {
-        _interrupted = true;
-        _interruptCounter++;
+        _sendPayload = true;
+        return;
     }
 
     RequestChecks();
