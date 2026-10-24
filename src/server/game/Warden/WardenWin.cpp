@@ -347,6 +347,12 @@ bool WardenWin::IsCheckInProgress()
 */
 void WardenWin::ForceChecks()
 {
+    if (_dataSent)
+    {
+        _sendPayload = true;
+        return;
+    }
+
     RequestChecks();
 }
 
