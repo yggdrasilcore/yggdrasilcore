@@ -58,7 +58,7 @@ services:
         condition: service_healthy
         
   yggdrasilcore-worldserver:
-    command: gdb -x /yggdrasilcore/gdb.conf --batch /yggdrasilcore/env/dist/bin/worldserver
+    command: gdb -q --return-child-result -x /yggdrasilcore/gdb.conf --batch /yggdrasilcore/env/dist/bin/worldserver
     container_name: yggdrasilcore-worldserver
     image: yggdrasilwotlk/yggdrasilcore-wotlk-worldserver:${DOCKER_IMAGE_TAG:-master}
     build:
