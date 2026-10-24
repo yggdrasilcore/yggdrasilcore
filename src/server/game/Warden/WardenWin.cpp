@@ -343,16 +343,10 @@ bool WardenWin::IsCheckInProgress()
 }
 
 /**
-* @brief Force call RequestChecks() so they are sent immediately, this interrupts warden and breaks result.
+* @brief Force call RequestChecks() so they are sent immediately.
 */
 void WardenWin::ForceChecks()
 {
-    if (_dataSent)
-    {
-        _interrupted = true;
-        _interruptCounter++;
-    }
-
     RequestChecks();
 }
 
