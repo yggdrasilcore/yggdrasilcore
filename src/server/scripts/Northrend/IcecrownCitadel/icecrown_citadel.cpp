@@ -1010,6 +1010,18 @@ public:
         {
         }
 
+        void SetFlying(bool enable)
+        {
+            me->SetCanFly(enable);
+            me->SetDisableGravity(enable);
+            // The movement flags only control physics. The anim tier is what tells
+            // the client to keep using the flying animation set while stationary
+            // or casting, instead of switching to the ground "air stand" pose.
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER,
+                enable ? UNIT_BYTE1_FLAG_FLY : UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
+        }
+
         void Reset() override
         {
             _Reset();
@@ -1017,17 +1029,14 @@ public:
             me->SetReactState(REACT_PASSIVE);
             // The template carries CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE, so the
             // core leaves movement flags alone and this script stays authoritative.
-            me->SetCanFly(true);
-            me->SetDisableGravity(true);
-            me->SendMovementFlagUpdate();
+            SetFlying(true);
         }
 
         void EnterEvadeMode(EvadeReason why) override
         {
             // Re-enable flight before the home movement is generated; otherwise
             // she paths home on the ground instead of returning to her aerial spawn.
-            me->SetCanFly(true);
-            me->SetDisableGravity(true);
+            SetFlying(true);
 
             BossAI::EnterEvadeMode(why);
 
@@ -1051,8 +1060,7 @@ public:
         {
             events.CancelEvent(EVENT_SVALNA_CHECK_VRYKUL);
             me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
-            me->SetCanFly(false);
-            me->SetDisableGravity(false);
+            SetFlying(false);
             me->SetReactState(REACT_DEFENSIVE);
         }
 
@@ -1168,8 +1176,7 @@ public:
             if (type != EFFECT_MOTION_TYPE || id != POINT_LAND)
                 return;
 
-            me->SetCanFly(false);
-            me->SetDisableGravity(false);
+            SetFlying(false);
             TryFinishGauntlet();
         }
 
