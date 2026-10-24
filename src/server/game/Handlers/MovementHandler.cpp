@@ -448,34 +448,34 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover
     {
         // if we boarded a transport, add us to it
         // (vehicle passengers keep base transport, anchored by vehicle)
-        if (Player* plrMover = mover->ToPlayer())
+        // vehicles are client-driven while a player controls them, so they
+        // must join the transport too; otherwise it never relocates them and
+        // their position desyncs
+        if ((mover->IsPlayer() || mover->IsVehicle()) && !mover->GetVehicle())
         {
-            if (!mover->GetVehicle())
+            if (!mover->GetTransport())
             {
-                if (!plrMover->GetTransport())
+                if (Transport* transport = mover->GetMap()->GetTransport(movementInfo.transport.guid))
                 {
-                    if (Transport* transport = plrMover->GetMap()->GetTransport(movementInfo.transport.guid))
-                    {
-                        plrMover->m_transport = transport;
-                        transport->AddPassenger(plrMover);
-                    }
+                    mover->SetTransport(transport);
+                    transport->AddPassenger(mover);
                 }
-                else if (plrMover->GetTransport()->GetGUID() != movementInfo.transport.guid)
+            }
+            else if (mover->GetTransport()->GetGUID() != movementInfo.transport.guid)
+            {
+                bool foundNewTransport = false;
+                mover->GetTransport()->RemovePassenger(mover);
+                if (Transport* transport = mover->GetMap()->GetTransport(movementInfo.transport.guid))
                 {
-                    bool foundNewTransport = false;
-                    plrMover->m_transport->RemovePassenger(plrMover);
-                    if (Transport* transport = plrMover->GetMap()->GetTransport(movementInfo.transport.guid))
-                    {
-                        foundNewTransport = true;
-                        plrMover->m_transport = transport;
-                        transport->AddPassenger(plrMover);
-                    }
+                    foundNewTransport = true;
+                    mover->SetTransport(transport);
+                    transport->AddPassenger(mover);
+                }
 
-                    if (!foundNewTransport)
-                    {
-                        plrMover->m_transport = nullptr;
-                        movementInfo.transport.Reset();
-                    }
+                if (!foundNewTransport)
+                {
+                    mover->SetTransport(nullptr);
+                    movementInfo.transport.Reset();
                 }
             }
         }
@@ -489,18 +489,16 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover
             }
         }
     }
-    else if (mover->IsPlayer())
+    else
     {
-        if (Player* plrMover = mover->ToPlayer())
+        if ((mover->IsPlayer() || mover->IsVehicle()) && mover->GetTransport()) // if we were on a transport, leave
         {
-            if (plrMover->GetTransport()) // if we were on a transport, leave
-            {
+            if (Player* plrMover = mover->ToPlayer())
                 sScriptMgr->AnticheatSetUnderACKmount(plrMover); // just for safe
 
-                plrMover->m_transport->RemovePassenger(plrMover);
-                plrMover->m_transport = nullptr;
-                movementInfo.transport.Reset();
-            }
+            mover->GetTransport()->RemovePassenger(mover);
+            mover->SetTransport(nullptr);
+            movementInfo.transport.Reset();
         }
     }
 
