@@ -4303,13 +4303,6 @@ bool Unit::isInAccessiblePlaceFor(Creature const* c) const
     else
     {
         // pussywizard: prevent any bugs by passengers exiting transports or normal creatures flying away
-        // If the target is on a transport but the creature is not, don't immediately mark the location
-        // inaccessible: the transport may be docked at a reachable location (e.g. a player boarding a
-        // zeppelin right next to an NPC). Denying access here makes the creature call SetCannotReachTarget
-        // and evade the player the moment they step on the transport. If the transport moves away, the
-        // chase movement generator's pathfinding/distance checks (and the liquid check below) will cause
-        // the creature to evade naturally. Only deny access when both are on different transports, which
-        // can never be reached.
         if (c->GetTransport() && this->GetTransport() && c->GetTransport() != this->GetTransport())
             return false;
     }
