@@ -94,64 +94,121 @@ static uint16 GetCheckPacketSize(WardenCheck const* check)
 
 void WardenWin::SendPayload()
 {
-    if (_dataSent)
+    // Keep payload injection independent of the anticheat check cycle and
+    // defer it until the client module and any in-flight request are ready.
+    if (!_initialized || _dataSent)
     {
         _sendPayload = true;
         return;
     }
 
-    LOG_DEBUG("warden", "Injecting warden payload!");
+    WardenPayloadMgr* payloadMgr = GetPayloadMgr();
+
+    if (_sendBootstrap)
+    {
+        // Create a function that can load strings from addon messages
+        constexpr uint16 idOne = 9000;
+        std::string const strOne = "wh=function(a,c,d) if a=='ws' and c=='WHISPER' and d==UnitName('player') then return true end return false end";
+
+        // Register an addon message listener and point it to the aforementioned function
+        constexpr uint16 idTwo = 9001;
+        std::string const strTwo = "local f=_G['whf'];if not f then f=CreateFrame('Frame');_G['whf']=f;f:RegisterEvent('CHAT_MSG_ADDON');f:SetScript('OnEvent',function(s,_,a,b,c,d)if _G['wh'](a,c,d)then if b=='false' then s.a=false end if s.a then loadstring(b)()end end end)end f.a=true";
+
+        payloadMgr->RegisterPayload(strOne, idOne, true);
+        payloadMgr->RegisterPayload(strTwo, idTwo, true);
+        payloadMgr->RegisterPayload(_interactionUnpausePayload, _interactionUnpausePayloadId, true);
+
+        // Drop unsent bootstrap payloads so repeated QueuePayload() calls
+        // do not duplicate them.
+        payloadMgr->DequeuePayload(idOne);
+        payloadMgr->DequeuePayload(idTwo);
+        payloadMgr->DequeuePayload(_interactionUnpausePayloadId);
+
+        // QueuePayload(pushToFront) prepends, so queue in reverse execution order.
+        payloadMgr->QueuePayload(_interactionUnpausePayloadId, true);
+        payloadMgr->QueuePayload(idTwo, true);
+        payloadMgr->QueuePayload(idOne, true);
+
+        _sendBootstrap = false;
+    }
+
+    if (payloadMgr->QueuedPayloads.empty())
+    {
+        _sendPayload = false;
+        return;
+    }
+
+    // Warden packets are truncated to ~512 bytes client-side. Send as many
+    // payloads as fit and leave the rest queued for the next request.
+    constexpr uint16 maxPayloadPacketSize = 500;
+    uint16 expectedSize = 4; // command + timing check + trailing xor byte
+    std::vector<uint16> payloadIds;
+
+    for (auto it = payloadMgr->QueuedPayloads.begin(); it != payloadMgr->QueuedPayloads.end();)
+    {
+        WardenCheck* check = payloadMgr->GetPayloadById(*it);
+        if (!check)
+        {
+            it = payloadMgr->QueuedPayloads.erase(it);
+            continue;
+        }
+
+        uint16 const thisSize = GetCheckPacketSize(check);
+        if (expectedSize + thisSize > maxPayloadPacketSize)
+        {
+            if (payloadIds.empty())
+            {
+                LOG_ERROR("warden", "Warden payload id '{}' is too large ({} bytes), dropping it.", *it, check->Str.size());
+                it = payloadMgr->QueuedPayloads.erase(it);
+                continue;
+            }
+
+            break;
+        }
+
+        expectedSize += thisSize;
+        payloadIds.push_back(*it);
+        it = payloadMgr->QueuedPayloads.erase(it);
+    }
+
+    if (payloadIds.empty())
+    {
+        _sendPayload = false;
+        return;
+    }
 
     _serverTicks = GameTime::GetGameTimeMS().count();
     _CurrentChecks.clear();
+    _CurrentChecks.assign(payloadIds.begin(), payloadIds.end());
 
-    // Create a function that can load strings from addon messages
-    const uint16 idOne = 9000;
-    std::string strOne = "wh=function(a,c,d) if a=='ws' and c=='WHISPER' and d==UnitName('player') then return true end return false end";
-
-    // Register an addon message listener and point it to the aformentioned function
-    const uint16 idTwo = 9001;
-    std::string strTwo = "local f=_G['whf'];if not f then f=CreateFrame('Frame');_G['whf']=f;f:RegisterEvent('CHAT_MSG_ADDON');f:SetScript('OnEvent',function(s,_,a,b,c,d)if _G['wh'](a,c,d)then if b=='false' then s.a=false end if s.a then loadstring(b)()end end end)end f.a=true";
-
-    // Build check request
     ByteBuffer buff;
     buff << uint8(WARDEN_SMSG_CHEAT_CHECKS_REQUEST);
 
-    // Add data for the first function
-    _CurrentChecks.push_back(idOne);
-    buff << uint8(strOne.size());
-    buff.append(strOne.data(), strOne.size());
+    for (uint16 payloadId : payloadIds)
+    {
+        WardenCheck* check = payloadMgr->GetPayloadById(payloadId);
+        buff << uint8(check->Str.size());
+        buff.append(check->Str.data(), check->Str.size());
+    }
 
-    // Add data for the second function
-    _CurrentChecks.push_back(idTwo);
-    buff << uint8(strTwo.size());
-    buff.append(strTwo.data(), strTwo.size());
+    uint8 const xorByte = _inputKey[0];
 
-    uint8 xorByte = _inputKey[0];
-
-    // Add TIMING_CHECK
+    // The client always expects a timing check in a check request, even when
+    // the request only contains custom payloads.
     buff << uint8(0x00);
     buff << uint8(TIMING_CHECK ^ xorByte);
 
-    // For each Lua injection, we need the below with an increasing index
-    buff << uint8(LUA_EVAL_CHECK ^ xorByte);
-    buff << uint8(1);
-
-    buff << uint8(LUA_EVAL_CHECK ^ xorByte);
-    buff << uint8(2);
+    uint8 index = 1;
+    for (uint16 payloadId : payloadIds)
+    {
+        WardenCheck* check = payloadMgr->GetPayloadById(payloadId);
+        buff << uint8(check->Type ^ xorByte);
+        buff << uint8(index++);
+    }
 
     buff << uint8(xorByte);
-    buff.hexlike();
 
-    auto idstring [[maybe_unused]] = []() -> std::string
-    {
-        std::stringstream stream;
-        stream << idOne << " " << idTwo << " ";
-        return stream.str();
-    };
-
-    LOG_DEBUG("warden", "Finished building warden packet!");
-    LOG_DEBUG("warden", "Sent checks!");
+    LOG_DEBUG("warden", "Injecting warden payloads ({} payloads, {} bytes).", payloadIds.size(), buff.size());
 
     // Encrypt with warden RC4 key
     EncryptData(buff.contents(), buff.size());
@@ -160,13 +217,10 @@ void WardenWin::SendPayload()
     pkt.append(buff);
     _session->SendPacket(&pkt);
 
-    WardenPayloadMgr* payloadMgr = GetPayloadMgr();
-    if (payloadMgr->RegisterPayload(_interactionUnpausePayload, _interactionUnpausePayloadId, true))
-        payloadMgr->QueuePayload(_interactionUnpausePayloadId);
-
     _checkTimer = 0;
     _dataSent = true;
-    _sendPayload = false;
+    _checkInProgress = true;
+    _sendPayload = !payloadMgr->QueuedPayloads.empty();
 }
 
 // Returns config id for specific type id
@@ -342,23 +396,37 @@ bool WardenWin::IsCheckInProgress()
     return _checkInProgress;
 }
 
-/**
-* @brief Force call RequestChecks() so they are sent immediately.
-*/
+// Send queued payloads without running anticheat checks.
 void WardenWin::ForceChecks()
 {
-    if (_dataSent)
-    {
-        _sendPayload = true;
-        return;
-    }
+    // Defer until the client module and any in-flight request are ready.
+    _sendPayload = true;
 
-    RequestChecks();
+    if (!_initialized || _dataSent)
+        return;
+
+    SendPayload();
 }
 
 void WardenWin::RequestChecks()
 {
     LOG_DEBUG("warden", "Request data");
+
+    if (!sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_CHECKS))
+    {
+        // Anticheat checks are disabled. Keep Warden alive as a payload
+        // transport so modules can still inject Lua.
+        if (!_payloadMgr.QueuedPayloads.empty())
+        {
+            SendPayload();
+            return;
+        }
+
+        _checkInProgress = false;
+        uint32 const holdOff = sWorld->getIntConfig(CONFIG_WARDEN_CLIENT_CHECK_HOLDOFF);
+        _checkTimer = (holdOff < 1 ? 1 : holdOff) * IN_MILLISECONDS;
+        return;
+    }
 
     _checkInProgress = true;
 
@@ -396,30 +464,27 @@ void WardenWin::RequestChecks()
         }
     );
 
+    // Deliver custom payloads independently of the Lua anticheat check pool.
+    // This keeps injection working when Lua checks are disabled.
+    for (auto it = _payloadMgr.QueuedPayloads.rbegin(); it != _payloadMgr.QueuedPayloads.rend(); ++it)
+        _CurrentChecks.push_front(*it);
+
+    _payloadMgr.QueuedPayloads.clear();
+
     // No pending checks
     if (_PendingChecks.empty())
     {
         for (uint8 checkType = 0; checkType < MAX_WARDEN_CHECK_TYPES; ++checkType)
         {
+            if (checkType == WARDEN_CHECK_LUA_TYPE && !sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_LUA_CHECKS))
+                continue;
+
             for (uint32 y = 0; y < sWorld->getIntConfig(GetMaxWardenChecksForType(checkType)); ++y)
             {
                 // If todo list is done break loop (will be filled on next Update() run)
                 if (_ChecksTodo[checkType].empty())
                 {
                     break;
-                }
-
-                // Load in any custom payloads if available.
-                if (checkType == WARDEN_CHECK_LUA_TYPE && !_payloadMgr.QueuedPayloads.empty())
-                {
-                    uint16 payloadId = _payloadMgr.QueuedPayloads.front();
-
-                    LOG_DEBUG("warden", "Adding custom warden payload '{}' to CurrentChecks.", payloadId);
-
-                    _payloadMgr.QueuedPayloads.pop_front();
-                    _CurrentChecks.push_front(payloadId);
-
-                    continue;
                 }
 
                 // Get check id from the end and remove it from todo
@@ -460,7 +525,7 @@ void WardenWin::RequestChecks()
         }
 
         // Always include lua checks
-        if (!hasLuaChecks)
+        if (!hasLuaChecks && sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_LUA_CHECKS))
         {
             for (uint32 i = 0; i < sWorld->getIntConfig(GetMaxWardenChecksForType(WARDEN_CHECK_LUA_TYPE)); ++i)
             {
