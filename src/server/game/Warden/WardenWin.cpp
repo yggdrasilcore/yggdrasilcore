@@ -105,7 +105,7 @@ void WardenWin::SendPayload()
 
     WardenPayloadMgr* payloadMgr = GetPayloadMgr();
 
-    if (!_bootstrapSent)
+    if (_sendBootstrap)
     {
         // Create a function that can load strings from addon messages
         constexpr uint16 idOne = 9000;
@@ -119,12 +119,19 @@ void WardenWin::SendPayload()
         payloadMgr->RegisterPayload(strTwo, idTwo, true);
         payloadMgr->RegisterPayload(_interactionUnpausePayload, _interactionUnpausePayloadId, true);
 
+        // Remove any bootstrap payloads that have not been sent yet before
+        // queueing the fresh set, so repeated QueuePayload() calls do not
+        // duplicate them.
+        payloadMgr->DequeuePayload(idOne);
+        payloadMgr->DequeuePayload(idTwo);
+        payloadMgr->DequeuePayload(_interactionUnpausePayloadId);
+
         // QueuePayload(pushToFront) prepends, so queue in reverse execution order.
         payloadMgr->QueuePayload(_interactionUnpausePayloadId, true);
         payloadMgr->QueuePayload(idTwo, true);
         payloadMgr->QueuePayload(idOne, true);
 
-        _bootstrapSent = true;
+        _sendBootstrap = false;
     }
 
     if (payloadMgr->QueuedPayloads.empty())
@@ -238,7 +245,7 @@ static ServerConfigs GetMaxWardenChecksForType(uint8 type)
     return CONFIG_WARDEN_NUM_OTHER_CHECKS;
 }
 
-WardenWin::WardenWin() : Warden(), _serverTicks(0), _bootstrapSent(false) { }
+WardenWin::WardenWin() : Warden(), _serverTicks(0) { }
 
 WardenWin::~WardenWin() = default;
 
