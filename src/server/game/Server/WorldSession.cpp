@@ -1387,7 +1387,7 @@ void WorldSession::QueueWardenPayload()
 
 Warden* WorldSession::GetWarden()
 {
-    return &(*_warden);
+    return _warden.get();
 }
 
 WorldSession::DosProtection::Policy WorldSession::DosProtection::EvaluateOpcode(WorldPacket const& p, time_t const time) const
