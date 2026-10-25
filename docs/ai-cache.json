@@ -1565,18 +1565,22 @@
   }
  },
  "Creature::CanStartAttack@466a5e2f:qwen3-5-4b": {
-  "hash": "c80566c3a769",
-  "desc": "Determines whether a creature can initiate an attack against a specific target by evaluating multiple conditions including civilian status, immunity flags, ownership, combat pet restrictions, vertical distance, target acceptability, aggro range, hostile status, and line of sight.",
-  "raw": "{\"what\": \"Determines whether a creature can initiate an attack against a specific target by evaluating multiple conditions including civilian status, immunity flags, ownership, combat pet restrictions, vertical distance, target acceptability, aggro range, hostile status, and line of sight.\", \"effects\": \"none\"}",
+  "hash": "d55b9b3fa0aa",
+  "desc": "Determines whether a creature can initiate an attack on a specific unit by evaluating multiple conditions including aggro timers, civility status, immunity flags, target ownership, combat pet restrictions, vertical distance limits, target acceptability, aggro range proximity, and current combat state.",
+  "raw": "{\"what\": \"Determines whether a creature can initiate an attack on a specific unit by evaluating multiple conditions including aggro timers, civility status, immunity flags, target ownership, combat pet restrictions, vertical distance limits, target acceptability, aggro range proximity, and current combat state.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Creature",
    "name": "CanStartAttack",
    "sig": "bool CanStartAttack(Unit const* u) const",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 263,
+   "line": 280,
    "access": "public",
-   "hash": "c80566c3a769",
-   "desc": "Determines whether a creature can initiate an attack against a specific target by evaluating multiple conditions including civilian status, immunity flags, ownership, combat pet restrictions, vertical distance, target acceptability, aggro range, hostile status, and line of sight.",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 2004
+   },
+   "hash": "d55b9b3fa0aa",
+   "desc": "Determines whether a creature can initiate an attack on a specific unit by evaluating multiple conditions including aggro timers, civility status, immunity flags, target ownership, combat pet restrictions, vertical distance limits, target acceptability, aggro range proximity, and current combat state.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
