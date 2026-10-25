@@ -2006,6 +2006,13 @@ bool Creature::IsAlwaysDetectableFor(WorldObject const* seer) const
 
 bool Creature::CanStartAttack(Unit const* who) const
 {
+    // Post-spawn aggro delay: ignore movement-based proximity aggro until the
+    // timer runs out. Creature::Update picks a nearby target once the delay
+    // has elapsed, so the creature still engages. A unit already in combat
+    // with the creature is exempt so retaliation keeps working.
+    if (m_aggroTimer && !IsEngagedBy(who))
+        return false;
+
     if (IsCivilian())
         return false;
 

@@ -3060,7 +3060,8 @@ Creature.MovingStopTimeForPlayer = 180000
 #
 #    Creature.DelayUntilAggroAfterSpawn
 #        Description: Delay (in milliseconds) after spawn before a creature re-evaluates
-#                     nearby players for aggro.
+#                     nearby players for aggro. Movement-based aggro is ignored
+#                     during this delay.
 #        Default: 5000
 
 Creature.DelayUntilAggroAfterSpawn = 5000
