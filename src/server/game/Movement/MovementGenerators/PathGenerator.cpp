@@ -1561,20 +1561,16 @@ bool PathGenerator::IsWaterPath(Movement::PointsArray pathPoints) const
 
 bool PathGenerator::IsControlledNPCNearTransport(const WorldObject* const obj, float radius)
 {
-    // Only player-controlled units (pets, minions, "you" bots) qualify.
     if (!obj || !(obj->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED)))
         return false;
 
-    // Early exit if the unit already sits on a transport (that case is handled separately).
     if (obj->GetTransport())
         return false;
 
-    // Fast-check: if the unit isn't in the same map, it can't be near a transport.
     Map const* map = obj->GetMap();
     if (!map)
         return false;
 
-    // Iterate all transports on the map and test squared distance.
     TransportsContainer const& transports = map->GetAllTransports();
     float const r2 = radius * radius;
     float x = obj->pos.GetPositionX(), y = obj->pos.GetPositionY(), z = obj->pos.GetPositionZ();
