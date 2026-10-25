@@ -29,6 +29,7 @@
 #include "Map.h"
 #include "Metric.h"
 #include "Transport.h"
+#include "Object.h"
 
 // Blades Edge Arena Ropes normalization
 namespace
@@ -308,7 +309,7 @@ dtPolyRef PathGenerator::GetPolyByLocation(float const* point, float* distance) 
 bool PathGenerator::ValidatePlayerMove()
 {
     Unit const* unit = _source ? _source->ToUnit() : nullptr;
-    if (!unit || !unit->IsPlayer())
+    if (!unit)
         return true;
     if (unit->IsFalling() || unit->HasUnitState(UNIT_STATE_IN_FLIGHT))
         return true;
@@ -316,6 +317,16 @@ bool PathGenerator::ValidatePlayerMove()
         return true;
     if (unit->GetTransport())
         return true;
+
+    // Player-controlled NPCs (vehicles, charms) are steered by the client.
+    // Near a transport, don't drive a navmesh path: it can snap them between
+    // the transport edge and the mesh next to it.
+    if (IsControlledNPCNearTransport(unit, 2.0f))
+        return false;
+
+    if (!unit->IsPlayer())
+        return true;
+
     Map* map = _source->GetMap();
     if (!map)
         return false;
@@ -1555,4 +1566,33 @@ bool PathGenerator::IsWaterPath(Movement::PointsArray pathPoints) const
     }
 
     return waterPath;
+}
+
+bool PathGenerator::IsControlledNPCNearTransport(WorldObject const* obj, float radius)
+{
+    Unit const* unit = obj ? obj->ToUnit() : nullptr;
+    if (!unit || unit->IsPlayer() || unit->CanFly() || !unit->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED))
+        return false;
+
+    if (unit->GetTransport())
+        return false;
+
+    Map const* map = unit->GetMap();
+    if (!map)
+        return false;
+
+    float const r2 = radius * radius;
+    float const x = unit->GetPositionX();
+    float const y = unit->GetPositionY();
+    for (Transport* trans : map->GetAllTransports())
+    {
+        if (!trans || !trans->IsInWorld())
+            continue;
+        float const dx = x - trans->GetPositionX();
+        float const dy = y - trans->GetPositionY();
+        if (dx * dx + dy * dy < r2)
+            return true;
+    }
+
+    return false;
 }

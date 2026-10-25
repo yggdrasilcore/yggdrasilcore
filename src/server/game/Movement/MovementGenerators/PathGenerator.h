@@ -84,6 +84,10 @@ class PathGenerator
         // True when a shin-ray hit may be forgiven: small step, or walkable incline.
         [[nodiscard]] static bool IsVetoForgivenGrade(float dz, float flatDist, float grade = VETO_WALKABLE_GRADE);
 
+        // Returns true when `obj` is a client-steered NPC (UNIT_FLAG_PLAYER_CONTROLLED)
+        // within `radius` of a transport on its map.
+        [[nodiscard]] static bool IsControlledNPCNearTransport(WorldObject const* obj, float radius);
+
         // option setters - use optional
 
         // when set, it skips paths with too high slopes (doesn't work with StraightPath enabled)
@@ -107,7 +111,8 @@ class PathGenerator
         // Core floor/wall routing for player ground/air movement: true when the computed
         // path may be driven, rewriting it when needed -- climb-over detour for flyers,
         // lateral sidestep repair for phantom mesh segments on the ground. False = stop,
-        // never drive. Always true for non-players, falling/swimming units, transports.
+        // never drive. Non-players are always true except client-steered NPCs near a
+        // transport; falling/swimming units and units already on a transport are true.
         bool ValidatePlayerMove();
 
         // shortens the path until the destination is the specified distance from the target point
