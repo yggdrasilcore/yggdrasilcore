@@ -3804,6 +3804,74 @@ public:
     }
 };
 
+class npc_icc_flesh_eating_insect : public CreatureScript
+{
+public:
+    npc_icc_flesh_eating_insect() : CreatureScript("npc_icc_flesh_eating_insect") { }
+
+    struct npc_icc_flesh_eating_insectAI : public ScriptedAI
+    {
+        npc_icc_flesh_eating_insectAI(Creature* creature) : ScriptedAI(creature)
+        {
+            _descending = false;
+            _searchTimer = 0;
+        }
+
+        void Reset() override
+        {
+            _descending = false;
+            _searchTimer = 0;
+            me->SetReactState(REACT_AGGRESSIVE);
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            float floorZ = me->GetFloorZ();
+            if (me->GetPositionZ() > floorZ + 2.0f)
+            {
+                if (!_descending)
+                {
+                    _descending = true;
+                    me->SetDisableGravity(true);
+                    me->GetMotionMaster()->MovePoint(1, me->GetPositionX(), me->GetPositionY(), floorZ, false);
+                }
+                return;
+            }
+
+            if (_descending)
+            {
+                _descending = false;
+                me->SetDisableGravity(false);
+                _searchTimer = 0;
+            }
+
+            if (!UpdateVictim())
+            {
+                if (_searchTimer <= diff)
+                {
+                    _searchTimer = 1000;
+                    if (Player* player = me->SelectNearestPlayer(100.0f))
+                        AttackStart(player);
+                }
+                else
+                    _searchTimer -= diff;
+                return;
+            }
+
+            DoMeleeAttackIfReady();
+        }
+
+    private:
+        bool _descending;
+        uint32 _searchTimer;
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetIcecrownCitadelAI<npc_icc_flesh_eating_insectAI>(creature);
+    }
+};
+
 void AddSC_icecrown_citadel()
 {
     new npc_highlord_tirion_fordring_lh();
@@ -3854,6 +3922,7 @@ void AddSC_icecrown_citadel()
     new npc_icc_nerubar_broodkeeper();
     new npc_icc_gauntlet_controller();
     new npc_icc_putricades_trap();
+    new npc_icc_flesh_eating_insect();
     new at_icc_gauntlet_event();
     new at_icc_putricide_trap();
     new at_icc_spire_frostwyrm();
