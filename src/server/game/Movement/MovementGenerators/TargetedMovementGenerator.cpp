@@ -181,6 +181,9 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
         }
     }
 
+    if (i_path)
+        i_path->SetTransportToAvoid(waitingAtTransport ? chasedTarget->GetTransport() : nullptr);
+
     bool success = i_path->CalculatePath(x, y, z, forceDest);
     if (!success || i_path->GetPathType() & PATHFIND_NOPATH)
     {

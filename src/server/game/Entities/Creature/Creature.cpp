@@ -974,9 +974,12 @@ void Creature::Update(uint32 diff)
     if (IsInWorld() && !IsDuringRemoveFromWorld())
     {
         // pussywizard:
-        // Player-owned creatures follow their owner. World NPCs also need this while
-        // fighting across a transport, so they can become passengers and leave again.
-        if (GetOwnerGUID().IsPlayer() || GetTransport() || IsInCombat())
+        // Player-owned creatures follow their owner. Creatures that are already
+        // aboard a transport need the same refresh so they can be removed when
+        // they step off. Never attach a ground creature just because it is in
+        // combat: chasing a target onto a lift is handled by staying outside the
+        // transport footprint (see PathGenerator::ClipPathToTransportArea).
+        if (GetOwnerGUID().IsPlayer() || GetTransport())
         {
             if (m_transportCheckTimer <= diff)
             {

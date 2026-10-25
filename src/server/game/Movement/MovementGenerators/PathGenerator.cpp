@@ -129,7 +129,7 @@ namespace
 PathGenerator::PathGenerator(WorldObject const* owner) :
     _polyLength(0), _type(PATHFIND_BLANK), _useStraightPath(false), _forceDestination(false),
     _slopeCheck(false), _pointPathLimit(MAX_POINT_PATH_LENGTH), _useRaycast(false),
-    _endPosition(G3D::Vector3::zero()), _source(owner), _destinationTransport(nullptr),
+    _endPosition(G3D::Vector3::zero()), _source(owner), _transportToAvoid(nullptr),
     _navMesh(nullptr), _navMeshQuery(nullptr)
 {
     memset(_pathPolyRefs, 0, sizeof(_pathPolyRefs));
@@ -167,13 +167,6 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
     G3D::Vector3 dest(destX, destY, destZ);
     SetEndPosition(dest);
 
-    // Static navmesh has no transport decks. If a creature on the ground is chasing a
-    // target on a transport, remember it so the mesh path can be joined to the deck.
-    _destinationTransport = nullptr;
-    if (_source->IsCreature())
-        if (Map* map = _source->GetMap())
-            _destinationTransport = map->GetTransportForPos(_source->GetPhaseMask(), destX, destY, destZ, const_cast<WorldObject*>(_source));
-
     G3D::Vector3 start(x, y, z);
     SetStartPosition(start);
 
@@ -182,26 +175,19 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
     // make sure navMesh works - we can run on map w/o mmap
     // check if the start and end point have a .mmtile loaded (can we pass via not loaded tile on the way?)
     Unit const* _sourceUnit = _source->ToUnit();
-    bool const ignorePathfinding = _sourceUnit && _sourceUnit->HasUnitState(UNIT_STATE_IGNORE_PATHFINDING);
-    if (!_navMesh || !_navMeshQuery || ignorePathfinding || !HaveTile(start) || !HaveTile(dest))
+    if (!_navMesh || !_navMeshQuery || (_sourceUnit && _sourceUnit->HasUnitState(UNIT_STATE_IGNORE_PATHFINDING)) ||
+        !HaveTile(start) || !HaveTile(dest))
     {
-        // A land creature must not shortcut across water/air to a transport deck just
-        // because the deck itself has no navmesh tile.
-        if (_destinationTransport && !ignorePathfinding && !(_sourceUnit && _sourceUnit->CanFly()))
-        {
-            BuildShortcut();
-            _type = PATHFIND_NOPATH;
-            return true;
-        }
-
         BuildShortcut();
         _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
+        ClipPathToTransportArea();
         return true;
     }
 
     UpdateFilter();
 
     BuildPolyPath(start, dest);
+    ClipPathToTransportArea();
     return true;
 }
 
@@ -559,7 +545,6 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
             _type = PATHFIND_NORMAL;
 
         BuildPointPath(startPoint, endPoint);
-        AppendTransportDestination();
         return;
     }
 
@@ -800,7 +785,6 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
 
     // generate the point-path out of our up-to-date poly-path
     BuildPointPath(startPoint, endPoint);
-    AppendTransportDestination();
 }
 
 void PathGenerator::BuildPointPath(const float* startPoint, const float* endPoint)
@@ -912,15 +896,8 @@ void PathGenerator::BuildPointPath(const float* startPoint, const float* endPoin
 void PathGenerator::NormalizePath()
 {
     bool const snapBladeEdgeArenaRopes = _source->GetMapId() == MAP_BLADES_EDGE_ARENA;
-    for (std::size_t i = 0; i < _pathPoints.size(); ++i)
+    for (G3D::Vector3& point : _pathPoints)
     {
-        G3D::Vector3& point = _pathPoints[i];
-        // The endpoint on a transport deck is deliberately above the static terrain.
-        // Snapping it to UpdateAllowedPositionZ would put it back on the ground below.
-        if (_destinationTransport && i + 1 == _pathPoints.size() &&
-            InRange(point, GetEndPosition(), 0.75f, 0.75f))
-            continue;
-
         if (snapBladeEdgeArenaRopes && TrySnapToBladeEdgeArenaRope(point))
             continue;
 
@@ -928,42 +905,54 @@ void PathGenerator::NormalizePath()
     }
 }
 
-void PathGenerator::AppendTransportDestination()
+void PathGenerator::ClipPathToTransportArea()
 {
-    if (!_destinationTransport || _source->GetTransport() == _destinationTransport || _pathPoints.empty())
+    if (!_transportToAvoid || !_transportToAvoid->m_model || _pathPoints.size() < 2)
         return;
 
-    // A passenger changing directly between two transports has no walkable route;
-    // let the accessibility/path checks force an evade instead of bridging them.
-    if (_source->GetTransport())
-        return;
+    // The whole transport footprint is off limits, including the space directly
+    // underneath the deck. Ignore Z on purpose: a creature must not route under a
+    // lift or through the floor beneath a ship, even if the navmesh is closer there.
+    G3D::AABox const& bounds = _transportToAvoid->m_model->GetBounds();
+    constexpr float TRANSPORT_FOOTPRINT_MARGIN = 1.5f;
+    float const lowX = bounds.low().x - TRANSPORT_FOOTPRINT_MARGIN;
+    float const highX = bounds.high().x + TRANSPORT_FOOTPRINT_MARGIN;
+    float const lowY = bounds.low().y - TRANSPORT_FOOTPRINT_MARGIN;
+    float const highY = bounds.high().y + TRANSPORT_FOOTPRINT_MARGIN;
 
-    if (_type & PATHFIND_NOPATH)
-        return;
+    auto inTransportArea = [&](G3D::Vector3 const& point) -> bool
+    {
+        return point.x > lowX && point.x < highX && point.y > lowY && point.y < highY;
+    };
 
-    G3D::Vector3 const& actualEnd = _pathPoints.back();
-    G3D::Vector3 const& destination = GetEndPosition();
-    if (InRange(actualEnd, destination, 0.5f, 0.5f))
-        return;
+    bool const startsInArea = inTransportArea(_pathPoints.front());
+    for (std::size_t i = 1; i < _pathPoints.size(); ++i)
+    {
+        bool const pointInArea = inTransportArea(_pathPoints[i]);
 
-    // Only step onto the deck after the mesh path has actually reached the side of
-    // the transport. Appending from far away would create an over-water shortcut.
-    constexpr float TRANSPORT_BOARDING_RANGE = 10.0f;
-    constexpr float TRANSPORT_BOARDING_HEIGHT = 25.0f;
-    if (!_destinationTransport->m_model)
-        return;
-    G3D::AABox const& bounds = _destinationTransport->m_model->GetBounds();
-    if (actualEnd.x < bounds.low().x - TRANSPORT_BOARDING_RANGE ||
-        actualEnd.x > bounds.high().x + TRANSPORT_BOARDING_RANGE ||
-        actualEnd.y < bounds.low().y - TRANSPORT_BOARDING_RANGE ||
-        actualEnd.y > bounds.high().y + TRANSPORT_BOARDING_RANGE)
-        return;
-    if (std::fabs(actualEnd.z - destination.z) > TRANSPORT_BOARDING_HEIGHT)
-        return;
+        if (startsInArea)
+        {
+            // Already inside (e.g. legs clipped through the deck): route out along
+            // the existing mesh path and stop at the first point outside the area.
+            if (pointInArea)
+                continue;
 
-    _pathPoints.push_back(destination);
-    SetActualEndPosition(destination);
-    _type = PathType(_type | PATHFIND_INCOMPLETE);
+            _pathPoints.resize(i + 1);
+            SetActualEndPosition(_pathPoints.back());
+            _type = PathType(_type | PATHFIND_INCOMPLETE);
+            return;
+        }
+
+        if (!pointInArea)
+            continue;
+
+        // Entering the area: stop at the last path point that is still outside.
+        // This is the closest reachable point on the creature's own navmesh.
+        _pathPoints.resize(i);
+        SetActualEndPosition(_pathPoints.back());
+        _type = PathType(_type | PATHFIND_INCOMPLETE);
+        return;
+    }
 }
 
 void PathGenerator::BuildShortcut()
@@ -1384,11 +1373,6 @@ float PathGenerator::Dist3DSqr(G3D::Vector3 const& p1, G3D::Vector3 const& p2) c
 
 void PathGenerator::ShortenPathUntilDist(G3D::Vector3 const& target, float dist)
 {
-    // Keep a boarding/leaving step intact; shortening to melee range would drop
-    // the deck endpoint and leave the creature under/beside the transport.
-    if (_source->GetTransport() != _destinationTransport)
-        return;
-
     if (GetPathType() == PATHFIND_BLANK || _pathPoints.size() < 2)
     {
         LOG_ERROR("movement", "PathGenerator::ReducePathLengthByDist called before path was successfully built");

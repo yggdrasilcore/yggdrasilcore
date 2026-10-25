@@ -92,6 +92,11 @@ class PathGenerator
         void SetPathLengthLimit(float distance) { _pointPathLimit = std::min<uint32>(uint32(distance/SMOOTH_PATH_STEP_SIZE), MAX_POINT_PATH_LENGTH); }
         void SetUseRaycast(bool useRaycast) { _useRaycast = useRaycast; }
 
+        // Keep the path out of this transport's entire footprint (including the
+        // space directly underneath it). Used when the chased target is aboard
+        // a transport the creature must not board.
+        void SetTransportToAvoid(Transport const* transport) { _transportToAvoid = transport; }
+
         // result getters
         [[nodiscard]] G3D::Vector3 const& GetStartPosition() const { return _startPosition; }
         [[nodiscard]] G3D::Vector3 const& GetEndPosition() const { return _endPosition; }
@@ -161,7 +166,7 @@ class PathGenerator
         G3D::Vector3 _actualEndPosition;    // {x, y, z} of the closest possible point to given destination
 
         WorldObject const* const _source;       // the object that is moving
-        Transport* _destinationTransport;       // transport the destination is on, if any
+        Transport const* _transportToAvoid;     // transport footprint the path must stay out of
         dtNavMesh const* _navMesh;              // the nav mesh
         dtNavMeshQuery const* _navMeshQuery;    // the nav mesh query used to find the path
 
@@ -171,7 +176,7 @@ class PathGenerator
         void SetEndPosition(G3D::Vector3 const& point) { _actualEndPosition = point; _endPosition = point; }
         void SetActualEndPosition(G3D::Vector3 const& point) { _actualEndPosition = point; }
         void NormalizePath();
-        void AppendTransportDestination();
+        void ClipPathToTransportArea();
 
         [[nodiscard]] bool InRange(G3D::Vector3 const& p1, G3D::Vector3 const& p2, float r, float h) const;
         [[nodiscard]] float Dist3DSqr(G3D::Vector3 const& p1, G3D::Vector3 const& p2) const;
