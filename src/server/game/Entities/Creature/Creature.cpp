@@ -686,9 +686,6 @@ bool Creature::UpdateEntry(uint32 Entry, const CreatureData* data, bool changele
 
     InitializeReactState();
 
-    if (HasReactState(REACT_AGGRESSIVE) && !IsPet() && !IsCivilian())
-        m_aggroTimer = sWorld->getIntConfig(CONFIG_CREATURE_AGGRO_DELAY_AFTER_SPAWN);
-
     if (!IsPet() && cInfo->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_TAUNT))
     {
         ApplySpellImmune(0, IMMUNITY_STATE, SPELL_AURA_MOD_TAUNT, true);
