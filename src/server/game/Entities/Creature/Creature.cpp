@@ -974,7 +974,9 @@ void Creature::Update(uint32 diff)
     if (IsInWorld() && !IsDuringRemoveFromWorld())
     {
         // pussywizard:
-        if (GetOwnerGUID().IsPlayer())
+        // Player-owned creatures follow their owner. World NPCs also need this while
+        // fighting across a transport, so they can become passengers and leave again.
+        if (GetOwnerGUID().IsPlayer() || GetTransport() || IsInCombat())
         {
             if (m_transportCheckTimer <= diff)
             {

@@ -26,6 +26,7 @@
 #include "SharedDefines.h"
 #include <G3D/Vector3.h>
 
+class Transport;
 class Unit;
 class WorldObject;
 
@@ -160,6 +161,7 @@ class PathGenerator
         G3D::Vector3 _actualEndPosition;    // {x, y, z} of the closest possible point to given destination
 
         WorldObject const* const _source;       // the object that is moving
+        Transport* _destinationTransport;       // transport the destination is on, if any
         dtNavMesh const* _navMesh;              // the nav mesh
         dtNavMeshQuery const* _navMeshQuery;    // the nav mesh query used to find the path
 
@@ -169,6 +171,7 @@ class PathGenerator
         void SetEndPosition(G3D::Vector3 const& point) { _actualEndPosition = point; _endPosition = point; }
         void SetActualEndPosition(G3D::Vector3 const& point) { _actualEndPosition = point; }
         void NormalizePath();
+        void AppendTransportDestination();
 
         [[nodiscard]] bool InRange(G3D::Vector3 const& p1, G3D::Vector3 const& p2, float r, float h) const;
         [[nodiscard]] float Dist3DSqr(G3D::Vector3 const& p1, G3D::Vector3 const& p2) const;

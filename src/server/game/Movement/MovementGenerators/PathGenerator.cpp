@@ -18,12 +18,14 @@
 #include "PathGenerator.h"
 #include "Creature.h"
 #include "DetourCommon.h"
+#include "GameObjectModel.h"
 #include "Geometry.h"
 #include "Log.h"
 #include "MMapFactory.h"
 #include "MMapMgr.h"
 #include "Map.h"
 #include "Metric.h"
+#include "Transport.h"
 
 // Blades Edge Arena Ropes normalization
 namespace
@@ -127,8 +129,8 @@ namespace
 PathGenerator::PathGenerator(WorldObject const* owner) :
     _polyLength(0), _type(PATHFIND_BLANK), _useStraightPath(false), _forceDestination(false),
     _slopeCheck(false), _pointPathLimit(MAX_POINT_PATH_LENGTH), _useRaycast(false),
-    _endPosition(G3D::Vector3::zero()), _source(owner), _navMesh(nullptr),
-    _navMeshQuery(nullptr)
+    _endPosition(G3D::Vector3::zero()), _source(owner), _destinationTransport(nullptr),
+    _navMesh(nullptr), _navMeshQuery(nullptr)
 {
     memset(_pathPolyRefs, 0, sizeof(_pathPolyRefs));
 
@@ -165,6 +167,13 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
     G3D::Vector3 dest(destX, destY, destZ);
     SetEndPosition(dest);
 
+    // Static navmesh has no transport decks. If a creature on the ground is chasing a
+    // target on a transport, remember it so the mesh path can be joined to the deck.
+    _destinationTransport = nullptr;
+    if (_source->IsCreature())
+        if (Map* map = _source->GetMap())
+            _destinationTransport = map->GetTransportForPos(_source->GetPhaseMask(), destX, destY, destZ, const_cast<WorldObject*>(_source));
+
     G3D::Vector3 start(x, y, z);
     SetStartPosition(start);
 
@@ -173,9 +182,18 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
     // make sure navMesh works - we can run on map w/o mmap
     // check if the start and end point have a .mmtile loaded (can we pass via not loaded tile on the way?)
     Unit const* _sourceUnit = _source->ToUnit();
-    if (!_navMesh || !_navMeshQuery || (_sourceUnit && _sourceUnit->HasUnitState(UNIT_STATE_IGNORE_PATHFINDING)) ||
-        !HaveTile(start) || !HaveTile(dest))
+    bool const ignorePathfinding = _sourceUnit && _sourceUnit->HasUnitState(UNIT_STATE_IGNORE_PATHFINDING);
+    if (!_navMesh || !_navMeshQuery || ignorePathfinding || !HaveTile(start) || !HaveTile(dest))
     {
+        // A land creature must not shortcut across water/air to a transport deck just
+        // because the deck itself has no navmesh tile.
+        if (_destinationTransport && !ignorePathfinding && !(_sourceUnit && _sourceUnit->CanFly()))
+        {
+            BuildShortcut();
+            _type = PATHFIND_NOPATH;
+            return true;
+        }
+
         BuildShortcut();
         _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
         return true;
@@ -541,6 +559,7 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
             _type = PATHFIND_NORMAL;
 
         BuildPointPath(startPoint, endPoint);
+        AppendTransportDestination();
         return;
     }
 
@@ -781,6 +800,7 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
 
     // generate the point-path out of our up-to-date poly-path
     BuildPointPath(startPoint, endPoint);
+    AppendTransportDestination();
 }
 
 void PathGenerator::BuildPointPath(const float* startPoint, const float* endPoint)
@@ -892,13 +912,58 @@ void PathGenerator::BuildPointPath(const float* startPoint, const float* endPoin
 void PathGenerator::NormalizePath()
 {
     bool const snapBladeEdgeArenaRopes = _source->GetMapId() == MAP_BLADES_EDGE_ARENA;
-    for (G3D::Vector3& point : _pathPoints)
+    for (std::size_t i = 0; i < _pathPoints.size(); ++i)
     {
+        G3D::Vector3& point = _pathPoints[i];
+        // The endpoint on a transport deck is deliberately above the static terrain.
+        // Snapping it to UpdateAllowedPositionZ would put it back on the ground below.
+        if (_destinationTransport && i + 1 == _pathPoints.size() &&
+            InRange(point, GetEndPosition(), 0.75f, 0.75f))
+            continue;
+
         if (snapBladeEdgeArenaRopes && TrySnapToBladeEdgeArenaRope(point))
             continue;
 
         _source->UpdateAllowedPositionZ(point.x, point.y, point.z);
     }
+}
+
+void PathGenerator::AppendTransportDestination()
+{
+    if (!_destinationTransport || _source->GetTransport() == _destinationTransport || _pathPoints.empty())
+        return;
+
+    // A passenger changing directly between two transports has no walkable route;
+    // let the accessibility/path checks force an evade instead of bridging them.
+    if (_source->GetTransport())
+        return;
+
+    if (_type & PATHFIND_NOPATH)
+        return;
+
+    G3D::Vector3 const& actualEnd = _pathPoints.back();
+    G3D::Vector3 const& destination = GetEndPosition();
+    if (InRange(actualEnd, destination, 0.5f, 0.5f))
+        return;
+
+    // Only step onto the deck after the mesh path has actually reached the side of
+    // the transport. Appending from far away would create an over-water shortcut.
+    constexpr float TRANSPORT_BOARDING_RANGE = 10.0f;
+    constexpr float TRANSPORT_BOARDING_HEIGHT = 25.0f;
+    if (!_destinationTransport->m_model)
+        return;
+    G3D::AABox const& bounds = _destinationTransport->m_model->GetBounds();
+    if (actualEnd.x < bounds.low().x - TRANSPORT_BOARDING_RANGE ||
+        actualEnd.x > bounds.high().x + TRANSPORT_BOARDING_RANGE ||
+        actualEnd.y < bounds.low().y - TRANSPORT_BOARDING_RANGE ||
+        actualEnd.y > bounds.high().y + TRANSPORT_BOARDING_RANGE)
+        return;
+    if (std::fabs(actualEnd.z - destination.z) > TRANSPORT_BOARDING_HEIGHT)
+        return;
+
+    _pathPoints.push_back(destination);
+    SetActualEndPosition(destination);
+    _type = PathType(_type | PATHFIND_INCOMPLETE);
 }
 
 void PathGenerator::BuildShortcut()
@@ -1319,6 +1384,11 @@ float PathGenerator::Dist3DSqr(G3D::Vector3 const& p1, G3D::Vector3 const& p2) c
 
 void PathGenerator::ShortenPathUntilDist(G3D::Vector3 const& target, float dist)
 {
+    // Keep a boarding/leaving step intact; shortening to melee range would drop
+    // the deck endpoint and leave the creature under/beside the transport.
+    if (_source->GetTransport() != _destinationTransport)
+        return;
+
     if (GetPathType() == PATHFIND_BLANK || _pathPoints.size() < 2)
     {
         LOG_ERROR("movement", "PathGenerator::ReducePathLengthByDist called before path was successfully built");
