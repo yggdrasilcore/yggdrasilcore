@@ -28,6 +28,7 @@
 #include "CliRunnable.h"
 #include "Common.h"
 #include "Config.h"
+#include "CrashHandler.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
 #include "GitRevision.h"
@@ -119,7 +120,7 @@ variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile, [
 int main(int argc, char** argv)
 {
     Ycore::Impl::CurrentServerProcessHolder::_type = SERVER_PROCESS_WORLDSERVER;
-    signal(SIGABRT, &Ycore::AbortHandler);
+    Ycore::InstallCrashHandler();
 
     // Command line parsing
     auto configFile = fs::path(sConfigMgr->GetConfigPath() + std::string(_YCORE_CORE_CONFIG));
