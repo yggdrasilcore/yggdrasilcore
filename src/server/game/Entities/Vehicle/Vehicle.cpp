@@ -641,6 +641,14 @@ void Vehicle::RemovePassenger(Unit* unit, bool correctPhase)
     {
         if (!_me->GetTransport())
         {
+            // Drop any base transport membership left over from boarding the
+            // vehicle while it was on one. Otherwise the transport keeps
+            // relocating the unit using its now-reset seat offset.
+            if (Transport* oldTransport = unit->GetTransport())
+            {
+                oldTransport->RemovePassenger(unit);
+                unit->SetTransport(nullptr);
+            }
             unit->RemoveUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
             unit->m_movementInfo.transport.Reset();
         }

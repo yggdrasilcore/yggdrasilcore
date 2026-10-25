@@ -17,13 +17,19 @@
 
 #include "PathGenerator.h"
 #include "Creature.h"
+
+#include <algorithm>
+#include <cmath>
 #include "DetourCommon.h"
+#include "GameObjectModel.h"
 #include "Geometry.h"
 #include "Log.h"
 #include "MMapFactory.h"
 #include "MMapMgr.h"
 #include "Map.h"
 #include "Metric.h"
+#include "Transport.h"
+#include "Object.h"
 
 // Blades Edge Arena Ropes normalization
 namespace
@@ -121,14 +127,55 @@ namespace
 
         return snapped;
     }
+
+    // 2D slab test. Returns the first intersection with the XY rectangle.
+    bool SegmentIntersectsXYBounds(G3D::Vector3 const& from, G3D::Vector3 const& to,
+        float lowX, float lowY, float highX, float highY, float& tEnter)
+    {
+        float tMin = 0.0f;
+        float tMax = 1.0f;
+        float const dx = to.x - from.x;
+        float const dy = to.y - from.y;
+
+        auto clipAxis = [&](float p, float q) -> bool
+        {
+            if (std::fabs(p) < 1e-6f)
+                return q >= 0.0f;
+
+            float const r = q / p;
+            if (p < 0.0f)
+            {
+                if (r > tMax)
+                    return false;
+                if (r > tMin)
+                    tMin = r;
+            }
+            else
+            {
+                if (r < tMin)
+                    return false;
+                if (r < tMax)
+                    tMax = r;
+            }
+            return true;
+        };
+
+        if (!clipAxis(-dx, from.x - lowX) || !clipAxis(dx, highX - from.x) ||
+            !clipAxis(-dy, from.y - lowY) || !clipAxis(dy, highY - from.y) ||
+            tMax < tMin)
+            return false;
+
+        tEnter = tMin;
+        return true;
+    }
 }
 
  ////////////////// PathGenerator //////////////////
 PathGenerator::PathGenerator(WorldObject const* owner) :
     _polyLength(0), _type(PATHFIND_BLANK), _useStraightPath(false), _forceDestination(false),
     _slopeCheck(false), _pointPathLimit(MAX_POINT_PATH_LENGTH), _useRaycast(false),
-    _endPosition(G3D::Vector3::zero()), _source(owner), _navMesh(nullptr),
-    _navMeshQuery(nullptr)
+    _endPosition(G3D::Vector3::zero()), _source(owner), _transportToAvoid(nullptr),
+    _navMesh(nullptr), _navMeshQuery(nullptr)
 {
     memset(_pathPolyRefs, 0, sizeof(_pathPolyRefs));
 
@@ -178,12 +225,14 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
     {
         BuildShortcut();
         _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
+        ClipPathToTransportArea();
         return true;
     }
 
     UpdateFilter();
 
     BuildPolyPath(start, dest);
+    ClipPathToTransportArea();
     return true;
 }
 
@@ -260,7 +309,7 @@ dtPolyRef PathGenerator::GetPolyByLocation(float const* point, float* distance) 
 bool PathGenerator::ValidatePlayerMove()
 {
     Unit const* unit = _source ? _source->ToUnit() : nullptr;
-    if (!unit || !unit->IsPlayer())
+    if (!unit)
         return true;
     if (unit->IsFalling() || unit->HasUnitState(UNIT_STATE_IN_FLIGHT))
         return true;
@@ -268,6 +317,16 @@ bool PathGenerator::ValidatePlayerMove()
         return true;
     if (unit->GetTransport())
         return true;
+
+    // Player-controlled NPCs (vehicles, charms) are steered by the client.
+    // Near a transport, don't drive a navmesh path: it can snap them between
+    // the transport edge and the mesh next to it.
+    if (IsControlledNPCNearTransport(unit, 2.0f))
+        return false;
+
+    if (!unit->IsPlayer())
+        return true;
+
     Map* map = _source->GetMap();
     if (!map)
         return false;
@@ -901,6 +960,64 @@ void PathGenerator::NormalizePath()
     }
 }
 
+void PathGenerator::ClipPathToTransportArea()
+{
+    if (!_transportToAvoid || !_transportToAvoid->m_model || _pathPoints.size() < 2)
+        return;
+
+    // Keep the whole footprint off limits, including under the deck; Z is ignored on purpose.
+    G3D::AABox const& bounds = _transportToAvoid->m_model->GetBounds();
+    constexpr float TRANSPORT_FOOTPRINT_MARGIN = 2.0f;
+    float const lowX = bounds.low().x - TRANSPORT_FOOTPRINT_MARGIN;
+    float const highX = bounds.high().x + TRANSPORT_FOOTPRINT_MARGIN;
+    float const lowY = bounds.low().y - TRANSPORT_FOOTPRINT_MARGIN;
+    float const highY = bounds.high().y + TRANSPORT_FOOTPRINT_MARGIN;
+
+    auto inTransportArea = [&](G3D::Vector3 const& point) -> bool
+    {
+        return point.x > lowX && point.x < highX && point.y > lowY && point.y < highY;
+    };
+
+    // Starting inside the footprint collapses to the start so the caller stops.
+    if (inTransportArea(_pathPoints.front()))
+    {
+        _pathPoints.resize(1);
+        SetActualEndPosition(_pathPoints.front());
+        _type = PathType(_type | PATHFIND_INCOMPLETE);
+        return;
+    }
+
+    G3D::Vector3 prev = _pathPoints.front();
+    for (std::size_t i = 1; i < _pathPoints.size(); ++i)
+    {
+        G3D::Vector3 const& point = _pathPoints[i];
+        float tEnter = 0.0f;
+        bool const crosses = SegmentIntersectsXYBounds(prev, point, lowX, lowY, highX, highY, tEnter);
+
+        if (!inTransportArea(point) && !crosses)
+        {
+            prev = point;
+            continue;
+        }
+
+        // Stop just before the boundary; also catches segments that cut across it.
+        G3D::Vector3 const direction = point - prev;
+        float tStop = std::max(0.0f, tEnter - 0.02f);
+        G3D::Vector3 stop = prev + direction * tStop;
+        while (inTransportArea(stop) && tStop > 0.0f)
+        {
+            tStop = std::max(0.0f, tStop - 0.01f);
+            stop = prev + direction * tStop;
+        }
+
+        _pathPoints.resize(i);
+        _pathPoints.push_back(stop);
+        SetActualEndPosition(stop);
+        _type = PathType(_type | PATHFIND_INCOMPLETE);
+        return;
+    }
+}
+
 void PathGenerator::BuildShortcut()
 {
     Clear();
@@ -1449,4 +1566,33 @@ bool PathGenerator::IsWaterPath(Movement::PointsArray pathPoints) const
     }
 
     return waterPath;
+}
+
+bool PathGenerator::IsControlledNPCNearTransport(WorldObject const* obj, float radius)
+{
+    Unit const* unit = obj ? obj->ToUnit() : nullptr;
+    if (!unit || unit->IsPlayer() || unit->CanFly() || !unit->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED))
+        return false;
+
+    if (unit->GetTransport())
+        return false;
+
+    Map const* map = unit->GetMap();
+    if (!map)
+        return false;
+
+    float const r2 = radius * radius;
+    float const x = unit->GetPositionX();
+    float const y = unit->GetPositionY();
+    for (Transport* trans : map->GetAllTransports())
+    {
+        if (!trans || !trans->IsInWorld())
+            continue;
+        float const dx = x - trans->GetPositionX();
+        float const dy = y - trans->GetPositionY();
+        if (dx * dx + dy * dy < r2)
+            return true;
+    }
+
+    return false;
 }

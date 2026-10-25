@@ -200,7 +200,10 @@ void HostileReference::updateOnlineStatus()
         online = getTarget()->isInAccessiblePlaceFor(creature);
         if (!online)
         {
-            if (creature->IsWithinCombatRange(getTarget(), creature->m_CombatDistance))
+            // Keep transport-bound targets on the threat list so the chase waits instead of evading.
+            if (creature->IsTargetOnOtherTransport(getTarget()))
+                online = true;
+            else if (creature->IsWithinCombatRange(getTarget(), creature->m_CombatDistance))
                 online = true;                              // not accessible but stays online
         }
     }

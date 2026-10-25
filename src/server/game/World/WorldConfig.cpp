@@ -465,6 +465,7 @@ void WorldConfig::BuildConfigCache()
     SetConfigValue<bool>(CONFIG_OFFHAND_CHECK_AT_SPELL_UNLEARN, "OffhandCheckAtSpellUnlearn", true);
     SetConfigValue<bool>(CONFIG_CREATURE_REPOSITION_AGAINST_NPCS, "Creature.RepositionAgainstNpcs", true);
     SetConfigValue<uint32>(CONFIG_CREATURE_STOP_FOR_PLAYER, "Creature.MovingStopTimeForPlayer", 180000);
+    SetConfigValue<uint32>(CONFIG_CREATURE_AGGRO_DELAY_AFTER_SPAWN, "Creature.DelayUntilAggroAfterSpawn", 5000);
 
     SetConfigValue<uint32>(CONFIG_WATER_BREATH_TIMER, "WaterBreath.Timer", 180000, ConfigValueCache::Reloadable::Yes, [](uint32 const& value) { return value > 0; }, "> 0");
 
@@ -546,6 +547,8 @@ void WorldConfig::BuildConfigCache()
 
     // Warden
     SetConfigValue<bool>(CONFIG_WARDEN_ENABLED, "Warden.Enabled", true);
+    SetConfigValue<bool>(CONFIG_WARDEN_ENABLE_CHECKS, "Warden.EnableChecks", true);
+    SetConfigValue<bool>(CONFIG_WARDEN_ENABLE_LUA_CHECKS, "Warden.EnableLuaChecks", true);
     SetConfigValue<uint32>(CONFIG_WARDEN_NUM_MEM_CHECKS, "Warden.NumMemChecks", 3);
     SetConfigValue<uint32>(CONFIG_WARDEN_NUM_LUA_CHECKS, "Warden.NumLuaChecks", 1);
     SetConfigValue<uint32>(CONFIG_WARDEN_NUM_OTHER_CHECKS, "Warden.NumOtherChecks", 7);

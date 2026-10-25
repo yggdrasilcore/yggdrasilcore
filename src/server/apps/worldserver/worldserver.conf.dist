@@ -1183,6 +1183,14 @@ PacketSpoof.BanDuration = 86400
 
 Warden.Enabled = 1
 
+#    Warden.EnableChecks - Disable anticheat checks but keep payload injection.
+
+Warden.EnableChecks = 1
+
+#    Warden.EnableLuaChecks - Disable Lua checks but keep Lua payload injection.
+
+Warden.EnableLuaChecks = 1
+
 #
 #    Warden.NumMemChecks
 #        Description: Number of Warden memory checks that are sent to the client each cycle.
@@ -3049,6 +3057,14 @@ Creature.RepositionAgainstNpcs = 1
 #        Default: 180000
 
 Creature.MovingStopTimeForPlayer = 180000
+#
+#    Creature.DelayUntilAggroAfterSpawn
+#        Description: Delay (in milliseconds) after spawn before a creature re-evaluates
+#                     nearby players for aggro. Movement-based aggro is ignored
+#                     during this delay.
+#        Default: 5000
+
+Creature.DelayUntilAggroAfterSpawn = 5000
 
 #    WaypointMovementStopTimeForPlayer
 #        Description: Specifies the time (in seconds) that a creature with waypoint

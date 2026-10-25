@@ -127,6 +127,8 @@ public:
     bool isCanTrainingAndResetTalentsOf(Player* player) const;
     [[nodiscard]] bool IsValidTrainerForPlayer(Player* player, uint32* npcFlags = nullptr) const;
     bool CanCreatureAttack(Unit const* victim, bool skipDistCheck = false) const;
+    // True when the target rides an open-world transport this creature is not on.
+    [[nodiscard]] bool IsTargetOnOtherTransport(Unit const* target) const;
     void LoadSpellTemplateImmunity();
     bool IsImmunedToSpell(SpellInfo const* spellInfo, Spell const* spell = nullptr) override;
 
@@ -586,6 +588,8 @@ private:
     bool _isMissingSwimmingFlagOutOfCombat;
 
     uint32 m_assistanceTimer;
+
+    uint32 m_aggroTimer;
 
     uint32 _playerDamageReq;
     bool _damagedByPlayer;

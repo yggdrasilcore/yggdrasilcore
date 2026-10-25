@@ -162,6 +162,21 @@ template<class T>
 bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, float y, float z, bool walk, bool cutPath, float maxTarget, bool forceDest, bool target)
 {
     Creature* cOwner = owner->ToCreature();
+    Unit* chasedTarget = i_target.isValid() ? i_target.getTarget() : nullptr;
+    bool const waitingAtTransport = cOwner && cOwner->IsTargetOnOtherTransport(chasedTarget);
+
+    // Hold at the reachable edge; the leash timer ends the chase if the target stays aboard.
+    auto holdAtTransportEdge = [&]() -> bool
+    {
+        if (cOwner)
+        {
+            cOwner->SetCannotReachTarget();
+            cOwner->ClearUnitState(UNIT_STATE_CHASE_MOVE);
+        }
+        i_recalculateTravel = false;
+        owner->StopMoving();
+        return true;
+    };
 
     if (owner->IsHovering())
         owner->UpdateAllowedPositionZ(x, y, z);
@@ -178,9 +193,16 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
         }
     }
 
+    if (i_path)
+        i_path->SetTransportToAvoid(waitingAtTransport ? chasedTarget->GetTransport() : nullptr);
+
     bool success = i_path->CalculatePath(x, y, z, forceDest);
     if (!success || i_path->GetPathType() & PATHFIND_NOPATH)
     {
+        // Not an unreachable path: keep the chase alive and let the leash timer end it.
+        if (waitingAtTransport)
+            return holdAtTransportEdge();
+
         if (!cOwner)
         {
             Movement::PointsArray hopPath;
@@ -237,7 +259,20 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
         return true;
     }
 
-    if (cutPath)
+    if (waitingAtTransport)
+    {
+        // No clean path starts inside the footprint; hold instead of routing through it.
+        if (i_path->GetPath().size() < 2)
+            return holdAtTransportEdge();
+
+        // Stop once the reachable base endpoint is reached; never step onto the deck.
+        G3D::Vector3 const& base = i_path->GetActualEndPosition();
+        float const dx = owner->GetPositionX() - base.x;
+        float const dy = owner->GetPositionY() - base.y;
+        if (dx * dx + dy * dy < 4.0f && std::fabs(owner->GetPositionZ() - base.z) < 2.0f)
+            return holdAtTransportEdge();
+    }
+    else if (cutPath)
         i_path->ShortenPathUntilDist(G3D::Vector3(x, y, z), maxTarget);
 
     // Pets only: stop instead of cutting through edges no player could climb.
@@ -327,6 +362,8 @@ bool ChaseMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         _lastTargetPosition.reset();
         return true;
     }
+
+    bool const waitingAtTransport = cOwner && cOwner->IsTargetOnOtherTransport(target);
 
     bool forceDest =
         //(cOwner && (cOwner->isWorldBoss() || cOwner->IsDungeonBoss())) || // force for all bosses, even not in instances
@@ -427,7 +464,7 @@ bool ChaseMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         if (owner->HasUnitState(UNIT_STATE_CHASE_MOVE) || !PositionOkay(owner, target, maxTarget, angle))
         {
             // can we get to the target?
-            if (cOwner && !target->isInAccessiblePlaceFor(cOwner))
+            if (cOwner && !waitingAtTransport && !target->isInAccessiblePlaceFor(cOwner))
             {
                 cOwner->SetCannotReachTarget(target->GetGUID());
                 cOwner->StopMoving();

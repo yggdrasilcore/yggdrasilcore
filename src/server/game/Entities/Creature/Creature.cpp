@@ -322,6 +322,7 @@ Creature::Creature(): Unit(), MovableMapObject(), m_groupLootTimer(0), lootingGr
     _focusSpell = nullptr;
 
     m_respawnedTime = time_t(0);
+    m_aggroTimer = 0;
 }
 
 Creature::~Creature()
@@ -816,6 +817,22 @@ void Creature::Update(uint32 diff)
                     m_boundaryCheckTime -= diff;
             }
 
+            if (m_aggroTimer)
+            {
+                if (diff >= m_aggroTimer)
+                {
+                    m_aggroTimer = 0;
+                    if (IsAIEnabled && !IsInEvadeMode() && HasReactState(REACT_AGGRESSIVE) && !IsEngaged())
+                        if (Unit* target = SelectNearestTarget(MAX_AGGRO_RADIUS, true))
+                            if (CanStartAttack(target))
+                                AI()->AttackStart(target);
+                }
+                else
+                {
+                    m_aggroTimer -= diff;
+                }
+            }
+
             Unit* owner = GetCharmerOrOwner();
             if (HasAuraType(SPELL_AURA_MOD_CHARM) && owner && GetAreaId() != owner->GetAreaId() && !IsWithinDistInMap(owner, GetMap()->GetVisibilityRange(), true, false))
             {
@@ -974,7 +991,11 @@ void Creature::Update(uint32 diff)
     if (IsInWorld() && !IsDuringRemoveFromWorld())
     {
         // pussywizard:
-        if (GetOwnerGUID().IsPlayer())
+        // Owner-following creatures and transport riders both need this refresh.
+        // Client-steered movers own transport membership through HandleMoverRelocation().
+        // Re-probing them would detach/re-add them and force a stop spline, which snaps
+        // the controlling client away from its predicted position.
+        if (!m_movedByPlayer && (GetOwnerGUID().IsPlayer() || GetTransport()))
         {
             if (m_transportCheckTimer <= diff)
             {
@@ -1985,6 +2006,13 @@ bool Creature::IsAlwaysDetectableFor(WorldObject const* seer) const
 
 bool Creature::CanStartAttack(Unit const* who) const
 {
+    // Post-spawn aggro delay: ignore movement-based proximity aggro until the
+    // timer runs out. Creature::Update picks a nearby target once the delay
+    // has elapsed, so the creature still engages. A unit already in combat
+    // with the creature is exempt so retaliation keeps working.
+    if (m_aggroTimer && !IsEngagedBy(who))
+        return false;
+
     if (IsCivilian())
         return false;
 
@@ -2201,6 +2229,9 @@ void Creature::Respawn(bool force)
 
             //Re-initialize reactstate that could be altered by movementgenerators
             InitializeReactState();
+
+            if (HasReactState(REACT_AGGRESSIVE) && !IsPet() && !IsCivilian())
+                m_aggroTimer = sWorld->getIntConfig(CONFIG_CREATURE_AGGRO_DELAY_AFTER_SPAWN);
 
         }
         m_respawnedTime = GameTime::GetGameTime().count();
@@ -2707,7 +2738,11 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
         return false;
 
     if (!victim->isInAccessiblePlaceFor(this))
-        return false;
+    {
+        // An engaged target that boards a transport stays attackable; new pulls do not.
+        if (!IsEngagedBy(victim) || !IsTargetOnOtherTransport(victim))
+            return false;
+    }
 
     if (IsAIEnabled && !AI()->CanAIAttack(victim))
         return false;
@@ -3816,17 +3851,31 @@ bool Creature::IsMovementPreventedByCasting() const
     return false;
 }
 
+bool Creature::IsTargetOnOtherTransport(Unit const* target) const
+{
+    if (!target || !GetMap() || GetMap()->Instanceable() || GetMap()->IsBattlegroundOrArena())
+        return false;
+
+    Transport* transport = target->GetTransport();
+    return transport && transport != GetTransport();
+}
+
 void Creature::SetCannotReachTarget(ObjectGuid const& cannotReach)
 {
-    if (cannotReach == m_cannotReachTarget)
-{
-        return;
-    }
+    // A target on another transport waits on the leash timer, not the unreachable timer.
+    ObjectGuid guid = cannotReach;
+    if (!guid.IsEmpty() && !GetCharmerOrOwnerGUID().IsPlayer())
+        if (Unit* target = ObjectAccessor::GetUnit(*this, guid))
+            if (IsTargetOnOtherTransport(target))
+                guid.Clear();
 
-    m_cannotReachTarget = cannotReach;
+    if (guid == m_cannotReachTarget)
+        return;
+
+    m_cannotReachTarget = guid;
     m_cannotReachTimer = 0;
 
-    if (cannotReach)
+    if (guid)
     {
         LOG_DEBUG("entities.unit", "Creature::SetCannotReachTarget() called with true. Details: {}", GetDebugInfo());
     }
@@ -3903,6 +3952,9 @@ float Creature::GetLeashZCap() const
 bool Creature::ShouldSuppressLeashExtensionFor(Unit const* target) const
 {
     if (!target || target == this)
+        return true;
+    // Waiting at a transport's base must consume the stock leash timer.
+    if (IsTargetOnOtherTransport(target))
         return true;
     if (CanFly())
         return false;
@@ -4000,6 +4052,9 @@ bool Creature::IsOutsideLeashRange(Unit const* victim) const
     float leashDist = sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
     if (leashDist <= 0.0f)
         return false;
+    // Target on another transport is unreachable on foot; let the stock leash deadline end it.
+    if (IsTargetOnOtherTransport(victim))
+        return true;
     float hx, hy, hz;
     hx = hy = hz = 0.0f;
     bool hasResetPos = GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE)->GetResetPosition(hx, hy, hz);

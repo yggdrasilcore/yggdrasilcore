@@ -26,6 +26,7 @@
 #include "SharedDefines.h"
 #include <G3D/Vector3.h>
 
+class Transport;
 class Unit;
 class WorldObject;
 
@@ -83,6 +84,10 @@ class PathGenerator
         // True when a shin-ray hit may be forgiven: small step, or walkable incline.
         [[nodiscard]] static bool IsVetoForgivenGrade(float dz, float flatDist, float grade = VETO_WALKABLE_GRADE);
 
+        // Returns true when `obj` is a client-steered NPC (UNIT_FLAG_PLAYER_CONTROLLED)
+        // within `radius` of a transport on its map.
+        [[nodiscard]] static bool IsControlledNPCNearTransport(WorldObject const* obj, float radius);
+
         // option setters - use optional
 
         // when set, it skips paths with too high slopes (doesn't work with StraightPath enabled)
@@ -90,6 +95,9 @@ class PathGenerator
         void SetUseStraightPath(bool useStraightPath) { _useStraightPath = useStraightPath; }
         void SetPathLengthLimit(float distance) { _pointPathLimit = std::min<uint32>(uint32(distance/SMOOTH_PATH_STEP_SIZE), MAX_POINT_PATH_LENGTH); }
         void SetUseRaycast(bool useRaycast) { _useRaycast = useRaycast; }
+
+        // Keep the path out of this transport's full footprint, including under the deck.
+        void SetTransportToAvoid(Transport const* transport) { _transportToAvoid = transport; }
 
         // result getters
         [[nodiscard]] G3D::Vector3 const& GetStartPosition() const { return _startPosition; }
@@ -103,7 +111,8 @@ class PathGenerator
         // Core floor/wall routing for player ground/air movement: true when the computed
         // path may be driven, rewriting it when needed -- climb-over detour for flyers,
         // lateral sidestep repair for phantom mesh segments on the ground. False = stop,
-        // never drive. Always true for non-players, falling/swimming units, transports.
+        // never drive. Non-players are always true except client-steered NPCs near a
+        // transport; falling/swimming units and units already on a transport are true.
         bool ValidatePlayerMove();
 
         // shortens the path until the destination is the specified distance from the target point
@@ -160,6 +169,7 @@ class PathGenerator
         G3D::Vector3 _actualEndPosition;    // {x, y, z} of the closest possible point to given destination
 
         WorldObject const* const _source;       // the object that is moving
+        Transport const* _transportToAvoid;     // transport footprint the path must stay out of
         dtNavMesh const* _navMesh;              // the nav mesh
         dtNavMeshQuery const* _navMeshQuery;    // the nav mesh query used to find the path
 
@@ -169,6 +179,7 @@ class PathGenerator
         void SetEndPosition(G3D::Vector3 const& point) { _actualEndPosition = point; _endPosition = point; }
         void SetActualEndPosition(G3D::Vector3 const& point) { _actualEndPosition = point; }
         void NormalizePath();
+        void ClipPathToTransportArea();
 
         [[nodiscard]] bool InRange(G3D::Vector3 const& p1, G3D::Vector3 const& p2, float r, float h) const;
         [[nodiscard]] float Dist3DSqr(G3D::Vector3 const& p1, G3D::Vector3 const& p2) const;
