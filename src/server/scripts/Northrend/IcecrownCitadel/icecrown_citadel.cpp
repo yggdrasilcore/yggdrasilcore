@@ -3833,7 +3833,7 @@ public:
                 {
                     _descending = true;
                     me->SetDisableGravity(true);
-                    me->GetMotionMaster()->MovePoint(1, me->GetPositionX(), me->GetPositionY(), floorZ, false);
+                    me->GetMotionMaster()->MovePoint(1, me->GetPositionX(), me->GetPositionY(), floorZ, FORCED_MOVEMENT_NONE, 0.f, 0.f, false);
                 }
                 return;
             }
