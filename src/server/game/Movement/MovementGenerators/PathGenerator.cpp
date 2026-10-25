@@ -309,9 +309,7 @@ dtPolyRef PathGenerator::GetPolyByLocation(float const* point, float* distance) 
 bool PathGenerator::ValidatePlayerMove()
 {
     Unit const* unit = _source ? _source->ToUnit() : nullptr;
-    if (!unit || !unit->IsPlayer())
-        return true;
-    if (IsControlledNPCNearTransport(unit, 2.0f))
+    if (!unit)
         return true;
     if (unit->IsFalling() || unit->HasUnitState(UNIT_STATE_IN_FLIGHT))
         return true;
@@ -319,6 +317,16 @@ bool PathGenerator::ValidatePlayerMove()
         return true;
     if (unit->GetTransport())
         return true;
+
+    // Player-controlled NPCs (vehicles, charms) are steered by the client.
+    // Near a transport, don't drive a navmesh path: it can snap them between
+    // the transport edge and the mesh next to it.
+    if (IsControlledNPCNearTransport(unit, 2.0f))
+        return false;
+
+    if (!unit->IsPlayer())
+        return true;
+
     Map* map = _source->GetMap();
     if (!map)
         return false;
@@ -1558,34 +1566,33 @@ bool PathGenerator::IsWaterPath(Movement::PointsArray pathPoints) const
     }
 
     return waterPath;
+}
 
-bool PathGenerator::IsControlledNPCNearTransport(const WorldObject* const obj, float radius)
+bool PathGenerator::IsControlledNPCNearTransport(WorldObject const* obj, float radius)
 {
-    if (!obj || !(obj->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED)))
+    Unit const* unit = obj ? obj->ToUnit() : nullptr;
+    if (!unit || unit->IsPlayer() || unit->CanFly() || !unit->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED))
         return false;
 
-    if (obj->GetTransport())
+    if (unit->GetTransport())
         return false;
 
-    Map const* map = obj->GetMap();
+    Map const* map = unit->GetMap();
     if (!map)
         return false;
 
-    TransportsContainer const& transports = map->GetAllTransports();
     float const r2 = radius * radius;
-    float x = obj->pos.GetPositionX(), y = obj->pos.GetPositionY(), z = obj->pos.GetPositionZ();
-    for (TransportsContainer::const_iterator it = transports.begin(); it != transports.end(); ++it)
+    float const x = unit->GetPositionX();
+    float const y = unit->GetPositionY();
+    for (Transport* trans : map->GetAllTransports())
     {
-        Transport* const trans = *it;
         if (!trans || !trans->IsInWorld())
             continue;
-        float tx = trans->pos.GetPositionX(), ty = trans->pos.GetPositionY(), tz = trans->pos.GetPositionZ();
-        float dx = x - tx, dy = y - ty;
+        float const dx = x - trans->GetPositionX();
+        float const dy = y - trans->GetPositionY();
         if (dx * dx + dy * dy < r2)
             return true;
     }
 
     return false;
-}
-
 }
