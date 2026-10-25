@@ -641,9 +641,9 @@
   }
  },
  "Creature::CanCreatureAttack@6ca52f3b:qwen3-5-4b": {
-  "hash": "3bc938d045a8",
-  "desc": "Determines whether a creature is allowed to attack a specific target by checking multiple conditions including map presence, target validity, accessibility, engagement status, AI capabilities, evasion modes, respawn grace periods, and feign death flags.",
-  "raw": "{\n  \"what\": \"Determines whether a creature is allowed to attack a specific target by checking multiple conditions including map presence, target validity, accessibility, engagement status, AI capabilities, evasion modes, respawn grace periods, and feign death flags.\",\n  \"effects\": \"none\"\n}",
+  "hash": "5ce36fa14150",
+  "desc": "Checks whether the creature can attack a specific unit by verifying map presence, target validity, accessibility, engagement status, AI capabilities, evasion mode, respawn grace period, feign death status, and ownership.",
+  "raw": "{\"what\": \"Checks whether the creature can attack a specific unit by verifying map presence, target validity, accessibility, engagement status, AI capabilities, evasion mode, respawn grace period, feign death status, and ownership.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Creature",
    "name": "CanCreatureAttack",
@@ -653,10 +653,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Creature/Creature.cpp",
-    "line": 2706
+    "line": 2702
    },
-   "hash": "3bc938d045a8",
-   "desc": "Determines whether a creature is allowed to attack a specific target by checking multiple conditions including map presence, target validity, accessibility, engagement status, AI capabilities, evasion modes, respawn grace periods, and feign death flags.",
+   "hash": "5ce36fa14150",
+   "desc": "Checks whether the creature can attack a specific unit by verifying map presence, target validity, accessibility, engagement status, AI capabilities, evasion mode, respawn grace period, feign death status, and ownership.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -2674,22 +2674,22 @@
   }
  },
  "Creature::IsOutsideLeashRange@7b759dd2:qwen3-5-4b": {
-  "hash": "b5b87afa3924",
-  "desc": "Checks if the creature is outside its leash range by comparing distances to a configured radius, home position, or vertical Z-cap limits.",
-  "raw": "{\"what\": \"Checks if the creature is outside its leash range by comparing distances to a configured radius, home position, or vertical Z-cap limits.\", \"effects\": \"none\"}",
+  "hash": "b4cbf322af66",
+  "desc": "Checks if the creature is outside its configured leash range by comparing distances to a reset position or home position, and verifies if the target is on another transport or has a vertical Z-distance exceeding the leash cap.",
+  "raw": "{\"what\": \"Checks if the creature is outside its configured leash range by comparing distances to a reset position or home position, and verifies if the target is on another transport or has a vertical Z-distance exceeding the leash cap.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Creature",
    "name": "IsOutsideLeashRange",
    "sig": "bool IsOutsideLeashRange(Unit const* victim) const",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 438,
+   "line": 436,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Creature/Creature.cpp",
-    "line": 4027
+    "line": 4020
    },
-   "hash": "b5b87afa3924",
-   "desc": "Checks if the creature is outside its leash range by comparing distances to a configured radius, home position, or vertical Z-cap limits.",
+   "hash": "b4cbf322af66",
+   "desc": "Checks if the creature is outside its configured leash range by comparing distances to a reset position or home position, and verifies if the target is on another transport or has a vertical Z-distance exceeding the leash cap.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
