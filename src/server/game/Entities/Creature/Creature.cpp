@@ -992,7 +992,10 @@ void Creature::Update(uint32 diff)
     {
         // pussywizard:
         // Owner-following creatures and transport riders both need this refresh.
-        if (GetOwnerGUID().IsPlayer() || GetTransport())
+        // Client-steered movers own transport membership through HandleMoverRelocation().
+        // Re-probing them would detach/re-add them and force a stop spline, which snaps
+        // the controlling client away from its predicted position.
+        if (!m_movedByPlayer && (GetOwnerGUID().IsPlayer() || GetTransport()))
         {
             if (m_transportCheckTimer <= diff)
             {
