@@ -4303,7 +4303,7 @@ bool Unit::isInAccessiblePlaceFor(Creature const* c) const
     else
     {
         // pussywizard: prevent any bugs by passengers exiting transports or normal creatures flying away
-        if (c->GetTransport() && this->GetTransport() && c->GetTransport() != this->GetTransport())
+        if (c->GetTransport() != this->GetTransport())
             return false;
     }
 

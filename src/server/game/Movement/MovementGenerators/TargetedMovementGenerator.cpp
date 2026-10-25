@@ -187,7 +187,8 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
     bool success = i_path->CalculatePath(x, y, z, forceDest);
     if (!success || i_path->GetPathType() & PATHFIND_NOPATH)
     {
-        // Hold at the base and let the normal leash timer decide when to evade.
+        // Transport targets are not an unreachable-path case. Keep the chase
+        // alive and let the normal leash timer end it.
         if (waitingAtTransport)
         {
             cOwner->SetCannotReachTarget();
@@ -253,6 +254,15 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
 
     if (waitingAtTransport)
     {
+        // No clean path can start inside the footprint. Hold position instead
+        // of routing out through the transport.
+        if (i_path->GetPath().size() < 2)
+        {
+            cOwner->SetCannotReachTarget();
+            owner->StopMoving();
+            return true;
+        }
+
         // Stop once the reachable base endpoint is reached; never step onto the deck.
         G3D::Vector3 const& base = i_path->GetActualEndPosition();
         float const dx = owner->GetPositionX() - base.x;

@@ -17,6 +17,9 @@
 
 #include "PathGenerator.h"
 #include "Creature.h"
+
+#include <algorithm>
+#include <cmath>
 #include "DetourCommon.h"
 #include "GameObjectModel.h"
 #include "Geometry.h"
@@ -122,6 +125,47 @@ namespace
             point = bestPoint;
 
         return snapped;
+    }
+
+    // 2D slab test. Returns the first intersection with the XY rectangle.
+    bool SegmentIntersectsXYBounds(G3D::Vector3 const& from, G3D::Vector3 const& to,
+        float lowX, float lowY, float highX, float highY, float& tEnter)
+    {
+        float tMin = 0.0f;
+        float tMax = 1.0f;
+        float const dx = to.x - from.x;
+        float const dy = to.y - from.y;
+
+        auto clipAxis = [&](float p, float q) -> bool
+        {
+            if (std::fabs(p) < 1e-6f)
+                return q >= 0.0f;
+
+            float const r = q / p;
+            if (p < 0.0f)
+            {
+                if (r > tMax)
+                    return false;
+                if (r > tMin)
+                    tMin = r;
+            }
+            else
+            {
+                if (r < tMin)
+                    return false;
+                if (r < tMax)
+                    tMax = r;
+            }
+            return true;
+        };
+
+        if (!clipAxis(-dx, from.x - lowX) || !clipAxis(dx, highX - from.x) ||
+            !clipAxis(-dy, from.y - lowY) || !clipAxis(dy, highY - from.y) ||
+            tMax < tMin)
+            return false;
+
+        tEnter = tMin;
+        return true;
     }
 }
 
@@ -914,7 +958,7 @@ void PathGenerator::ClipPathToTransportArea()
     // underneath the deck. Ignore Z on purpose: a creature must not route under a
     // lift or through the floor beneath a ship, even if the navmesh is closer there.
     G3D::AABox const& bounds = _transportToAvoid->m_model->GetBounds();
-    constexpr float TRANSPORT_FOOTPRINT_MARGIN = 1.5f;
+    constexpr float TRANSPORT_FOOTPRINT_MARGIN = 2.0f;
     float const lowX = bounds.low().x - TRANSPORT_FOOTPRINT_MARGIN;
     float const highX = bounds.high().x + TRANSPORT_FOOTPRINT_MARGIN;
     float const lowY = bounds.low().y - TRANSPORT_FOOTPRINT_MARGIN;
@@ -925,31 +969,43 @@ void PathGenerator::ClipPathToTransportArea()
         return point.x > lowX && point.x < highX && point.y > lowY && point.y < highY;
     };
 
-    bool const startsInArea = inTransportArea(_pathPoints.front());
+    // Starting inside the footprint is already not a clean path. Collapse to the
+    // start so the caller stops instead of routing through the transport.
+    if (inTransportArea(_pathPoints.front()))
+    {
+        _pathPoints.resize(1);
+        SetActualEndPosition(_pathPoints.front());
+        _type = PathType(_type | PATHFIND_INCOMPLETE);
+        return;
+    }
+
+    G3D::Vector3 prev = _pathPoints.front();
     for (std::size_t i = 1; i < _pathPoints.size(); ++i)
     {
-        bool const pointInArea = inTransportArea(_pathPoints[i]);
+        G3D::Vector3 const& point = _pathPoints[i];
+        float tEnter = 0.0f;
+        bool const crosses = SegmentIntersectsXYBounds(prev, point, lowX, lowY, highX, highY, tEnter);
 
-        if (startsInArea)
+        if (!inTransportArea(point) && !crosses)
         {
-            // Already inside (e.g. legs clipped through the deck): route out along
-            // the existing mesh path and stop at the first point outside the area.
-            if (pointInArea)
-                continue;
-
-            _pathPoints.resize(i + 1);
-            SetActualEndPosition(_pathPoints.back());
-            _type = PathType(_type | PATHFIND_INCOMPLETE);
-            return;
+            prev = point;
+            continue;
         }
 
-        if (!pointInArea)
-            continue;
+        // Stop just before the footprint boundary. This also catches segments
+        // whose endpoints are both outside but which cut across the transport.
+        G3D::Vector3 const direction = point - prev;
+        float tStop = std::max(0.0f, tEnter - 0.02f);
+        G3D::Vector3 stop = prev + direction * tStop;
+        while (inTransportArea(stop) && tStop > 0.0f)
+        {
+            tStop = std::max(0.0f, tStop - 0.01f);
+            stop = prev + direction * tStop;
+        }
 
-        // Entering the area: stop at the last path point that is still outside.
-        // This is the closest reachable point on the creature's own navmesh.
         _pathPoints.resize(i);
-        SetActualEndPosition(_pathPoints.back());
+        _pathPoints.push_back(stop);
+        SetActualEndPosition(stop);
         _type = PathType(_type | PATHFIND_INCOMPLETE);
         return;
     }
