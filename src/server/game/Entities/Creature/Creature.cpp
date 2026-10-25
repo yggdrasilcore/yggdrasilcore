@@ -974,7 +974,8 @@ void Creature::Update(uint32 diff)
     if (IsInWorld() && !IsDuringRemoveFromWorld())
     {
         // pussywizard:
-        if (GetOwnerGUID().IsPlayer())
+        // Owner-following creatures and transport riders both need this refresh.
+        if (GetOwnerGUID().IsPlayer() || GetTransport())
         {
             if (m_transportCheckTimer <= diff)
             {
@@ -2707,7 +2708,11 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
         return false;
 
     if (!victim->isInAccessiblePlaceFor(this))
-        return false;
+    {
+        // An engaged target that boards a transport stays attackable; new pulls do not.
+        if (!IsEngagedBy(victim) || !IsTargetOnOtherTransport(victim))
+            return false;
+    }
 
     if (IsAIEnabled && !AI()->CanAIAttack(victim))
         return false;
@@ -3816,17 +3821,31 @@ bool Creature::IsMovementPreventedByCasting() const
     return false;
 }
 
+bool Creature::IsTargetOnOtherTransport(Unit const* target) const
+{
+    if (!target || !GetMap() || GetMap()->Instanceable() || GetMap()->IsBattlegroundOrArena())
+        return false;
+
+    Transport* transport = target->GetTransport();
+    return transport && transport != GetTransport();
+}
+
 void Creature::SetCannotReachTarget(ObjectGuid const& cannotReach)
 {
-    if (cannotReach == m_cannotReachTarget)
-{
-        return;
-    }
+    // A target on another transport waits on the leash timer, not the unreachable timer.
+    ObjectGuid guid = cannotReach;
+    if (!guid.IsEmpty() && !GetCharmerOrOwnerGUID().IsPlayer())
+        if (Unit* target = ObjectAccessor::GetUnit(*this, guid))
+            if (IsTargetOnOtherTransport(target))
+                guid.Clear();
 
-    m_cannotReachTarget = cannotReach;
+    if (guid == m_cannotReachTarget)
+        return;
+
+    m_cannotReachTarget = guid;
     m_cannotReachTimer = 0;
 
-    if (cannotReach)
+    if (guid)
     {
         LOG_DEBUG("entities.unit", "Creature::SetCannotReachTarget() called with true. Details: {}", GetDebugInfo());
     }
@@ -3903,6 +3922,9 @@ float Creature::GetLeashZCap() const
 bool Creature::ShouldSuppressLeashExtensionFor(Unit const* target) const
 {
     if (!target || target == this)
+        return true;
+    // Waiting at a transport's base must consume the stock leash timer.
+    if (IsTargetOnOtherTransport(target))
         return true;
     if (CanFly())
         return false;
@@ -4000,6 +4022,9 @@ bool Creature::IsOutsideLeashRange(Unit const* victim) const
     float leashDist = sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
     if (leashDist <= 0.0f)
         return false;
+    // Target on another transport is unreachable on foot; let the stock leash deadline end it.
+    if (IsTargetOnOtherTransport(victim))
+        return true;
     float hx, hy, hz;
     hx = hy = hz = 0.0f;
     bool hasResetPos = GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE)->GetResetPosition(hx, hy, hz);
