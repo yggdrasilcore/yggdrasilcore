@@ -163,8 +163,22 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
 {
     Creature* cOwner = owner->ToCreature();
     Unit* chasedTarget = i_target.isValid() ? i_target.getTarget() : nullptr;
-    bool const waitingAtTransport = cOwner && chasedTarget && chasedTarget->GetTransport() &&
-        chasedTarget->GetTransport() != cOwner->GetTransport();
+    bool const waitingAtTransport = cOwner && cOwner->IsTargetOnOtherTransport(chasedTarget);
+
+    // Hold at the closest reachable point outside the transport footprint.
+    // Keep the chase (and therefore the leash timer) alive until the target
+    // steps off or the stock leash expires.
+    auto holdAtTransportEdge = [&]() -> bool
+    {
+        if (cOwner)
+        {
+            cOwner->SetCannotReachTarget();
+            cOwner->ClearUnitState(UNIT_STATE_CHASE_MOVE);
+        }
+        i_recalculateTravel = false;
+        owner->StopMoving();
+        return true;
+    };
 
     if (owner->IsHovering())
         owner->UpdateAllowedPositionZ(x, y, z);
@@ -190,11 +204,7 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
         // Transport targets are not an unreachable-path case. Keep the chase
         // alive and let the normal leash timer end it.
         if (waitingAtTransport)
-        {
-            cOwner->SetCannotReachTarget();
-            owner->StopMoving();
-            return true;
-        }
+            return holdAtTransportEdge();
 
         if (!cOwner)
         {
@@ -257,22 +267,14 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
         // No clean path can start inside the footprint. Hold position instead
         // of routing out through the transport.
         if (i_path->GetPath().size() < 2)
-        {
-            cOwner->SetCannotReachTarget();
-            owner->StopMoving();
-            return true;
-        }
+            return holdAtTransportEdge();
 
         // Stop once the reachable base endpoint is reached; never step onto the deck.
         G3D::Vector3 const& base = i_path->GetActualEndPosition();
         float const dx = owner->GetPositionX() - base.x;
         float const dy = owner->GetPositionY() - base.y;
         if (dx * dx + dy * dy < 4.0f && std::fabs(owner->GetPositionZ() - base.z) < 2.0f)
-        {
-            cOwner->SetCannotReachTarget();
-            owner->StopMoving();
-            return true;
-        }
+            return holdAtTransportEdge();
     }
     else if (cutPath)
         i_path->ShortenPathUntilDist(G3D::Vector3(x, y, z), maxTarget);
@@ -365,7 +367,7 @@ bool ChaseMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         return true;
     }
 
-    bool const waitingAtTransport = target->GetTransport() && target->GetTransport() != owner->GetTransport();
+    bool const waitingAtTransport = cOwner && cOwner->IsTargetOnOtherTransport(target);
 
     bool forceDest =
         //(cOwner && (cOwner->isWorldBoss() || cOwner->IsDungeonBoss())) || // force for all bosses, even not in instances

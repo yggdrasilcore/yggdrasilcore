@@ -127,6 +127,10 @@ public:
     bool isCanTrainingAndResetTalentsOf(Player* player) const;
     [[nodiscard]] bool IsValidTrainerForPlayer(Player* player, uint32* npcFlags = nullptr) const;
     bool CanCreatureAttack(Unit const* victim, bool skipDistCheck = false) const;
+    // True when the target is riding a transport in the open world that this
+    // creature is not on. Such a target is unreachable on foot, but an engaged
+    // creature should wait at the transport edge for it to leave again.
+    [[nodiscard]] bool IsTargetOnOtherTransport(Unit const* target) const;
     void LoadSpellTemplateImmunity();
     bool IsImmunedToSpell(SpellInfo const* spellInfo, Spell const* spell = nullptr) override;
 

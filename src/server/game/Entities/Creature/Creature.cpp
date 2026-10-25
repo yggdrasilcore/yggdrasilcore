@@ -2712,7 +2712,14 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
         return false;
 
     if (!victim->isInAccessiblePlaceFor(this))
-        return false;
+    {
+        // A target that boards a transport is not unreachable: the chase
+        // generator holds at the edge and resumes when it steps back off. Only
+        // keep an already-running fight alive this way, so creatures still
+        // cannot start attacking a deck from the ground.
+        if (!IsEngagedBy(victim) || !IsTargetOnOtherTransport(victim))
+            return false;
+    }
 
     if (IsAIEnabled && !AI()->CanAIAttack(victim))
         return false;
@@ -3821,13 +3828,22 @@ bool Creature::IsMovementPreventedByCasting() const
     return false;
 }
 
+bool Creature::IsTargetOnOtherTransport(Unit const* target) const
+{
+    if (!target || !GetMap() || GetMap()->Instanceable() || GetMap()->IsBattlegroundOrArena())
+        return false;
+
+    Transport* transport = target->GetTransport();
+    return transport && transport != GetTransport();
+}
+
 void Creature::SetCannotReachTarget(ObjectGuid const& cannotReach)
 {
     // A target on another transport waits on the leash timer, not the unreachable timer.
     ObjectGuid guid = cannotReach;
-    if (!guid.IsEmpty() && !GetCharmerOrOwnerGUID().IsPlayer() && !GetMap()->Instanceable())
+    if (!guid.IsEmpty() && !GetCharmerOrOwnerGUID().IsPlayer())
         if (Unit* target = ObjectAccessor::GetUnit(*this, guid))
-            if (target->GetTransport() && target->GetTransport() != GetTransport())
+            if (IsTargetOnOtherTransport(target))
                 guid.Clear();
 
     if (guid == m_cannotReachTarget)
@@ -3915,7 +3931,7 @@ bool Creature::ShouldSuppressLeashExtensionFor(Unit const* target) const
     if (!target || target == this)
         return true;
     // Waiting at a transport's base must consume the stock leash timer.
-    if (target->GetTransport() && target->GetTransport() != GetTransport())
+    if (IsTargetOnOtherTransport(target))
         return true;
     if (CanFly())
         return false;
@@ -4015,7 +4031,7 @@ bool Creature::IsOutsideLeashRange(Unit const* victim) const
         return false;
     // A target on another transport is unreachable on foot; let the stock leash
     // deadline end the fight even while it remains inside the normal radius.
-    if (victim && victim->GetTransport() && victim->GetTransport() != GetTransport())
+    if (IsTargetOnOtherTransport(victim))
         return true;
     float hx, hy, hz;
     hx = hy = hz = 0.0f;

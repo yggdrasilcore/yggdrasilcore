@@ -200,7 +200,12 @@ void HostileReference::updateOnlineStatus()
         online = getTarget()->isInAccessiblePlaceFor(creature);
         if (!online)
         {
-            if (creature->IsWithinCombatRange(getTarget(), creature->m_CombatDistance))
+            // A target riding a transport is unreachable on foot, but it must
+            // stay on the threat list so the chase can wait at the edge for it
+            // to come back down instead of evading immediately.
+            if (creature->IsTargetOnOtherTransport(getTarget()))
+                online = true;
+            else if (creature->IsWithinCombatRange(getTarget(), creature->m_CombatDistance))
                 online = true;                              // not accessible but stays online
         }
     }
