@@ -29,6 +29,7 @@
 #include "Map.h"
 #include "Metric.h"
 #include "Transport.h"
+#include "Object.h"
 
 // Blades Edge Arena Ropes normalization
 namespace
@@ -309,6 +310,8 @@ bool PathGenerator::ValidatePlayerMove()
 {
     Unit const* unit = _source ? _source->ToUnit() : nullptr;
     if (!unit || !unit->IsPlayer())
+        return true;
+    if (IsControlledNPCNearTransport(unit, 2.0f))
         return true;
     if (unit->IsFalling() || unit->HasUnitState(UNIT_STATE_IN_FLIGHT))
         return true;
@@ -1555,4 +1558,38 @@ bool PathGenerator::IsWaterPath(Movement::PointsArray pathPoints) const
     }
 
     return waterPath;
+
+bool PathGenerator::IsControlledNPCNearTransport(const WorldObject* const obj, float radius)
+{
+    // Only player-controlled units (pets, minions, "you" bots) qualify.
+    if (!obj || !(obj->HasUnitFlag(UNIT_FLAG_PLAYER_CONTROLLED)))
+        return false;
+
+    // Early exit if the unit already sits on a transport (that case is handled separately).
+    if (obj->GetTransport())
+        return false;
+
+    // Fast-check: if the unit isn't in the same map, it can't be near a transport.
+    Map const* map = obj->GetMap();
+    if (!map)
+        return false;
+
+    // Iterate all transports on the map and test squared distance.
+    TransportsContainer const& transports = map->GetAllTransports();
+    float const r2 = radius * radius;
+    float x = obj->pos.GetPositionX(), y = obj->pos.GetPositionY(), z = obj->pos.GetPositionZ();
+    for (TransportsContainer::const_iterator it = transports.begin(); it != transports.end(); ++it)
+    {
+        Transport* const trans = *it;
+        if (!trans || !trans->IsInWorld())
+            continue;
+        float tx = trans->pos.GetPositionX(), ty = trans->pos.GetPositionY(), tz = trans->pos.GetPositionZ();
+        float dx = x - tx, dy = y - ty;
+        if (dx * dx + dy * dy < r2)
+            return true;
+    }
+
+    return false;
+}
+
 }

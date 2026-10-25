@@ -84,6 +84,11 @@ class PathGenerator
         // True when a shin-ray hit may be forgiven: small step, or walkable incline.
         [[nodiscard]] static bool IsVetoForgivenGrade(float dz, float flatDist, float grade = VETO_WALKABLE_GRADE);
 
+        // Helper for path verification: returns true when a player-controlled NPC (UNIT_FLAG_PLAYER_CONTROLLED)
+        // sits within `radius` of any transport on its current map, so the navmesh hard-lock may be waived
+        // and the player can path the pet freely across the transport boundary.
+        [[nodiscard]] static bool IsControlledNPCNearTransport(const WorldObject* const obj, float radius);
+
         // option setters - use optional
 
         // when set, it skips paths with too high slopes (doesn't work with StraightPath enabled)
