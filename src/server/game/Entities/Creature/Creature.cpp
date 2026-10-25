@@ -322,6 +322,7 @@ Creature::Creature(): Unit(), MovableMapObject(), m_groupLootTimer(0), lootingGr
     _focusSpell = nullptr;
 
     m_respawnedTime = time_t(0);
+    m_aggroTimer = 0;
 }
 
 Creature::~Creature()
@@ -814,6 +815,22 @@ void Creature::Update(uint32 diff)
                 }
                 else
                     m_boundaryCheckTime -= diff;
+            }
+
+            if (m_aggroTimer)
+            {
+                if (diff >= m_aggroTimer)
+                {
+                    m_aggroTimer = 0;
+                    if (IsAIEnabled && !IsInEvadeMode() && HasReactState(REACT_AGGRESSIVE) && !IsEngaged())
+                        if (Unit* target = SelectNearestTarget(MAX_AGGRO_RADIUS, true))
+                            if (CanStartAttack(target))
+                                AI()->AttackStart(target);
+                }
+                else
+                {
+                    m_aggroTimer -= diff;
+                }
             }
 
             Unit* owner = GetCharmerOrOwner();
@@ -1986,6 +2003,13 @@ bool Creature::IsAlwaysDetectableFor(WorldObject const* seer) const
 
 bool Creature::CanStartAttack(Unit const* who) const
 {
+    // Post-spawn aggro delay: ignore movement-based proximity aggro until the
+    // timer runs out. Creature::Update picks a nearby target once the delay
+    // has elapsed, so the creature still engages. A unit already in combat
+    // with the creature is exempt so retaliation keeps working.
+    if (m_aggroTimer && !IsEngagedBy(who))
+        return false;
+
     if (IsCivilian())
         return false;
 
@@ -2202,6 +2226,9 @@ void Creature::Respawn(bool force)
 
             //Re-initialize reactstate that could be altered by movementgenerators
             InitializeReactState();
+
+            if (HasReactState(REACT_AGGRESSIVE) && !IsPet() && !IsCivilian())
+                m_aggroTimer = sWorld->getIntConfig(CONFIG_CREATURE_AGGRO_DELAY_AFTER_SPAWN);
 
         }
         m_respawnedTime = GameTime::GetGameTime().count();

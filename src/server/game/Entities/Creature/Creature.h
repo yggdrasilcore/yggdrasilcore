@@ -589,6 +589,8 @@ private:
 
     uint32 m_assistanceTimer;
 
+    uint32 m_aggroTimer;
+
     uint32 _playerDamageReq;
     bool _damagedByPlayer;
     bool _isCombatMovementAllowed;
