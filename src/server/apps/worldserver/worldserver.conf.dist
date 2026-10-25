@@ -3057,6 +3057,13 @@ Creature.RepositionAgainstNpcs = 1
 #        Default: 180000
 
 Creature.MovingStopTimeForPlayer = 180000
+#
+#    Creature.DelayUntilAggroAfterSpawn
+#        Description: Delay (in milliseconds) after spawn before a creature re-evaluates
+#                     nearby players for aggro.
+#        Default: 5000
+
+Creature.DelayUntilAggroAfterSpawn = 5000
 
 #    WaypointMovementStopTimeForPlayer
 #        Description: Specifies the time (in seconds) that a creature with waypoint

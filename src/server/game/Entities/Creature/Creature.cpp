@@ -322,6 +322,7 @@ Creature::Creature(): Unit(), MovableMapObject(), m_groupLootTimer(0), lootingGr
     _focusSpell = nullptr;
 
     m_respawnedTime = time_t(0);
+    m_aggroTimer = 0;
 }
 
 Creature::~Creature()
@@ -685,6 +686,9 @@ bool Creature::UpdateEntry(uint32 Entry, const CreatureData* data, bool changele
 
     InitializeReactState();
 
+    if (HasReactState(REACT_AGGRESSIVE) && !IsPet() && !IsCivilian())
+        m_aggroTimer = sWorld->getIntConfig(CONFIG_CREATURE_AGGRO_DELAY_AFTER_SPAWN);
+
     if (!IsPet() && cInfo->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_TAUNT))
     {
         ApplySpellImmune(0, IMMUNITY_STATE, SPELL_AURA_MOD_TAUNT, true);
@@ -814,6 +818,22 @@ void Creature::Update(uint32 diff)
                 }
                 else
                     m_boundaryCheckTime -= diff;
+            }
+
+            if (m_aggroTimer)
+            {
+                if (diff >= m_aggroTimer)
+                {
+                    m_aggroTimer = 0;
+                    if (IsAIEnabled && !IsInEvadeMode() && HasReactState(REACT_AGGRESSIVE) && !IsEngaged())
+                        if (Unit* target = SelectNearestTarget(MAX_AGGRO_RADIUS, true))
+                            if (CanStartAttack(target))
+                                AI()->AttackStart(target);
+                }
+                else
+                {
+                    m_aggroTimer -= diff;
+                }
             }
 
             Unit* owner = GetCharmerOrOwner();
@@ -2202,6 +2222,9 @@ void Creature::Respawn(bool force)
 
             //Re-initialize reactstate that could be altered by movementgenerators
             InitializeReactState();
+
+            if (HasReactState(REACT_AGGRESSIVE) && !IsPet() && !IsCivilian())
+                m_aggroTimer = sWorld->getIntConfig(CONFIG_CREATURE_AGGRO_DELAY_AFTER_SPAWN);
 
         }
         m_respawnedTime = GameTime::GetGameTime().count();
