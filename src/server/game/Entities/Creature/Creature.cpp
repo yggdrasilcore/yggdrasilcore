@@ -3818,15 +3818,20 @@ bool Creature::IsMovementPreventedByCasting() const
 
 void Creature::SetCannotReachTarget(ObjectGuid const& cannotReach)
 {
-    if (cannotReach == m_cannotReachTarget)
-{
-        return;
-    }
+    // A target on another transport waits on the leash timer, not the unreachable timer.
+    ObjectGuid guid = cannotReach;
+    if (!guid.IsEmpty() && !GetCharmerOrOwnerGUID().IsPlayer() && !GetMap()->Instanceable())
+        if (Unit* target = ObjectAccessor::GetUnit(*this, guid))
+            if (target->GetTransport() && target->GetTransport() != GetTransport())
+                guid.Clear();
 
-    m_cannotReachTarget = cannotReach;
+    if (guid == m_cannotReachTarget)
+        return;
+
+    m_cannotReachTarget = guid;
     m_cannotReachTimer = 0;
 
-    if (cannotReach)
+    if (guid)
     {
         LOG_DEBUG("entities.unit", "Creature::SetCannotReachTarget() called with true. Details: {}", GetDebugInfo());
     }
@@ -3903,6 +3908,9 @@ float Creature::GetLeashZCap() const
 bool Creature::ShouldSuppressLeashExtensionFor(Unit const* target) const
 {
     if (!target || target == this)
+        return true;
+    // Waiting at a transport's base must consume the stock leash timer.
+    if (target->GetTransport() && target->GetTransport() != GetTransport())
         return true;
     if (CanFly())
         return false;
@@ -4000,6 +4008,10 @@ bool Creature::IsOutsideLeashRange(Unit const* victim) const
     float leashDist = sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
     if (leashDist <= 0.0f)
         return false;
+    // A target on another transport is unreachable on foot; let the stock leash
+    // deadline end the fight even while it remains inside the normal radius.
+    if (victim && victim->GetTransport() && victim->GetTransport() != GetTransport())
+        return true;
     float hx, hy, hz;
     hx = hy = hz = 0.0f;
     bool hasResetPos = GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE)->GetResetPosition(hx, hy, hz);
