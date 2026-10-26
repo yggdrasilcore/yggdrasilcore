@@ -29,7 +29,8 @@
 #include "WorldSession.h"
 
 Warden::Warden() : _session(nullptr), _checkTimer(10000/*10 sec*/), _clientResponseTimer(0),
-    _dataSent(false), _sendPayload(true), _sendBootstrap(true), _module(nullptr), _initialized(false), _interrupted(false), _checkInProgress(false)
+    _payloadResponseTimer(0), _pendingPayloadResponses(0), _dataSent(false), _sendPayload(true), _sendBootstrap(true),
+    _module(nullptr), _initialized(false), _interrupted(false), _checkInProgress(false)
 {
     memset(_inputKey, 0, sizeof(_inputKey));
     memset(_outputKey, 0, sizeof(_outputKey));
@@ -97,6 +98,22 @@ void Warden::Update(uint32 const diff)
     if (!_initialized)
     {
         return;
+    }
+
+    // Payload-only requests are sent as one burst, so their results arrive
+    // after the burst instead of gating it. Wait for them before starting a
+    // real check request, otherwise a payload result would be parsed as the
+    // answer to the anticheat request.
+    if (_pendingPayloadResponses && !_dataSent)
+    {
+        _payloadResponseTimer += diff;
+        if (_payloadResponseTimer < PayloadResponseTimeout)
+            return;
+
+        LOG_DEBUG("warden", "Ignoring {} unanswered payload request result(s).", _pendingPayloadResponses);
+        _pendingPayloadResponses = 0;
+        _payloadResponseTimer = 0;
+        _checkTimer = 0;
     }
 
     if (_sendPayload && !_dataSent) // Hack fix to immediately process warden injections on reload
