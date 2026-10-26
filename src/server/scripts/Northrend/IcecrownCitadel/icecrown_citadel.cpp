@@ -3804,6 +3804,127 @@ public:
     }
 };
 
+class npc_icc_flesh_eating_insect : public CreatureScript
+{
+public:
+    npc_icc_flesh_eating_insect() : CreatureScript("npc_icc_flesh_eating_insect") { }
+
+    struct npc_icc_flesh_eating_insectAI : public ScriptedAI
+    {
+        npc_icc_flesh_eating_insectAI(Creature* creature) : ScriptedAI(creature)
+        {
+            _descending = false;
+            _landed = false;
+            _fallTimer = 1000;
+            _searchTimer = 0;
+        }
+
+        static bool IsInTrapArea(Player* player)
+        {
+            float x = player->GetPositionX();
+            float y = player->GetPositionY();
+            float z = player->GetPositionZ();
+            return x >= 4336.0f && x <= 4374.0f && y >= 3080.0f && y <= 3155.0f && z >= 355.0f && z <= 395.0f;
+        }
+
+        Player* FindTrapTarget()
+        {
+            Map* map = me->GetMap();
+            Player* best = nullptr;
+            float bestDist = 0.0f;
+            for (ObjectGuid const& guid : map->CopyPlayerGuids())
+            {
+                Player* player = ObjectAccessor::FindPlayer(guid);
+                if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive() || player->IsGameMaster())
+                    continue;
+                if (!IsInTrapArea(player))
+                    continue;
+                float dist = me->GetDistance(player);
+                if (!best || dist < bestDist)
+                {
+                    best = player;
+                    bestDist = dist;
+                }
+            }
+            return best;
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (_fallTimer <= diff)
+            {
+                _fallTimer = 1000;
+                if (me->GetPositionZ() < 340.0f)
+                {
+                    me->DespawnOrUnsummon();
+                    return;
+                }
+            }
+            else
+                _fallTimer -= diff;
+
+            if (!_landed)
+            {
+                float floorZ = me->GetFloorZ();
+                if (floorZ > 340.0f && std::fabs(me->GetPositionZ() - floorZ) > 2.0f)
+                {
+                    if (!_descending)
+                    {
+                        _descending = true;
+                        me->SetDisableGravity(true);
+                        me->GetMotionMaster()->MovePoint(1, me->GetPositionX(), me->GetPositionY(), floorZ, FORCED_MOVEMENT_NONE, 0.f, 0.f, false);
+                    }
+                    return;
+                }
+
+                _descending = false;
+                _landed = true;
+                me->SetDisableGravity(false);
+                _searchTimer = 0;
+            }
+
+            if (me->IsInCombat())
+            {
+                if (UpdateVictim())
+                    DoMeleeAttackIfReady();
+                return;
+            }
+
+            InstanceScript* instance = me->GetInstanceScript();
+            uint32 trapState = instance ? instance->GetData(DATA_PUTRICIDE_TRAP_STATE) : NOT_STARTED;
+            if (trapState != IN_PROGRESS && trapState != DONE)
+            {
+                if (me->GetReactState() != REACT_DEFENSIVE)
+                    me->SetReactState(REACT_DEFENSIVE);
+                return;
+            }
+
+            if (_searchTimer <= diff)
+            {
+                _searchTimer = 1000;
+                if (Player* player = FindTrapTarget())
+                {
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    AttackStart(player);
+                }
+            }
+            else
+                _searchTimer -= diff;
+        }
+
+    private:
+        bool _descending;
+        bool _landed;
+        uint32 _fallTimer;
+        uint32 _searchTimer;
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetIcecrownCitadelAI<npc_icc_flesh_eating_insectAI>(creature);
+    }
+};
+
 void AddSC_icecrown_citadel()
 {
     new npc_highlord_tirion_fordring_lh();
@@ -3854,6 +3975,7 @@ void AddSC_icecrown_citadel()
     new npc_icc_nerubar_broodkeeper();
     new npc_icc_gauntlet_controller();
     new npc_icc_putricades_trap();
+    new npc_icc_flesh_eating_insect();
     new at_icc_gauntlet_event();
     new at_icc_putricide_trap();
     new at_icc_spire_frostwyrm();
