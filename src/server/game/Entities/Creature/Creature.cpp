@@ -3121,12 +3121,6 @@ void Creature::PauseMovementForInteraction(Player* caster)
     if (GetOwner())
         return;
 
-    // Never interrupt an active escort
-    if (GetMotionMaster()->GetMotionSlotType(MOTION_SLOT_ACTIVE) == ESCORT_MOTION_TYPE)
-        return;
-    if (AI() && AI()->IsEscorted())
-        return;
-
     // Never interrupt combat
     if (IsInCombat())
         return;
@@ -3247,8 +3241,6 @@ void Creature::ResumeInteractionMovement()
         GetGUID().ToString(), GetEntry(), snapshot.wasMoving, uint32(snapshot.movegen));
 
     if (!snapshot.wasMoving || !IsAlive() || IsInCombat())
-        return;
-    if (AI() && AI()->IsEscorted())
         return;
 
     if (snapshot.movegen == POINT_MOTION_TYPE && movespline->Finalized())
