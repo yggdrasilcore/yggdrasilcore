@@ -3817,11 +3817,34 @@ public:
             _searchTimer = 0;
         }
 
-        void Reset() override
+        static bool IsInTrapArea(Player* player)
         {
-            _descending = false;
-            _searchTimer = 0;
-            me->SetReactState(REACT_AGGRESSIVE);
+            float x = player->GetPositionX();
+            float y = player->GetPositionY();
+            float z = player->GetPositionZ();
+            return x >= 4336.0f && x <= 4374.0f && y >= 3080.0f && y <= 3155.0f && z >= 355.0f && z <= 395.0f;
+        }
+
+        Player* FindTrapTarget()
+        {
+            Map* map = me->GetMap();
+            Player* best = nullptr;
+            float bestDist = 0.0f;
+            for (ObjectGuid const& guid : map->CopyPlayerGuids())
+            {
+                Player* player = ObjectAccessor::FindPlayer(guid);
+                if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive() || player->IsGameMaster())
+                    continue;
+                if (!IsInTrapArea(player))
+                    continue;
+                float dist = me->GetDistance(player);
+                if (!best || dist < bestDist)
+                {
+                    best = player;
+                    bestDist = dist;
+                }
+            }
+            return best;
         }
 
         void UpdateAI(uint32 diff) override
@@ -3845,20 +3868,33 @@ public:
                 _searchTimer = 0;
             }
 
-            if (!UpdateVictim())
+            if (me->IsInCombat())
             {
-                if (_searchTimer <= diff)
-                {
-                    _searchTimer = 1000;
-                    if (Player* player = me->SelectNearestPlayer(100.0f))
-                        AttackStart(player);
-                }
-                else
-                    _searchTimer -= diff;
+                if (UpdateVictim())
+                    DoMeleeAttackIfReady();
                 return;
             }
 
-            DoMeleeAttackIfReady();
+            InstanceScript* instance = me->GetInstanceScript();
+            uint32 trapState = instance ? instance->GetData(DATA_PUTRICIDE_TRAP_STATE) : NOT_STARTED;
+            if (trapState != IN_PROGRESS && trapState != DONE)
+            {
+                if (me->GetReactState() != REACT_DEFENSIVE)
+                    me->SetReactState(REACT_DEFENSIVE);
+                return;
+            }
+
+            if (_searchTimer <= diff)
+            {
+                _searchTimer = 1000;
+                if (Player* player = FindTrapTarget())
+                {
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    AttackStart(player);
+                }
+            }
+            else
+                _searchTimer -= diff;
         }
 
     private:
