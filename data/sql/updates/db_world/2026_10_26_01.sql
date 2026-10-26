@@ -1,7 +1,7 @@
 -- Dark Horizon (12664): credit the player when the Gorebag tour bunny is in range
 UPDATE `creature_template` SET `ScriptName` = 'SmartAI' WHERE `entry` = 28663;
 
-INSERT INTO `smart_scripts`
+REPLACE INTO `smart_scripts`
 (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, `event_chance`, `event_flags`,
  `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`,
  `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, `action_param5`, `action_param6`,
@@ -13,3 +13,6 @@ VALUES
  33, 12663, 0, 0, 0, 0, 0,
  7, 0, 0, 0, 0,
  0, 0, 0, 0, 'Trigger - Player in range - Kill credit quest 12664');
+  
+-- Fixes erroneous camera handling on HD clients on vehicle passenger seat 0 for creature Flying Fiend (28669)
+UPDATE `creature_template` SET `VehicleId` = '562' WHERE `entry` = 28669;
