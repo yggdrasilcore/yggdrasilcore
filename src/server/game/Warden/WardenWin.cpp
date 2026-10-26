@@ -96,7 +96,7 @@ void WardenWin::SendPayload()
 {
     // Keep payload injection independent of the anticheat check cycle and
     // defer it until the client module and any in-flight request are ready.
-    if (!_initialized || _dataSent)
+    if (!_initialized || _dataSent || _pendingPayloadResponses)
     {
         _sendPayload = true;
         return;
@@ -138,8 +138,24 @@ void WardenWin::SendPayload()
         return;
     }
 
+    // Payload requests are independent and their results are ignored, so send
+    // the whole queue as one burst instead of waiting for a client response
+    // between packets. This keeps delivery inside a single client tick window
+    // instead of spreading it over several round trips.
+    uint32 requestsSent = 0;
+    while (SendPayloadBatch(payloadMgr))
+        ++requestsSent;
+
+    _pendingPayloadResponses += requestsSent;
+    _payloadResponseTimer = 0;
+    _checkTimer = 0;
+    _sendPayload = !payloadMgr->QueuedPayloads.empty();
+}
+
+bool WardenWin::SendPayloadBatch(WardenPayloadMgr* payloadMgr)
+{
     // Warden packets are truncated to ~512 bytes client-side. Send as many
-    // payloads as fit and leave the rest queued for the next request.
+    // payloads as fit and leave the rest for the next batch.
     constexpr uint16 maxPayloadPacketSize = 500;
     uint16 expectedSize = 4; // command + timing check + trailing xor byte
     std::vector<uint16> payloadIds;
@@ -173,8 +189,7 @@ void WardenWin::SendPayload()
 
     if (payloadIds.empty())
     {
-        _sendPayload = false;
-        return;
+        return false;
     }
 
     _serverTicks = GameTime::GetGameTimeMS().count();
@@ -217,10 +232,7 @@ void WardenWin::SendPayload()
     pkt.append(buff);
     _session->SendPacket(&pkt);
 
-    _checkTimer = 0;
-    _dataSent = true;
-    _checkInProgress = true;
-    _sendPayload = !payloadMgr->QueuedPayloads.empty();
+    return true;
 }
 
 // Returns config id for specific type id
@@ -710,6 +722,17 @@ void WardenWin::RequestChecks()
 void WardenWin::HandleData(ByteBuffer& buff)
 {
     LOG_DEBUG("warden", "Handle data");
+
+    // Results of payload-only requests are not acted on. Count them off so a
+    // late payload result can never be parsed as a real check response.
+    if (_pendingPayloadResponses)
+    {
+        --_pendingPayloadResponses;
+        _payloadResponseTimer = 0;
+        _clientResponseTimer = 0;
+        _dataSent = false;
+        return;
+    }
 
     _dataSent = false;
     _clientResponseTimer = 0;

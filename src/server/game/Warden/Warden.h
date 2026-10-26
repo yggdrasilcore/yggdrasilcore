@@ -147,8 +147,12 @@ private:
     uint8 _seed[16];
     Ycore::Crypto::ARC4 _inputCrypto;
     Ycore::Crypto::ARC4 _outputCrypto;
+    static uint32 constexpr PayloadResponseTimeout = 5000; // Max wait for payload-only results
+
     uint32 _checkTimer;                          // Timer for sending check requests
     uint32 _clientResponseTimer;                 // Timer for client response delay
+    uint32 _payloadResponseTimer;                // Timer for unanswered payload-only results
+    uint32 _pendingPayloadResponses;             // Results expected from payload-only requests (ignored)
     bool _dataSent;
     bool _sendPayload;
     bool _sendBootstrap;
