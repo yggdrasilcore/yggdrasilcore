@@ -85,6 +85,8 @@ public:
     void HandleData(ByteBuffer& buff) override;
 
 private:
+    bool SendPayloadBatch(WardenPayloadMgr* payloadMgr);
+
     uint32 _serverTicks;
     std::list<uint16> _ChecksTodo[MAX_WARDEN_CHECK_TYPES];
 
