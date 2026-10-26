@@ -3814,6 +3814,8 @@ public:
         npc_icc_flesh_eating_insectAI(Creature* creature) : ScriptedAI(creature)
         {
             _descending = false;
+            _landed = false;
+            _fallTimer = 1000;
             _searchTimer = 0;
         }
 
@@ -3849,21 +3851,34 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            float floorZ = me->GetFloorZ();
-            if (me->GetPositionZ() > floorZ + 2.0f)
+            if (_fallTimer <= diff)
             {
-                if (!_descending)
+                _fallTimer = 1000;
+                if (me->GetPositionZ() < 340.0f)
                 {
-                    _descending = true;
-                    me->SetDisableGravity(true);
-                    me->GetMotionMaster()->MovePoint(1, me->GetPositionX(), me->GetPositionY(), floorZ, FORCED_MOVEMENT_NONE, 0.f, 0.f, false);
+                    me->DespawnOrUnsummon();
+                    return;
                 }
-                return;
             }
+            else
+                _fallTimer -= diff;
 
-            if (_descending)
+            if (!_landed)
             {
+                float floorZ = me->GetFloorZ();
+                if (floorZ > 340.0f && std::fabs(me->GetPositionZ() - floorZ) > 2.0f)
+                {
+                    if (!_descending)
+                    {
+                        _descending = true;
+                        me->SetDisableGravity(true);
+                        me->GetMotionMaster()->MovePoint(1, me->GetPositionX(), me->GetPositionY(), floorZ, FORCED_MOVEMENT_NONE, 0.f, 0.f, false);
+                    }
+                    return;
+                }
+
                 _descending = false;
+                _landed = true;
                 me->SetDisableGravity(false);
                 _searchTimer = 0;
             }
@@ -3899,6 +3914,8 @@ public:
 
     private:
         bool _descending;
+        bool _landed;
+        uint32 _fallTimer;
         uint32 _searchTimer;
     };
 
