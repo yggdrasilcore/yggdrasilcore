@@ -3,8 +3,42 @@ name: docker-build
 on:
   push:
     branches: [ "*master*" ]
+    paths:
+      - "**.c"
+      - "**.cc"
+      - "**.cpp"
+      - "**.cxx"
+      - "**.h"
+      - "**.hh"
+      - "**.hpp"
+      - "**.sh"
+      - "**/CMakeLists.txt"
+      - "**/cmakelists.txt"
+      - "**.cmake"
+      - "**/Dockerfile"
+      - "**/dockerfile"
+      - "**/docker-compose*.yml"
+      - "**/docker-compose*.yaml"
+      - ".github/**"
   pull_request:
     branches: [ "*master*" ]
+    paths:
+      - "**.c"
+      - "**.cc"
+      - "**.cpp"
+      - "**.cxx"
+      - "**.h"
+      - "**.hh"
+      - "**.hpp"
+      - "**.sh"
+      - "**/CMakeLists.txt"
+      - "**/cmakelists.txt"
+      - "**.cmake"
+      - "**/Dockerfile"
+      - "**/dockerfile"
+      - "**/docker-compose*.yml"
+      - "**/docker-compose*.yaml"
+      - ".github/**"
 
 permissions:
   contents: read
@@ -42,7 +76,32 @@ jobs:
         elif [ "${{ github.event_name }}" = "push" ]; then
           files=$(gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' || true)
         fi
-        if [ -z "$files" ] || grep -qiE '\.(c|cc|cpp|cxx|h|hh|hpp|sql|sh)$|(^|/)CMakeLists\.txt$|\.cmake$|(^|/)Dockerfile$|(^|/)docker-compose[^/]*\.ya?ml$|^\.github/' <<< "$files"; then
+        code=false
+        if [ -z "$files" ]; then
+          code=true
+        else
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            lower="${file,,}"
+            # Chore files and SQL-only changes do not require a compile.
+            if [[ "$lower" =~ (^|/)\.git ]] ||
+               [[ "$lower" =~ \.(md|markdown|txt|rst|png|jpe?g|gif|svg|ico)$ ]] ||
+               [[ "$lower" =~ (^|/)(license|authors)(\.|$) ]] ||
+               [[ "$lower" =~ (^|/)\.editorconfig$ ]]; then
+              continue
+            fi
+            if [[ "$lower" =~ \.(c|cc|cpp|cxx|h|hh|hpp|sh)$ ]] ||
+               [[ "$lower" =~ (^|/)cmakelists\.txt$ ]] ||
+               [[ "$lower" =~ \.cmake$ ]] ||
+               [[ "$lower" =~ (^|/)dockerfile$ ]] ||
+               [[ "$lower" =~ (^|/)docker-compose[^/]*\.ya?ml$ ]] ||
+               [[ "$lower" =~ ^\.github/ ]]; then
+              code=true
+              break
+            fi
+          done <<< "$files"
+        fi
+        if [ "$code" = "true" ]; then
           echo "code=true" >> "$GITHUB_OUTPUT"
         else
           echo "code=false" >> "$GITHUB_OUTPUT"

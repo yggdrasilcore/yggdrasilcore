@@ -1,0 +1,108 @@
+name: sql-ci
+
+on:
+  push:
+    branches: [ "*master*" ]
+  pull_request:
+    branches: [ "*master*" ]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: "sql-ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  validate-sql:
+    runs-on: ubuntu-24.04
+    name: validate-sql
+    timeout-minutes: 45
+
+    services:
+      mysql:
+        image: mysql:8.3
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=40
+
+    steps:
+    - name: Checkout YggdrasilCore
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Run SQL validation
+      env:
+        GH_TOKEN: ${{ github.token }}
+        MYSQL_HOST: 127.0.0.1
+        MYSQL_PORT: 3306
+        MYSQL_USER: root
+        MYSQL_PASSWORD: password
+      run: |
+        set -euo pipefail
+
+        # ---- Detect whether this is a SQL-only change (inline, no separate job) ----
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.number }}/files" --paginate --jq '.[].filename' \
+            > "$RUNNER_TEMP/changed-files.txt"
+        elif [ "${{ github.event_name }}" = "push" ]; then
+          { gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' || true; } \
+            > "$RUNNER_TEMP/changed-files.txt"
+        else
+          : > "$RUNNER_TEMP/changed-files.txt"
+        fi
+
+        has_sql=false
+        has_other=false
+        : > "$RUNNER_TEMP/changed-sql.txt"
+        while IFS= read -r file; do
+          [ -z "$file" ] && continue
+          lower="${file,,}"
+          if [[ "$lower" == *.sql ]]; then
+            has_sql=true
+            printf '%s\n' "$file" >> "$RUNNER_TEMP/changed-sql.txt"
+            continue
+          fi
+          # Chore files do not make a SQL change a code change.
+          if [[ "$lower" =~ (^|/)\.git ]] ||
+             [[ "$lower" =~ \.(md|markdown|txt|rst|png|jpe?g|gif|svg|ico)$ ]] ||
+             [[ "$lower" =~ (^|/)(license|authors)(\.|$) ]] ||
+             [[ "$lower" =~ (^|/)\.editorconfig$ ]]; then
+            continue
+          fi
+          has_other=true
+        done < "$RUNNER_TEMP/changed-files.txt"
+
+        if [ "$has_sql" != "true" ]; then
+          echo "No SQL files changed; nothing to validate."
+          exit 0
+        fi
+        if [ "$has_other" = "true" ]; then
+          echo "Change is not SQL-only; skipping SQL validation."
+          exit 0
+        fi
+
+        echo "SQL-only change detected. Validating:"
+        cat "$RUNNER_TEMP/changed-sql.txt"
+
+        # ---- Consolidated SQL operation: rule check + import (one job, one script) ----
+        mapfile -t SQL_FILES < "$RUNNER_TEMP/changed-sql.txt"
+        bash apps/ci/sql-validate.sh "${SQL_FILES[@]}"
+
+    - name: Dump MySQL logs on failure
+      if: failure()
+      run: |
+        docker logs "${{ job.services.mysql.id }}" 2>&1 | tail -200 || true
