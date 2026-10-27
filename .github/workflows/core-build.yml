@@ -3,8 +3,42 @@ name: docker-build
 on:
   push:
     branches: [ "*master*" ]
+    paths:
+      - "**.c"
+      - "**.cc"
+      - "**.cpp"
+      - "**.cxx"
+      - "**.h"
+      - "**.hh"
+      - "**.hpp"
+      - "**.sh"
+      - "**/CMakeLists.txt"
+      - "**/cmakelists.txt"
+      - "**.cmake"
+      - "**/Dockerfile"
+      - "**/dockerfile"
+      - "**/docker-compose*.yml"
+      - "**/docker-compose*.yaml"
+      - ".github/**"
   pull_request:
     branches: [ "*master*" ]
+    paths:
+      - "**.c"
+      - "**.cc"
+      - "**.cpp"
+      - "**.cxx"
+      - "**.h"
+      - "**.hh"
+      - "**.hpp"
+      - "**.sh"
+      - "**/CMakeLists.txt"
+      - "**/cmakelists.txt"
+      - "**.cmake"
+      - "**/Dockerfile"
+      - "**/dockerfile"
+      - "**/docker-compose*.yml"
+      - "**/docker-compose*.yaml"
+      - ".github/**"
 
 permissions:
   contents: read
