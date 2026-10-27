@@ -641,6 +641,14 @@ static Optional<float> GetVelocity(Unit* owner, Unit* target, G3D::Vector3 const
     return speed;
 }
 
+static bool IsFollowingOnTransport(Unit const* owner, Unit const* target)
+{
+    Transport* transport = owner->GetTransport();
+    return transport && transport == target->GetTransport() &&
+        owner->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) &&
+        target->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
+}
+
 static Position const PredictPosition(Unit* target)
 {
     Position pos = target->GetPosition();
@@ -675,12 +683,17 @@ static Position const PredictPosition(Unit* target)
 }
 
 template<class T>
-bool FollowMovementGenerator<T>::PositionOkay(Unit* target, bool isPlayerPet, bool& targetIsMoving, uint32 diff)
+bool FollowMovementGenerator<T>::PositionOkay(Unit* owner, Unit* target, bool isPlayerPet, bool& targetIsMoving, uint32 diff)
 {
     if (!_lastTargetPosition)
         return false;
 
-    float exactDistSq = target->GetExactDistSq(_lastTargetPosition->GetPositionX(), _lastTargetPosition->GetPositionY(), _lastTargetPosition->GetPositionZ());
+    // A transport moves both units in world space every tick. Compare their
+    // transport-relative offsets instead, otherwise a stationary owner looks
+    // like a moving target and the follower repaths (and spins) constantly.
+    bool const onTransport = IsFollowingOnTransport(owner, target);
+    Position const& targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
+    float exactDistSq = targetPosition.GetExactDistSq(_lastTargetPosition->GetPositionX(), _lastTargetPosition->GetPositionY(), _lastTargetPosition->GetPositionZ());
     float distanceTolerance = 0.25f;
     // For creatures, increase tolerance
     if (target->IsCreature())
@@ -754,7 +767,7 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         ; // closes "bool forceDest", that way it is more appropriate, so we can comment out crap whenever we need to
 
     bool targetIsMoving = false;
-    if (PositionOkay(target, owner->IsGuardian() && target->IsPlayer(), targetIsMoving, time_diff))
+    if (PositionOkay(owner, target, owner->IsGuardian() && target->IsPlayer(), targetIsMoving, time_diff))
     {
         if (owner->HasUnitState(UNIT_STATE_FOLLOW_MOVE) && owner->movespline->Finalized())
         {
@@ -777,11 +790,12 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     }
     else
     {
-        Position targetPosition = target->GetPosition();
+        bool const onTransport = IsFollowingOnTransport(owner, target);
+        Position targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
         _lastTargetPosition = targetPosition;
 
         // If player is moving and their position is not updated, we need to predict position
-        if (targetIsMoving)
+        if (targetIsMoving && !onTransport)
         {
             Position predictedPosition = PredictPosition(target);
             // Prediction extrapolates blindly and lands inside collision when the
@@ -799,6 +813,38 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         {
             i_recheckPredictedDistance = false;
             i_recheckPredictedDistanceTimer.Reset(0);
+        }
+
+        // When both units are on the same transport, work entirely in transport
+        // offsets. Pathing to the target's moving world position makes the pet
+        // spin in place and continually re-assert its position on the deck.
+        if (onTransport)
+        {
+            float const followDistance = owner->GetCombatReach() + _range;
+            float const followAngle = targetPosition.GetOrientation() + _angle.RelativeAngle;
+            targetPosition.m_positionX += followDistance * std::cos(followAngle);
+            targetPosition.m_positionY += followDistance * std::sin(followAngle);
+
+            float x, y, z;
+            targetPosition.GetPosition(x, y, z);
+
+            owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
+
+            Movement::MoveSplineInit init(owner);
+            init.DisableTransportPathTransformations();
+            init.MoveTo(x, y, z);
+            if (_inheritWalkState)
+                init.SetWalk(target->IsWalking() || target->movespline->isWalking());
+            if (_inheritSpeed)
+            {
+                float wx = x, wy = y, wz = z;
+                if (Transport* transport = owner->GetTransport())
+                    transport->CalculatePassengerPosition(wx, wy, wz);
+                if (Optional<float> velocity = GetVelocity(owner, target, G3D::Vector3(wx, wy, wz), owner->IsGuardian()))
+                    init.SetVelocity(*velocity);
+            }
+            init.Launch();
+            return true;
         }
 
         if (!i_path)
