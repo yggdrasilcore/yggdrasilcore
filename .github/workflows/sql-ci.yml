@@ -1,0 +1,135 @@
+name: sql-ci
+
+on:
+  push:
+    branches: [ "*master*" ]
+  pull_request:
+    branches: [ "*master*" ]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: "sql-ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    runs-on: ubuntu-24.04
+    name: detect-sql-only
+    outputs:
+      sql: ${{ steps.changes.outputs.sql }}
+    steps:
+    - name: Detect SQL-only changes
+      id: changes
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        files=""
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          files=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.number }}/files" --paginate --jq '.[].filename')
+        elif [ "${{ github.event_name }}" = "push" ]; then
+          files=$(gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' || true)
+        fi
+
+        if [ -z "$files" ]; then
+          echo "sql=false" >> "$GITHUB_OUTPUT"
+          echo "No changed files detected; skipping SQL validation."
+          exit 0
+        fi
+
+        sql=false
+        other=false
+        while IFS= read -r file; do
+          [ -z "$file" ] && continue
+          lower="${file,,}"
+          if [[ "$lower" == *.sql ]]; then
+            sql=true
+            continue
+          fi
+          # Chore files do not make a SQL change a code change.
+          if [[ "$lower" =~ (^|/)\.git ]] ||
+             [[ "$lower" =~ \.(md|markdown|txt|rst|png|jpe?g|gif|svg|ico)$ ]] ||
+             [[ "$lower" =~ (^|/)(license|authors)(\.|$) ]] ||
+             [[ "$lower" =~ (^|/)\.editorconfig$ ]]; then
+            continue
+          fi
+          other=true
+        done <<< "$files"
+
+        if [ "$sql" = "true" ] && [ "$other" = "false" ]; then
+          echo "sql=true" >> "$GITHUB_OUTPUT"
+          echo "SQL-only change detected; running SQL validation."
+        else
+          echo "sql=false" >> "$GITHUB_OUTPUT"
+          echo "Change is not SQL-only; skipping SQL validation."
+        fi
+
+  validate:
+    needs: detect
+    if: needs.detect.outputs.sql == 'true'
+    runs-on: ubuntu-24.04
+    name: validate-sql
+    timeout-minutes: 45
+
+    services:
+      mysql:
+        image: mysql:8.3
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=40
+          --max-allowed-packet=1G
+
+    steps:
+    - name: Checkout YggdrasilCore
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Collect changed SQL files
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.number }}/files" --paginate --jq '.[].filename' \
+            | grep -E '\.sql$' > "$RUNNER_TEMP/changed-sql.txt" || true
+        elif [ "${{ github.event_name }}" = "push" ]; then
+          gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' \
+            | grep -E '\.sql$' > "$RUNNER_TEMP/changed-sql.txt" || true
+        else
+          : > "$RUNNER_TEMP/changed-sql.txt"
+        fi
+        cat "$RUNNER_TEMP/changed-sql.txt"
+
+    - name: Check SQL update rules
+      run: |
+        set -euo pipefail
+        mapfile -t files < "$RUNNER_TEMP/changed-sql.txt"
+        python3 apps/ci/sql-update-check.py "${files[@]}"
+
+    - name: Import base schema and updates
+      env:
+        MYSQL_HOST: 127.0.0.1
+        MYSQL_PORT: 3306
+        MYSQL_USER: root
+        MYSQL_PASSWORD: password
+      run: bash apps/ci/sql-import.sh
+
+    - name: Dump MySQL logs on failure
+      if: failure()
+      run: |
+        docker logs "${{ job.services.mysql.id }}" 2>&1 | tail -200 || true
