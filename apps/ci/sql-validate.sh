@@ -1,16 +1,31 @@
-#!/usr/bin/env python3
-"""Check SQL update files against the YggdrasilCore data-change rules.
+#!/usr/bin/env bash
+# Consolidated SQL validation for YggdrasilCore CI.
+#
+# Performs both halves of the SQL operation in a single script:
+#   1. Check changed SQL update files against the data-change rules.
+#   2. Import the base schema and every update into a fresh MySQL instance,
+#      mirroring what dbimport does at boot.
+#
+# Usage: sql-validate.sh <changed-sql-files...>
+set -euo pipefail
 
-Rules:
-  * Updating existing rows: REPLACE or UPDATE.
-  * Recreating rows for an entry: DELETE followed by INSERT.
-    DELETE followed by REPLACE is a warning, not a failure.
-  * Creating new rows: REPLACE, INSERT, or INSERT IGNORE ... ON DUPLICATE KEY UPDATE.
+MYSQL_HOST="${MYSQL_HOST:-127.0.0.1}"
+MYSQL_PORT="${MYSQL_PORT:-3306}"
+MYSQL_USER="${MYSQL_USER:-root}"
+MYSQL_PASSWORD="${MYSQL_PASSWORD:-password}"
+export MYSQL_PWD="$MYSQL_PASSWORD"
 
-Only statements that change data are checked. DDL (ALTER, CREATE, DROP, ...)
-is left alone.
-"""
+MYSQL=(
+    mysql --protocol=TCP --host="$MYSQL_HOST" --port="$MYSQL_PORT" --user="$MYSQL_USER"
+    --default-character-set=utf8mb4 --max-allowed-packet=1G
+)
 
+ROOT_DIR="${GITHUB_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+
+# ============================================================================
+# Step 1: SQL update rule checks
+# ============================================================================
+python3 - "$@" <<'PYEOF'
 import argparse
 import re
 import sys
@@ -45,11 +60,7 @@ def normalize_table(name: str) -> str:
 
 
 def iter_statements(text: str):
-    """Yield (line_number, statement) for every semicolon-terminated statement.
-
-    Comments and quoted strings/identifiers are handled so semicolons inside
-    them do not split a statement.
-    """
+    """Yield (line_number, statement) for every semicolon-terminated statement."""
     statements = []
     buffer = []
     start_line = 1
@@ -170,7 +181,7 @@ def classify(statement: str):
     return None, None, None
 
 
-def check_file(path: Path) -> tuple[list[str], list[str]]:
+def check_file(path: Path):
     errors = []
     warnings = []
     text = path.read_text(encoding="utf-8")
@@ -223,11 +234,7 @@ def check_file(path: Path) -> tuple[list[str], list[str]]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("files", nargs="*", help="SQL files to check")
-    args = parser.parse_args()
-
-    files = [Path(name) for name in args.files if Path(name).is_file()]
+    files = [Path(name) for name in sys.argv[1:] if Path(name).is_file()]
     if not files:
         print("No SQL files to check.")
         return 0
@@ -248,5 +255,37 @@ def main() -> int:
     return 1 if all_errors else 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+sys.exit(main())
+PYEOF
+
+# ============================================================================
+# Step 2: Import base schema and updates into a fresh MySQL instance.
+# Mirrors what dbimport does at boot: load data/sql/base/db_<name>, then
+# apply every file in data/sql/updates/db_<name> in filename order.
+# ============================================================================
+databases=(auth world characters)
+
+for database in "${databases[@]}"; do
+    echo "Creating database ycore_${database}"
+    "${MYSQL[@]}" -e "CREATE DATABASE IF NOT EXISTS \`ycore_${database}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
+done
+
+for database in "${databases[@]}"; do
+    echo "Importing base db_${database}"
+    mapfile -t base_files < <(find "$ROOT_DIR/data/sql/base/db_${database}" -maxdepth 1 -type f -name '*.sql' | sort)
+    for file in "${base_files[@]}"; do
+        echo "  base: $(basename "$file")"
+        "${MYSQL[@]}" "ycore_${database}" < "$file"
+    done
+done
+
+for database in "${databases[@]}"; do
+    echo "Applying updates db_${database}"
+    mapfile -t update_files < <(find "$ROOT_DIR/data/sql/updates/db_${database}" -maxdepth 1 -type f -name '*.sql' | sort)
+    for file in "${update_files[@]}"; do
+        echo "  update: $(basename "$file")"
+        "${MYSQL[@]}" "ycore_${database}" < "$file"
+    done
+done
+
+echo "All base files and updates imported successfully."
