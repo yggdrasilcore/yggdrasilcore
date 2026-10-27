@@ -51,8 +51,6 @@ UPDATE_RE = re.compile(
     r"(?:(?:`[^`]+`|[A-Za-z0-9_]+)\.)?(`[^`]+`|[A-Za-z0-9_]+)",
     re.IGNORECASE,
 )
-ON_DUPLICATE_RE = re.compile(r"\bON\s+DUPLICATE\s+KEY\s+UPDATE\b", re.IGNORECASE)
-
 
 def normalize_table(name: str) -> str:
     parts = name.replace("`", "").split(".")
@@ -222,13 +220,11 @@ def check_file(path: Path):
                 f"{path}:{line}: DELETE from `{table}` is not followed by an INSERT; "
                 "use DELETE followed by INSERT to recreate rows"
             )
-
-        elif kind == "INSERT" and ON_DUPLICATE_RE.search(statement):
-            if not match.group(1):
-                errors.append(
-                    f"{path}:{line}: INSERT ... ON DUPLICATE KEY UPDATE on `{table}` "
-                    "must use INSERT IGNORE"
-                )
+        elif kind == "INSERT" and match.group(1):
+            errors.append(
+                f"{path}:{line}: INSERT IGNORE on `{table}` is not allowed; "
+                "use INSERT, REPLACE, or INSERT ... ON DUPLICATE KEY UPDATE so invalid data fails the import"
+            )
 
     return errors, warnings
 
