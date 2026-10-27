@@ -24,6 +24,7 @@
 #include "CreatureTextMgr.h"
 #include "GameObjectScript.h"
 #include "GridNotifiersImpl.h"
+#include "MoveSplineInit.h"
 #include "PassiveAI.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
@@ -32,6 +33,8 @@
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "Vehicle.h"
+
+#include <cmath>
 
 /********
 QUEST Conversing With the Depths (12032)
@@ -767,6 +770,215 @@ public:
     }
 private:
     ObjectGuid villagerGUID;
+};
+
+enum WintergardeGryphonRide
+{
+    NPC_WINTERGARDE_GRYPHON_RIDER   = 27662,
+    SPELL_RIDE_WINTERGARDE_GRYPHON  = 60968,
+    QUEST_INTO_HOSTILE_TERRITORY    = 12325,
+
+    SAY_BUMPY_RIDE                  = 26922,
+    SAY_SAFE_LANDING                = 26924,
+
+    EVENT_SAY_BUMPY_RIDE            = 1,
+    EVENT_FLY_AWAY                  = 2,
+    EVENT_RIDE_END                  = 3,
+    EVENT_ENSURE_RIDER              = 4,
+    EVENT_RIDE_START                = 5,
+
+    POINT_FLY_AWAY                  = 100,
+
+    PATH_THORSON_GRYPHON            = 2766100
+};
+
+Position const ThorsonGryphonPath[] =
+{
+    { 3715.39f,       -698.46f,        217.64188f, 0.0f },
+    { 3706.64453f,    -703.95056f,     219.59251f, 0.0f },
+    { 3702.85767f,    -735.01209f,     220.24911f, 0.0f },
+    { 3718.38525f,    -766.33392f,     222.91904f, 0.0f },
+    { 3729.85254f,    -796.33575f,     216.04568f, 0.0f },
+    { 3738.24878f,    -829.52868f,     205.86456f, 0.0f },
+    { 3745.75415f,    -863.00928f,     198.95757f, 0.0f },
+    { 3753.49512f,    -897.75348f,     191.78011f, 0.0f },
+    { 3756.91479f,    -930.84497f,     181.21257f, 0.0f },
+    { 3758.17236f,    -965.02814f,     173.82684f, 0.0f },
+    { 3757.78784f,    -999.65875f,     168.85268f, 0.0f },
+    { 3757.08301f,    -1034.35217f,    164.28423f, 0.0f },
+    { 3756.35303f,    -1070.27722f,    159.55360f, 0.0f },
+    { 3752.95215f,    -1102.38342f,    155.45543f, 0.0f },
+    { 3747.99951f,    -1137.01379f,    154.35603f, 0.0f },
+    { 3743.04712f,    -1171.64417f,    153.25662f, 0.0f },
+    { 3736.79492f,    -1211.52454f,    151.57645f, 0.0f },
+    { 3729.56299f,    -1245.65955f,    154.31528f, 0.0f },
+    { 3722.33032f,    -1279.79370f,    157.06131f, 0.0f },
+    { 3718.49121f,    -1311.69812f,    154.58348f, 0.0f },
+    { 3736.69849f,    -1337.79565f,    155.55035f, 0.0f },
+    { 3764.51318f,    -1357.38672f,    163.33109f, 0.0f },
+    { 3792.60132f,    -1375.25220f,    174.14233f, 0.0f },
+    { 3821.98633f,    -1393.92944f,    185.45540f, 0.0f },
+};
+
+class npc_wintergarde_thorson_gryphon : public VehicleAI
+{
+public:
+    npc_wintergarde_thorson_gryphon(Creature* creature) : VehicleAI(creature) { }
+
+    bool BeforeSpellClick(Unit* clicker) override
+    {
+        if (!clicker->IsPlayer())
+            return true;
+
+        Player* player = clicker->ToPlayer();
+
+        if (player->GetVehicle() == me->GetVehicleKit())
+            return false;
+
+        // Don't mount vehicle if no quest
+        if (!player->IsActiveQuest(QUEST_INTO_HOSTILE_TERRITORY))
+            return false;
+
+        // Sometimes the Wintergrasp Grypthon Rider disappears, put it back before player mounts
+        EnsureRider();
+
+        // Player mounts here
+        player->CastSpell(me, SPELL_RIDE_WINTERGARDE_GRYPHON, false);
+
+        return false;
+    }
+
+    void PassengerBoarded(Unit* passenger, int8 /*seatId*/, bool apply) override
+    {
+        if (!apply || !passenger->IsPlayer() || _rideStarted)
+            return;
+
+        _rideStarted = true;
+
+        events.ScheduleEvent(EVENT_RIDE_START, 2s);
+    }
+
+    void PathEndReached(uint32 pathId) override
+    {
+        if (pathId != PATH_THORSON_GRYPHON)
+            return;
+
+        _rideFinished = true;
+
+        me->Say(SAY_SAFE_LANDING);
+
+        if (Vehicle* vehicle = me->GetVehicleKit())
+            for (int8 seat = 0; seat < 8; ++seat)
+                if (Unit* passenger = vehicle->GetPassenger(seat))
+                    if (passenger->IsPlayer())
+                        passenger->ExitVehicle();
+
+        events.ScheduleEvent(EVENT_FLY_AWAY, 1s);
+    }
+
+    void MovementInform(uint32 type, uint32 id) override
+    {
+        if (type == POINT_MOTION_TYPE && id == POINT_FLY_AWAY)
+            DespawnGryphon();
+    }
+
+    void Reset() override
+    {
+        _rideStarted = false;
+        _rideFinished = false;
+        events.Reset();
+        events.ScheduleEvent(EVENT_ENSURE_RIDER, 1s);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        events.Update(diff);
+
+        while (uint32 eventId = events.ExecuteEvent())
+        {
+            switch (eventId)
+            {
+                case EVENT_SAY_BUMPY_RIDE:
+                    if (!_rideFinished)
+                        me->Say(SAY_BUMPY_RIDE);
+                    break;
+                case EVENT_FLY_AWAY:
+                {
+                    Position flyAway(
+                        me->GetPositionX() + 50.0f * std::cos(me->GetOrientation()),
+                        me->GetPositionY() + 50.0f * std::sin(me->GetOrientation()),
+                        me->GetPositionZ(),
+                        me->GetOrientation());
+
+                    me->GetMotionMaster()->MovePoint(POINT_FLY_AWAY, flyAway);
+                    break;
+                }
+                case EVENT_RIDE_END:
+                    PathEndReached(PATH_THORSON_GRYPHON);
+                    break;
+                case EVENT_ENSURE_RIDER:
+                    EnsureRider();
+                    break;
+                case EVENT_RIDE_START:
+                {
+                    me->SetCanFly(true);
+                    me->SetDisableGravity(true);
+                    me->SetHover(true);
+                    me->SetSpeed(MOVE_FLIGHT, 3.0f);
+
+                    me->AddUnitState(UNIT_STATE_IGNORE_PATHFINDING);
+
+                    Movement::PointsArray path;
+                    path.push_back(G3D::Vector3(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ()));
+                    for (Position const& pos : ThorsonGryphonPath)
+                        path.push_back(G3D::Vector3(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ()));
+
+                    Movement::MoveSplineInit init(me);
+                    init.MovebyPath(path);
+                    init.SetSmooth();
+                    init.SetFly();
+                    int32 duration = init.Launch();
+
+                    events.ScheduleEvent(EVENT_SAY_BUMPY_RIDE, 2s);
+                    events.ScheduleEvent(EVENT_RIDE_END, Milliseconds(duration));
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+
+private:
+    void DespawnGryphon()
+    {
+        me->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
+
+        if (Vehicle* vehicle = me->GetVehicleKit())
+            for (int8 seat = 0; seat < 8; ++seat)
+                if (Unit* passenger = vehicle->GetPassenger(seat))
+                    if (passenger->IsCreature() && passenger->GetEntry() == NPC_WINTERGARDE_GRYPHON_RIDER)
+                    {
+                        passenger->ExitVehicle();
+                        passenger->ToCreature()->DespawnOrUnsummon();
+                    }
+
+        me->DespawnOrUnsummon();
+    }
+
+    void EnsureRider()
+    {
+        if (Vehicle* vehicle = me->GetVehicleKit())
+        {
+            Unit* passenger = vehicle->GetPassenger(0);
+            if (!passenger || passenger->GetEntry() != NPC_WINTERGARDE_GRYPHON_RIDER)
+                if (Creature* rider = me->SummonCreature(NPC_WINTERGARDE_GRYPHON_RIDER, *me, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30000))
+                    me->HandleSpellClick(rider, 0);
+        }
+    }
+
+    bool _rideStarted = false;
+    bool _rideFinished = false;
 };
 
 class spell_q12237_rescue_villager : public SpellScript
@@ -2340,6 +2552,7 @@ void AddSC_dragonblight()
     new npc_mindless_ghoul();
     new npc_injured_7th_legion_soldier();
     RegisterCreatureAI(npc_wintergarde_gryphon);
+    RegisterCreatureAI(npc_wintergarde_thorson_gryphon);
     RegisterSpellScript(spell_q12237_rescue_villager);
     RegisterSpellScript(spell_q12237_drop_off_villager);
     RegisterSpellScript(spell_call_wintergarde_gryphon);
