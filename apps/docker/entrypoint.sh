@@ -4,6 +4,9 @@ set -euo pipefail
 CONF_DIR="${CONF_DIR:-/yggdrasilcore/env/dist/etc}"
 LOGS_DIR="${LOGS_DIR:-/yggdrasilcore/env/dist/logs}"
 
+# Let the server locate the crash report directory (see CrashHandler.cpp).
+export LOGS_DIR
+
 if ! touch "$CONF_DIR/.write-test" || ! touch "$LOGS_DIR/.write-test"; then
     cat <<EOF
 ===== WARNING =====

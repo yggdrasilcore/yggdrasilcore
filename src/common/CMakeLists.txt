@@ -35,6 +35,8 @@ endif()
 # It needs to be included both in authserver and worldserver for the static global variable to be properly initialized
 # and to handle crash logs on windows
 list(APPEND PRIVATE_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/CrashHandler.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/CrashHandler.h
   ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/Errors.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/Errors.h)
 
@@ -75,6 +77,26 @@ target_link_libraries(common
     jemalloc
     stdfs
     fmt)
+
+# Symbolized crash backtraces. libdw is optional: without it the crash handler still prints
+# every frame as module+offset, which can be resolved offline with addr2line.
+if (UNIX)
+  find_path(LIBDW_INCLUDE_DIR NAMES libdwfl.h PATH_SUFFIXES elfutils)
+  find_library(LIBDW_LIBRARY NAMES dw)
+
+  if (LIBDW_INCLUDE_DIR AND LIBDW_LIBRARY)
+    target_compile_definitions(common PRIVATE YC_HAVE_LIBDW=1)
+    target_include_directories(common PRIVATE ${LIBDW_INCLUDE_DIR})
+    target_link_libraries(common PUBLIC ${LIBDW_LIBRARY})
+    message(STATUS "Found libdw: crash reports will contain symbolized backtraces")
+  else()
+    message(STATUS "libdw not found: crash reports will only contain module offsets")
+  endif()
+
+  if (CMAKE_DL_LIBS)
+    target_link_libraries(common PUBLIC ${CMAKE_DL_LIBS})
+  endif()
+endif()
 
 if (BUILD_APPLICATION_WORLDSERVER OR BUILD_TOOLS_MAPS)
   target_link_libraries(common

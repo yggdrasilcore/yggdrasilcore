@@ -67,7 +67,7 @@ RUN apt-get update                                                     \
         build-essential ccache libtool cmake-data ninja-build cmake clang    \
         git lsb-base curl unzip default-mysql-client openssl                  \
         default-libmysqlclient-dev libboost-all-dev libssl-dev libmysql++-dev \
-        libreadline-dev zlib1g-dev libbz2-dev libncurses5-dev         \
+        libreadline-dev zlib1g-dev libbz2-dev libncurses5-dev libdw-dev \
     && dpkg -s libmysqlclient-dev | grep '^Version' | cut -d' ' -f2 > /mysql-client-version \
     && rm -rf /var/lib/apt/lists/*
 
@@ -155,10 +155,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       libmysqlclient21=$(cat /mysql-client-version) libreadline8 \
       gettext-base default-mysql-client \
-      gdb gdbserver && \
+      libdw1 && \
     rm -rf /var/lib/apt/lists/*
-
-COPY apps/startup-scripts/gdb.conf /yggdrasilcore/gdb.conf
 
 COPY --from=build /yggdrasilcore/env/dist/etc/ /yggdrasilcore/env/ref/etc
 
@@ -176,10 +174,8 @@ COPY --chown=$DOCKER_USER:$DOCKER_USER \
      apps/docker/entrypoint.sh /yggdrasilcore/entrypoint.sh
 
 RUN mkdir -p /yggdrasilcore/env/dist/logs && \
-    mkdir -p /yggdrasilcore/monitor && \
     chown -R "$DOCKER_USER:$DOCKER_USER" /yggdrasilcore && \
-    chmod -R 755 /yggdrasilcore/env/dist/logs && \
-    chmod -R 755 /yggdrasilcore/monitor
+    chmod -R 755 /yggdrasilcore/env/dist/logs
 
 USER $DOCKER_USER
 
