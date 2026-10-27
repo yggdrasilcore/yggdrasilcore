@@ -59,7 +59,7 @@ jobs:
           gh api "repos/${{ github.repository }}/pulls/${{ github.event.number }}/files" --paginate --jq '.[].filename' \
             > "$RUNNER_TEMP/changed-files.txt"
         elif [ "${{ github.event_name }}" = "push" ]; then
-          gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' || true \
+          { gh api "repos/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}" --jq '.files[].filename' || true; } \
             > "$RUNNER_TEMP/changed-files.txt"
         else
           : > "$RUNNER_TEMP/changed-files.txt"
