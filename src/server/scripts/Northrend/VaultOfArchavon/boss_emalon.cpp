@@ -197,14 +197,9 @@ public:
 
             if (me->IsInCombat())
             {
-                for (uint8 i = 0; i < MAX_TEMPEST_MINIONS; ++i)
-                {
-                    Unit* minion = me->GetUnitInPath(NPC_TEMPEST_MINION, 100.0f);
+                for (Creature* minion : summons)
                     if (minion && !minion->IsInCombat())
                         minion->SetInCombatWith(me->GetTarget());
-                    else if (!minion)
-                        break;
-                }
             }
 
             DoMeleeAttackIfReady();
