@@ -118,6 +118,8 @@ public:
         void JustSummoned(Creature* summon) override
         {
             summons.Summon(summon);
+            if (me->IsInCombat())
+                summons.DoZoneInCombat();
         }
 
         void SummonedCreatureDies(Creature* cr, Unit*) override
@@ -193,13 +195,6 @@ public:
                     break;
                 default:
                     break;
-            }
-
-            if (me->IsInCombat())
-            {
-                for (Creature* minion : summons)
-                    if (minion && !minion->IsInCombat())
-                        minion->SetInCombatWith(me->GetTarget());
             }
 
             DoMeleeAttackIfReady();
