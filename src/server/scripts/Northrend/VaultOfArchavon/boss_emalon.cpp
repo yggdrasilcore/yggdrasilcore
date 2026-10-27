@@ -118,6 +118,8 @@ public:
         void JustSummoned(Creature* summon) override
         {
             summons.Summon(summon);
+            if (me->IsInCombat())
+                summons.DoZoneInCombat();
         }
 
         void SummonedCreatureDies(Creature* cr, Unit*) override
