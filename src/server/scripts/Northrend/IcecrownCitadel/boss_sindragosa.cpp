@@ -295,11 +295,7 @@ public:
             me->SetReactState(REACT_AGGRESSIVE);
             me->CastSpell(me, SPELL_TANK_MARKER, true);
             if (me->GetHomePosition().GetExactDist2d(&SindragosaLandPos) < 5.0f)
-            {
                 SetFlying(false);
-                me->NearTeleportTo(SindragosaLandPos.GetPositionX(), SindragosaLandPos.GetPositionY(),
-                    SindragosaLandPos.GetPositionZ(), SindragosaLandPos.GetOrientation());
-            }
             else
                 SetFlying(true);
         }
@@ -367,6 +363,7 @@ public:
         void EnterEvadeMode(EvadeReason why) override
         {
             SetFlying(false);
+            me->SetHomePosition(SindragosaLandPos);
             instance->SetBossState(DATA_SINDRAGOSA, FAIL);
             BossAI::EnterEvadeMode(why);
         }
