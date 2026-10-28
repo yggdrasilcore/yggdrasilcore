@@ -684,7 +684,8 @@ public:
             if (_summonedFirstMage)
                 return;
 
-            if (me->GetTransport()->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? GO_THE_SKYBREAKER_H : GO_ORGRIMS_HAMMER_A))
+            auto* transport = me->GetTransport();
+            if (!transport || transport->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? GO_THE_SKYBREAKER_H : GO_ORGRIMS_HAMMER_A))
                 return;
 
             if (!me->HealthBelowPctDamaged(90, damage))
@@ -700,8 +701,9 @@ public:
             if (_died || _instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
                 return;
             _died = true;
-
-            bool isVictory = me->GetTransport()->GetEntry() == GO_THE_SKYBREAKER_H || me->GetTransport()->GetEntry() == GO_ORGRIMS_HAMMER_A;
+            
+            auto* transport = me->GetTransport();
+            bool isVictory = transport && (transport->GetEntry() == GO_THE_SKYBREAKER_H || transport->GetEntry() == GO_ORGRIMS_HAMMER_A);
             _instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, isVictory ? DONE : FAIL);
             me->GetMap()->SetZoneMusic(AREA_ICECROWN_CITADEL, 0);
 
