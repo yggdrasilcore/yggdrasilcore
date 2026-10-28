@@ -2246,11 +2246,9 @@ public:
                     case EVENT_RESPAWN_SINDRAGOSA:
                         if (!GetCreature(DATA_SINDRAGOSA))
                         {
-                            if (Creature* sindragosa = instance->SummonCreature(NPC_SINDRAGOSA, SindragosaSpawnPos))
+                            if (Creature* sindragosa = instance->SummonCreature(NPC_SINDRAGOSA, SindragosaLandPos))
                             {
                                 sindragosa->setActive(true);
-                                sindragosa->SetDisableGravity(true);
-                                sindragosa->GetMotionMaster()->MovePath(NPC_SINDRAGOSA * 10, true);
 
                                 if (TempSummon* summon = sindragosa->ToTempSummon())
                                 {

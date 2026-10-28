@@ -363,7 +363,6 @@ public:
         void EnterEvadeMode(EvadeReason why) override
         {
             SetFlying(false);
-            me->SetHomePosition(SindragosaLandPos);
             instance->SetBossState(DATA_SINDRAGOSA, FAIL);
             BossAI::EnterEvadeMode(why);
         }
