@@ -294,13 +294,7 @@ public:
             me->SetSpeed(MOVE_RUN, me->GetCreatureTemplate()->speed_run);
             me->SetReactState(REACT_AGGRESSIVE);
             me->CastSpell(me, SPELL_TANK_MARKER, true);
-
-            // Sindragosa has CREATURE_FLAG_EXTRA_HARD_RESET, so on a wipe she is despawned
-            // and respawned at her home position instead of walking home. The respawn path
-            // re-applies creature_template_addon bytes1 (0x03000000 = ANIM_TIER_FLY) after
-            // loading the addon, so restore the ground state when her home is the landing
-            // spot. At the initial (airborne) intro spawn her home is SindragosaSpawnPos, so
-            // the FLY tier is left intact for the scripted fly-in.
+            
             if (me->GetHomePosition().GetExactDist2d(&SindragosaLandPos) < 5.0f)
                 SetGrounded();
         }
@@ -374,10 +368,6 @@ public:
         void JustReachedHome() override
         {
             BossAI::JustReachedHome();
-
-            // HomeMovementGenerator::DoFinalize() reloads the creature addon, which
-            // re-applies the FLY animation tier from creature_template_addon. Keep this
-            // as a fallback for the normal (non-HARD_RESET) evade path.
             SetGrounded();
         }
 
@@ -1572,6 +1562,8 @@ public:
                 {
                     if (sindragosa->IsAlive() && sindragosa->GetPositionZ() > 210.0f)
                         sindragosa->AI()->DoAction(ACTION_START_FROSTWYRM);
+                    else
+                        sindragosa->SetInCombatWithZone();
                 }
             }
         }
