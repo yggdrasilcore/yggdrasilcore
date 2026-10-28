@@ -294,9 +294,14 @@ public:
             me->SetSpeed(MOVE_RUN, me->GetCreatureTemplate()->speed_run);
             me->SetReactState(REACT_AGGRESSIVE);
             me->CastSpell(me, SPELL_TANK_MARKER, true);
-            
             if (me->GetHomePosition().GetExactDist2d(&SindragosaLandPos) < 5.0f)
-                SetGrounded();
+            {
+                SetFlying(false);
+                me->NearTeleportTo(SindragosaLandPos.GetPositionX(), SindragosaLandPos.GetPositionY(),
+                    SindragosaLandPos.GetPositionZ(), SindragosaLandPos.GetOrientation());
+            }
+            else
+                SetFlying(true);
         }
 
         void MoveInLineOfSight(Unit* who) override
@@ -361,6 +366,7 @@ public:
 
         void EnterEvadeMode(EvadeReason why) override
         {
+            SetFlying(false);
             instance->SetBossState(DATA_SINDRAGOSA, FAIL);
             BossAI::EnterEvadeMode(why);
         }
@@ -368,7 +374,7 @@ public:
         void JustReachedHome() override
         {
             BossAI::JustReachedHome();
-            SetGrounded();
+            SetFlying(false);
         }
 
         void KilledUnit(Unit* victim) override
@@ -390,7 +396,7 @@ public:
                     return;
 
                 me->setActive(true);
-                me->SetDisableGravity(true);
+                SetFlying(true);
                 me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
                 me->SetSpeed(MOVE_RUN, 4.28571f);
                 float moveTime = me->GetExactDist(&SindragosaFlyInPos) / (me->GetSpeed(MOVE_RUN) * 0.001f);
@@ -420,7 +426,7 @@ public:
             {
                 case POINT_FROSTWYRM_LAND:
                     me->setActive(false);
-                    me->SetDisableGravity(false);
+                    SetFlying(false);
                     me->SetSpeed(MOVE_RUN, me->GetCreatureTemplate()->speed_run);
                     me->SetHomePosition(SindragosaLandPos);
                     me->RemoveUnitFlag(UNIT_FLAG_NON_ATTACKABLE);
@@ -447,7 +453,7 @@ public:
                 case POINT_LAND_GROUND:
                     {
                         _isInAirPhase = false;
-                        me->SetDisableGravity(false);
+                        SetFlying(false);
                         me->SetSpeed(MOVE_RUN, me->GetCreatureTemplate()->speed_run);
                         me->SetReactState(REACT_AGGRESSIVE);
                         if (Unit* target = me->SelectVictim())
@@ -591,7 +597,7 @@ public:
                     me->AttackStop();
                     me->GetMotionMaster()->MoveIdle();
                     me->StopMoving();
-                    me->SetDisableGravity(true);
+                    SetFlying(true);
                     me->GetMotionMaster()->MoveTakeoff(POINT_TAKEOFF, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 20.0f, 10.0f);
                     events.CancelEventGroup(EVENT_GROUP_LAND_PHASE);
                     events.ScheduleEvent(EVENT_AIR_PHASE, 110s);
@@ -676,12 +682,12 @@ public:
         }
 
     private:
-        void SetGrounded()
+        void SetFlying(bool enable)
         {
-            me->SetCanFly(false);
-            me->SetDisableGravity(false);
-            me->RemoveUnitMovementFlag(MOVEMENTFLAG_HOVER);
-            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_GROUND);
+            me->SetCanFly(enable);
+            me->SetDisableGravity(enable);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER,
+                enable ? UNIT_BYTE1_FLAG_FLY : UNIT_BYTE1_FLAG_GROUND);
             me->SendMovementFlagUpdate();
         }
 
