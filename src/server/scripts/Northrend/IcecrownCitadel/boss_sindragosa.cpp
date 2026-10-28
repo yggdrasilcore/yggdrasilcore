@@ -1569,7 +1569,10 @@ public:
             if (!instance->GetData(DATA_SINDRAGOSA_FROSTWYRMS) && instance->GetBossState(DATA_SINDRAGOSA) != IN_PROGRESS)
             {
                 if (Creature* sindragosa = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SINDRAGOSA)))
-                    sindragosa->AI()->DoAction(ACTION_START_FROSTWYRM);
+                {
+                    if (sindragosa->IsAlive() && sindragosa->GetPositionZ() > 210.0f)
+                        sindragosa->AI()->DoAction(ACTION_START_FROSTWYRM);
+                }
             }
         }
 
