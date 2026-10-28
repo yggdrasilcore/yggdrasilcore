@@ -287,12 +287,22 @@ public:
             _isBelow20Pct = false;
             _isThirdPhase = false;
             _isLanding = false;
+            _isInAirPhase = false;
             _bombCount = 0;
             _mysticBuffetStack = 0;
             _Reset();
             me->SetSpeed(MOVE_RUN, me->GetCreatureTemplate()->speed_run);
             me->SetReactState(REACT_AGGRESSIVE);
             me->CastSpell(me, SPELL_TANK_MARKER, true);
+
+            // Sindragosa has CREATURE_FLAG_EXTRA_HARD_RESET, so on a wipe she is despawned
+            // and respawned at her home position instead of walking home. The respawn path
+            // re-applies creature_template_addon bytes1 (0x03000000 = ANIM_TIER_FLY) after
+            // loading the addon, so restore the ground state when her home is the landing
+            // spot. At the initial (airborne) intro spawn her home is SindragosaSpawnPos, so
+            // the FLY tier is left intact for the scripted fly-in.
+            if (me->GetHomePosition().GetExactDist2d(&SindragosaLandPos) < 5.0f)
+                SetGrounded();
         }
 
         void MoveInLineOfSight(Unit* who) override
@@ -359,6 +369,16 @@ public:
         {
             instance->SetBossState(DATA_SINDRAGOSA, FAIL);
             BossAI::EnterEvadeMode(why);
+        }
+
+        void JustReachedHome() override
+        {
+            BossAI::JustReachedHome();
+
+            // HomeMovementGenerator::DoFinalize() reloads the creature addon, which
+            // re-applies the FLY animation tier from creature_template_addon. Keep this
+            // as a fallback for the normal (non-HARD_RESET) evade path.
+            SetGrounded();
         }
 
         void KilledUnit(Unit* victim) override
@@ -666,6 +686,15 @@ public:
         }
 
     private:
+        void SetGrounded()
+        {
+            me->SetCanFly(false);
+            me->SetDisableGravity(false);
+            me->RemoveUnitMovementFlag(MOVEMENTFLAG_HOVER);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
+        }
+
         uint8 _bombCount;
         uint8 _mysticBuffetStack;
         bool _isBelow20Pct;
