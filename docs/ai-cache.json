@@ -13236,9 +13236,9 @@
   }
  },
  "Player::Update@216ef278:qwen3-5-4b": {
-  "hash": "2cc3d64b32a0",
-  "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.",
-  "raw": "{\"what\": \"Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.\", \"effects\": \"none\"}",
+  "hash": "f0b8ceca3263",
+  "desc": "Processes quest completion by destroying required and drop items based on bonding rules, removing the timed quest, and storing reward items if space permits. Side effects: Destroys specific item counts (potentially all instances for non-repeatable bonded quests), removes the quest from active tracking, and stores reward items in the player's inventory.",
+  "raw": "{\"what\": \"Processes quest completion by destroying required and drop items based on bonding rules, removing the timed quest, and storing reward items if space permits.\", \"effects\": \"Destroys specific item counts (potentially all instances for non-repeatable bonded quests), removes the quest from active tracking, and stores reward items in the player's inventory.\"}",
   "entry": {
    "class": "Player",
    "name": "Update",
@@ -13247,11 +13247,11 @@
    "line": 1097,
    "access": "public",
    "impl": {
-    "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 58
+    "file": "src/server/game/Entities/Player/PlayerQuest.cpp",
+    "line": 662
    },
-   "hash": "2cc3d64b32a0",
-   "desc": "Updates player state by checking world presence, delivering pending mail if due, advancing cinematic timers and locations when active, setting teleport delay flags, and processing spell queues.",
+   "hash": "f0b8ceca3263",
+   "desc": "Processes quest completion by destroying required and drop items based on bonding rules, removing the timed quest, and storing reward items if space permits. Side effects: Destroys specific item counts (potentially all instances for non-repeatable bonded quests), removes the quest from active tracking, and stores reward items in the player's inventory.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
