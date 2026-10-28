@@ -117,6 +117,8 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=locked \
        -DCMAKE_C_COMPILER_LAUNCHER="ccache"            \
        -DBoost_USE_STATIC_LIBS="ON"                    \
        -DLUA_VERSION="luajit"                          \
+       -DCMAKE_C_FLAGS="-gdwarf-aranges"               \
+       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"             \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
 
@@ -220,6 +222,10 @@ ENV YC_CLOSE_IDLE_CONNECTIONS=0
 COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --from=build \
      /yggdrasilcore/env/dist/bin/worldserver /yggdrasilcore/env/dist/bin/worldserver
+
+COPY --chown=$DOCKER_USER:$DOCKER_USER \
+     --from=build \
+     /yggdrasilcore/src /yggdrasilcore/src
 
 VOLUME /yggdrasilcore/env/dist/etc
 
