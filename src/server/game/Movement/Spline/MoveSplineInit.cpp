@@ -93,7 +93,7 @@ namespace
     {
         if (transport || unit->IsPlayer())
             return false;
-        if (args.flags.parabolic || args.flags.falling || args.flags.animation || args.flags.cyclic || args.flags.flying)
+        if (args.flags.parabolic || args.flags.falling || args.flags.animation || args.flags.cyclic)
             return false;
         if (args.flags.orientationInversed)
             return false;
@@ -103,7 +103,39 @@ namespace
     // Ground movers get terrain/WMO/gameobject-floor aware Z. Flyers keep authoritative Z.
     bool IsGroundMode(Unit const* unit)
     {
+        if (Creature const* creature = unit->ToCreature())
+            return !creature->IsFlightPath();
         return !unit->CanFly();
+    }
+
+    bool PathRequiresFlight(Creature const* creature, PointsArray const& path)
+    {
+        float const hoverOffset = creature->GetHoverHeight();
+        float const threshold = creature->GetFlightClearanceThreshold();
+
+        auto aboveGround = [&](Vector3 const& point) -> bool
+        {
+            float const ground = creature->GetMapHeight(point.x, point.y, point.z);
+            return ground > INVALID_HEIGHT && point.z - ground - hoverOffset > threshold;
+        };
+
+        for (std::size_t i = 0; i < path.size(); ++i)
+        {
+            if (aboveGround(path[i]))
+                return true;
+
+            if (i + 1 < path.size())
+            {
+                Vector3 const mid(
+                    (path[i].x + path[i + 1].x) * 0.5f,
+                    (path[i].y + path[i + 1].y) * 0.5f,
+                    (path[i].z + path[i + 1].z) * 0.5f);
+                if (aboveGround(mid))
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     float SnapControlPointZ(Unit* unit, float x, float y, float hintZ)
@@ -442,6 +474,12 @@ namespace
         Vector3 const src(realPos.x, realPos.y, realPos.z);
         bool const groundMode = IsGroundMode(unit);
 
+        if (!groundMode && args.flags.flying)
+        {
+            args.flags.EnableCatmullRom();
+            return;
+        }
+
         if (groundMode)
             for (Vector3& point : args.path)
                 point.z = SnapControlPointZ(unit, point.x, point.y, point.z);
@@ -616,6 +654,58 @@ namespace
         args.path[0] = real_position;
         args.initialOrientation = real_position.orientation;
         move_spline.onTransport = transport;
+
+        if (Creature* creature = unit->ToCreature())
+        {
+            CreatureTemplate const* info = creature->GetCreatureTemplate();
+            bool const scriptControlsFlags = info && info->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE);
+            bool const hasFlightFlags = creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);
+            bool const flightCapable = creature->GetMovementTemplate().IsFlightAllowed() || hasFlightFlags;
+            bool airPath = false;
+
+            if (scriptControlsFlags)
+            {
+                airPath = hasFlightFlags || args.flags.flying;
+                creature->SetFlightPath(airPath);
+            }
+            else
+            {
+                if (transport)
+                    airPath = hasFlightFlags;
+                else if (args.flags.animation)
+                    airPath = flightCapable;
+                else if (args.flags.parabolic || args.flags.falling)
+                    airPath = hasFlightFlags;
+                else if (flightCapable)
+                    airPath = PathRequiresFlight(creature, args.path);
+
+                creature->SetFlightPath(airPath);
+
+                if (!transport && !args.flags.parabolic && !args.flags.falling)
+                {
+                    if (airPath)
+                    {
+                        if (creature->GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly || creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+                        {
+                            if (!creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+                                creature->SetCanFly(true);
+                        }
+                        else if (!creature->IsLevitating())
+                            creature->SetDisableGravity(true);
+                    }
+                    else
+                    {
+                        if (creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+                            creature->SetCanFly(false);
+
+                        if (creature->IsLevitating())
+                            creature->SetDisableGravity(false);
+                    }
+
+                    args.flags.flying = airPath;
+                }
+            }
+        }
 
         // Every ground move renders as a client-side spline: blend the departure toward the
         // current facing with a single validated arc and snap Z to terrain/WMO/floors.

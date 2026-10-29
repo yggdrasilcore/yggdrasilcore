@@ -3615,6 +3615,11 @@ float Creature::GetAggroRange(Unit const* target) const
     return (aggroRadius * aggroRate);
 }
 
+float Creature::GetFlightClearanceThreshold() const
+{
+    return std::max(GetCollisionHeight() * 0.5f, GROUND_HEIGHT_TOLERANCE);
+}
+
 void Creature::UpdateMovementFlags()
 {
     // Do not update movement flags if creature is controlled by a player (charm/vehicle)
@@ -3632,12 +3637,24 @@ void Creature::UpdateMovementFlags()
     float ground = GetFloorZ();
 
     bool canHover = CanHover();
-    bool isInAir  = (G3D::fuzzyGt(GetPositionZ(), ground + (canHover ? GetFloatValue(UNIT_FIELD_HOVERHEIGHT) : 0.0f) + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
+    float hoverOffset = canHover ? GetFloatValue(UNIT_FIELD_HOVERHEIGHT) : 0.0f;
+    bool isInAir = (G3D::fuzzyGt(GetPositionZ(), ground + hoverOffset + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE));
+    bool const hasActiveSpline = movespline && movespline->Initialized() && !movespline->Finalized();
+    bool const isFlightPath = hasActiveSpline && _isFlightPath;
 
-    if (GetMovementTemplate().IsFlightAllowed() && isInAir && !IsFalling())
+    bool const hadFlightFlags = HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);
+    bool const flightAllowed = GetMovementTemplate().IsFlightAllowed() || hadFlightFlags;
+    bool const aboveGround = G3D::fuzzyGt(GetPositionZ(), ground + hoverOffset + GetFlightClearanceThreshold());
+    bool const wantFlight = isFlightPath ||
+        (!hasActiveSpline && flightAllowed && aboveGround && !IsFalling());
+
+    if (wantFlight)
     {
-        if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly && !m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY))
-            SetCanFly(true);
+        if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly || HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+        {
+            if (!HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+                SetCanFly(true);
+        }
         else if (!IsLevitating())
             SetDisableGravity(true);
 
@@ -3646,7 +3663,7 @@ void Creature::UpdateMovementFlags()
     }
     else
     {
-        if (m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY))
+        if (HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
             SetCanFly(false);
 
         if (IsLevitating())
@@ -3675,6 +3692,34 @@ void Creature::UpdateMovementFlags()
     }
 
     SetSwim(CanSwim() && Swim);
+
+    uint8 const currentAnimTier = GetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER);
+    bool const hasFlightFlags = HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);
+    bool const hasHoverFlag = IsHovering();
+    bool const hadAirTier = currentAnimTier == UNIT_BYTE1_FLAG_FLY || currentAnimTier == UNIT_BYTE1_FLAG_HOVER || currentAnimTier == UNIT_BYTE1_FLAG_SUBMERGED;
+
+    if (!IsRooted() && (hasActiveSpline || hasFlightFlags || hasHoverFlag || hadAirTier))
+    {
+        uint8 animTier;
+
+        bool const underWater = liquidData.Status == LIQUID_MAP_UNDER_WATER;
+        bool const inWater = underWater || liquidData.Status == LIQUID_MAP_IN_WATER;
+
+        if (!IsAlive())
+            animTier = UNIT_BYTE1_FLAG_GROUND;
+        else if (inWater)
+            animTier = underWater ? UNIT_BYTE1_FLAG_SUBMERGED : UNIT_BYTE1_FLAG_GROUND;
+        else if (hasActiveSpline)
+            animTier = isFlightPath ? UNIT_BYTE1_FLAG_FLY : (hasHoverFlag ? UNIT_BYTE1_FLAG_HOVER : UNIT_BYTE1_FLAG_GROUND);
+        else if ((hasFlightFlags || hadAirTier) && aboveGround)
+            animTier = UNIT_BYTE1_FLAG_FLY;
+        else if (hasHoverFlag)
+            animTier = UNIT_BYTE1_FLAG_HOVER;
+        else
+            animTier = UNIT_BYTE1_FLAG_GROUND;
+
+        SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, animTier);
+    }
 }
 
 float Creature::GetNativeObjectScale() const
