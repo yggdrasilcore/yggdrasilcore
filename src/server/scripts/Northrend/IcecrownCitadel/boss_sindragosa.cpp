@@ -1230,19 +1230,16 @@ public:
             _events.ScheduleEvent(EVENT_TAIL_SWEEP, 8s, 12s);
             me->SetReactState(REACT_DEFENSIVE);
 
-            if (!_summoned)
-            {
-                me->SetDisableGravity(true);
-            }
+            if (_summoned || me->GetHomePosition().GetExactDist2d(&SpinestalkerLandPos) < 5.0f)
+                SetFlying(false);
+            else
+                SetFlying(true);
         }
 
         void JustReachedHome() override
         {
             ScriptedAI::JustReachedHome();
-            if (_summoned)
-            {
-                me->SetDisableGravity(false);
-            }
+            SetFlying(false);
         }
 
         void JustRespawned() override
@@ -1284,7 +1281,7 @@ public:
                 return;
 
             me->setActive(false);
-            me->SetDisableGravity(false);
+            SetFlying(false);
             me->SetHomePosition(SpinestalkerLandPos);
             me->SetFacingTo(SpinestalkerLandPos.GetOrientation());
             me->SetImmuneToPC(false);
@@ -1322,6 +1319,15 @@ public:
         }
 
     private:
+        void SetFlying(bool enable)
+        {
+            me->SetCanFly(enable);
+            me->SetDisableGravity(enable);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER,
+                enable ? UNIT_BYTE1_FLAG_FLY : UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
+        }
+
         EventMap _events;
         InstanceScript* _instance;
         bool _summoned;
@@ -1361,19 +1367,16 @@ public:
             me->SetReactState(REACT_DEFENSIVE);
             _icyBlastCounter = 0;
 
-            if (!_summoned)
-            {
-                me->SetDisableGravity(true);
-            }
+            if (_summoned || me->GetHomePosition().GetExactDist2d(&RimefangLandPos) < 5.0f)
+                SetFlying(false);
+            else
+                SetFlying(true);
         }
 
         void JustReachedHome() override
         {
             ScriptedAI::JustReachedHome();
-            if (_summoned)
-            {
-                me->SetDisableGravity(false);
-            }
+            SetFlying(false);
         }
 
         void JustRespawned() override
@@ -1417,14 +1420,14 @@ public:
             if (point == POINT_FROSTWYRM_LAND)
             {
                 me->setActive(false);
-                me->SetDisableGravity(false);
+                SetFlying(false);
                 me->SetHomePosition(RimefangLandPos);
                 me->SetFacingTo(RimefangLandPos.GetOrientation());
                 me->SetImmuneToPC(false);
             }
             else if (point == POINT_LAND_GROUND)
             {
-                me->SetDisableGravity(false);
+                SetFlying(false);
                 me->SetReactState(REACT_DEFENSIVE);
                 if (Unit* victim = me->SelectVictim())
                     AttackStart(victim);
@@ -1467,7 +1470,7 @@ public:
                         me->SendMeleeAttackStop(me->GetVictim());
 
                         me->AttackStop();
-                        me->SetDisableGravity(true);
+                        SetFlying(true);
                         float floorZ = me->GetMapHeight(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ());
                         float destZ;
                         if (floorZ > 190.0f) destZ = floorZ + 25.0f;
@@ -1506,6 +1509,15 @@ public:
         }
 
     private:
+        void SetFlying(bool enable)
+        {
+            me->SetCanFly(enable);
+            me->SetDisableGravity(enable);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER,
+                enable ? UNIT_BYTE1_FLAG_FLY : UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
+        }
+
         EventMap _events;
         InstanceScript* _instance;
         uint8 _icyBlastCounter;
