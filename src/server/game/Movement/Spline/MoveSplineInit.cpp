@@ -108,20 +108,19 @@ namespace
         return !unit->CanFly();
     }
 
+    bool PointRequiresFlight(Creature const* creature, Vector3 const& point)
+    {
+        float const ground = creature->GetMapHeight(point.x, point.y, point.z);
+        if (ground <= INVALID_HEIGHT)
+            return true;
+        return point.z - ground - creature->GetHoverHeight() > creature->GetFlightClearanceThreshold();
+    }
+
     bool PathRequiresFlight(Creature const* creature, PointsArray const& path)
     {
-        float const hoverOffset = creature->GetHoverHeight();
-        float const threshold = creature->GetFlightClearanceThreshold();
-
-        auto aboveGround = [&](Vector3 const& point) -> bool
-        {
-            float const ground = creature->GetMapHeight(point.x, point.y, point.z);
-            return ground > INVALID_HEIGHT && point.z - ground - hoverOffset > threshold;
-        };
-
         for (std::size_t i = 0; i < path.size(); ++i)
         {
-            if (aboveGround(path[i]))
+            if (PointRequiresFlight(creature, path[i]))
                 return true;
 
             if (i + 1 < path.size())
@@ -130,12 +129,32 @@ namespace
                     (path[i].x + path[i + 1].x) * 0.5f,
                     (path[i].y + path[i + 1].y) * 0.5f,
                     (path[i].z + path[i + 1].z) * 0.5f);
-                if (aboveGround(mid))
+                if (PointRequiresFlight(creature, mid))
                     return true;
             }
         }
 
         return false;
+    }
+
+    // A normal, reasonably direct navmesh path means this move belongs on the ground.
+    bool IsGroundNavigablePath(PathGenerator const& path)
+    {
+        PathType const type = path.GetPathType();
+        if (!(type & PATHFIND_NORMAL) ||
+            (type & (PATHFIND_NOPATH | PATHFIND_SHORTCUT | PATHFIND_NOT_USING_PATH | PATHFIND_INCOMPLETE | PATHFIND_FARFROMPOLY)))
+            return false;
+
+        PointsArray const& points = path.GetPath();
+        if (points.size() <= 2)
+            return true;
+
+        float length = 0.0f;
+        for (std::size_t i = 1; i < points.size(); ++i)
+            length += std::hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+
+        float const direct = std::hypot(points.back().x - points.front().x, points.back().y - points.front().y);
+        return direct < 0.5f || length <= direct * 1.5f;
     }
 
     float SnapControlPointZ(Unit* unit, float x, float y, float hintZ)
@@ -473,8 +492,9 @@ namespace
             return;
         Vector3 const src(realPos.x, realPos.y, realPos.z);
         bool const groundMode = IsGroundMode(unit);
+        bool const flightMode = !groundMode && args.flags.flying;
 
-        if (!groundMode && args.flags.flying)
+        if (flightMode && args.noDepartureBlend)
         {
             args.flags.EnableCatmullRom();
             return;
@@ -504,17 +524,17 @@ namespace
                 DensifySteepSpans(unit, args.path);
             // Even a blend-free mmap polygon can poke through geometry once CatmullRom rounds
             // its corners, so validate the rendered curve before committing to smoothing.
-            if (args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, groundMode))
+            if (!flightMode && args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, groundMode))
                 return; // keep snapped points, but move linearly
             args.flags.EnableCatmullRom();
             return;
         }
 
-        // Per-creature facing slew cap: the client's tangent sweep must not outrun the
+        // Ground-only facing slew cap: the client's tangent sweep must not outrun the
         // DBC SmoothFacingChaseRate, or the model snaps to default and back. Rate 0
         // means snap: no curve at all, move linearly and let facing snap at corners.
         float const slewRate = GetFacingSlewRate(unit);
-        if (slewRate <= 0.01f)
+        if (!flightMode && slewRate <= 0.01f)
         {
             if (groundMode)
                 DensifySteepSpans(unit, args.path);
@@ -524,8 +544,10 @@ namespace
         // Widen the arc so the lobe sweep (absTurn/2 traversed in reach/velocity)
         // stays within the slew budget. If it cannot fit, go linear instead.
         float const velocity = std::max(unit->GetSpeed(MOVE_RUN), 0.5f);
-        float const tNeeded = (std::fabs(angleDelta) * velocity) / (2.0f * slewRate * distToNext);
-        if (tNeeded > SMOOTH_MAX_BLEND_T)
+        float tNeeded = 0.25f;
+        if (slewRate > 0.01f)
+            tNeeded = (std::fabs(angleDelta) * velocity) / (2.0f * slewRate * distToNext);
+        if (!flightMode && tNeeded > SMOOTH_MAX_BLEND_T)
         {
             if (groundMode)
                 DensifySteepSpans(unit, args.path);
@@ -562,7 +584,7 @@ namespace
 
         // The rendered curve must stay inside traversable space; otherwise drop the blend
         // point first, and if the path itself still misbehaves under CatmullRom, move linearly.
-        if (!IsSmoothedCurveValid(unit, args.path, groundMode))
+        if (!flightMode && !IsSmoothedCurveValid(unit, args.path, groundMode))
         {
             if (hasBlend)
             {
@@ -677,7 +699,7 @@ namespace
                 else if (args.flags.parabolic || args.flags.falling)
                     airPath = hasFlightFlags;
                 else if (flightCapable)
-                    airPath = PathRequiresFlight(creature, args.path);
+                    airPath = args.pathHintValid ? args.pathRequiresFlight : PathRequiresFlight(creature, args.path);
 
                 creature->SetFlightPath(airPath);
 
@@ -927,13 +949,48 @@ namespace
 
     void MoveSplineInit::MoveTo(const Vector3& dest, bool generatePath, bool forceDestination)
     {
+        args.pathHintValid = false;
+        args.pathRequiresFlight = false;
+
         if (generatePath)
         {
             PathGenerator path(unit);
             bool result = path.CalculatePath(dest.x, dest.y, dest.z, forceDestination);
             if (result && !(path.GetPathType() & PATHFIND_NOPATH))
             {
-                MovebyPath(path.GetPath());
+                args.pathHintValid = true;
+
+                Creature* creature = unit->ToCreature();
+                PointsArray points = path.GetPath();
+                bool const navMeshGround = IsGroundNavigablePath(path);
+                bool requiresFlight = false;
+
+                if (creature && !args.TransformForTransport &&
+                    (creature->GetMovementTemplate().IsFlightAllowed() ||
+                     creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING)))
+                {
+                    Vector3 const current(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ());
+                    bool const destinationAir = PointRequiresFlight(creature, dest) &&
+                        std::fabs(points.back().z - dest.z) > creature->GetFlightClearanceThreshold();
+                    bool const currentAir = PointRequiresFlight(creature, current);
+                    bool const groundPath = navMeshGround && !destinationAir;
+
+                    requiresFlight = !groundPath && (destinationAir || currentAir);
+                    if (requiresFlight)
+                    {
+                        // Navmesh can project an air waypoint onto the floor; keep the authored Z.
+                        if (navMeshGround)
+                        {
+                            points.resize(2);
+                            points[1] = dest;
+                        }
+                        else if (!points.empty())
+                            points.back() = dest;
+                    }
+                }
+
+                args.pathRequiresFlight = requiresFlight;
+                MovebyPath(points);
                 return;
             }
             // No mesh path for a grounded player: stay instead of shortcutting straight

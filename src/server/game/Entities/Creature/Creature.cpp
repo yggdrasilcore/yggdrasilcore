@@ -3630,9 +3630,8 @@ void Creature::UpdateMovementFlags()
     if (!info)
         return;
 
-    // Creatures with CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE should control MovementFlags in your own scripts
-    if (info->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE))
-        return;
+    // Script-controlled flags still need a correct anim tier for path-driven flight.
+    bool const scriptControlsFlags = info->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE);
 
     float ground = GetFloorZ();
 
@@ -3648,50 +3647,54 @@ void Creature::UpdateMovementFlags()
     bool const wantFlight = isFlightPath ||
         (!hasActiveSpline && flightAllowed && aboveGround && !IsFalling());
 
-    if (wantFlight)
-    {
-        if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly || HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-        {
-            if (!HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-                SetCanFly(true);
-        }
-        else if (!IsLevitating())
-            SetDisableGravity(true);
-
-        if (!HasHoverAura() && IsHovering())
-            SetHover(false);
-    }
-    else
-    {
-        if (HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-            SetCanFly(false);
-
-        if (IsLevitating())
-            SetDisableGravity(false);
-
-        if (IsAlive() && (GetMovementTemplate().Ground == CreatureGroundMovementType::Hover || HasHoverAura()) && !IsHovering())
-            SetHover(true);
-    }
-
-    if (!isInAir)
-        RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
-
-    bool Swim = false;
     LiquidData const& liquidData = GetLiquidData();
-    switch (liquidData.Status)
-    {
-        case LIQUID_MAP_WATER_WALK:
-        case LIQUID_MAP_IN_WATER:
-            Swim = GetPositionZ() - liquidData.DepthLevel > GetCollisionHeight() * 0.75f; // Shallow water at ~75% of collision height
-            break;
-        case LIQUID_MAP_UNDER_WATER:
-            Swim = true;
-            break;
-        default:
-            break;
-    }
 
-    SetSwim(CanSwim() && Swim);
+    if (!scriptControlsFlags)
+    {
+        if (wantFlight)
+        {
+            if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly || HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+            {
+                if (!HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+                    SetCanFly(true);
+            }
+            else if (!IsLevitating())
+                SetDisableGravity(true);
+
+            if (!HasHoverAura() && IsHovering())
+                SetHover(false);
+        }
+        else
+        {
+            if (HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+                SetCanFly(false);
+
+            if (IsLevitating())
+                SetDisableGravity(false);
+
+            if (IsAlive() && (GetMovementTemplate().Ground == CreatureGroundMovementType::Hover || HasHoverAura()) && !IsHovering())
+                SetHover(true);
+        }
+
+        if (!isInAir)
+            RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
+
+        bool Swim = false;
+        switch (liquidData.Status)
+        {
+            case LIQUID_MAP_WATER_WALK:
+            case LIQUID_MAP_IN_WATER:
+                Swim = GetPositionZ() - liquidData.DepthLevel > GetCollisionHeight() * 0.75f; // Shallow water at ~75% of collision height
+                break;
+            case LIQUID_MAP_UNDER_WATER:
+                Swim = true;
+                break;
+            default:
+                break;
+        }
+
+        SetSwim(CanSwim() && Swim);
+    }
 
     uint8 const currentAnimTier = GetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER);
     bool const hasFlightFlags = HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);

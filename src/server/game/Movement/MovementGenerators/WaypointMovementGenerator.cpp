@@ -28,6 +28,24 @@
 #include "Spell.h"
 #include "Transport.h"
 #include "World.h"
+#include <algorithm>
+
+namespace
+{
+    constexpr uint32 MAX_CHAINED_FLIGHT_WAYPOINTS = 16;
+
+    bool CanChainFlightWaypoint(WaypointData const& node)
+    {
+        return !node.delay && !node.event_id &&
+            (node.move_type == WAYPOINT_MOVE_TYPE_RUN || node.move_type == WAYPOINT_MOVE_TYPE_WALK);
+    }
+
+    bool IsFlightWaypointMover(Creature const* creature)
+    {
+        return creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING) &&
+            creature->GetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER) == UNIT_BYTE1_FLAG_FLY;
+    }
+}
 
 void WaypointMovementGenerator<Creature>::LoadPath(Creature* creature)
 {
@@ -97,6 +115,15 @@ void WaypointMovementGenerator<Creature>::OnArrived(Creature* creature)
     }
 }
 
+void WaypointMovementGenerator<Creature>::OnWaypointPassed(Creature* creature)
+{
+    if (i_path.empty() || i_currentNode >= i_path.size())
+        return;
+
+    MovementInform(creature);
+    creature->UpdateWaypointID(i_currentNode);
+}
+
 bool WaypointMovementGenerator<Creature>::StartMove(Creature* creature)
 {
     if (i_path.empty())
@@ -149,6 +176,8 @@ bool WaypointMovementGenerator<Creature>::StartMove(Creature* creature)
         i_currentNode = (i_currentNode + 1) % i_path.size();
     }
 
+    i_splineEndNode = i_currentNode;
+
     // xinef: do not initialize motion if we got stunned in movementinform
     if (creature->HasUnitState(UNIT_STATE_NOT_MOVE) || creature->IsMovementPreventedByCasting())
     {
@@ -161,7 +190,19 @@ bool WaypointMovementGenerator<Creature>::StartMove(Creature* creature)
 
     creature->AddUnitState(UNIT_STATE_ROAMING_MOVE);
 
-    Movement::Location formationDest(node.x, node.y, node.z, 0.0f);
+    uint32 lastNode = i_currentNode;
+    bool const flightMover = !transportPath && IsFlightWaypointMover(creature);
+    if (flightMover)
+    {
+        uint32 const chainLimit = std::min<uint32>(i_path.size() - 1, i_currentNode + (MAX_CHAINED_FLIGHT_WAYPOINTS - 1));
+        while (lastNode < chainLimit && CanChainFlightWaypoint(i_path.at(lastNode)) &&
+               CanChainFlightWaypoint(i_path.at(lastNode + 1)))
+            ++lastNode;
+    }
+    i_splineEndNode = lastNode;
+
+    WaypointData const& finalNode = i_path.at(lastNode);
+    Movement::Location formationDest(finalNode.x, finalNode.y, finalNode.z, 0.0f);
     Movement::MoveSplineInit init(creature);
 
     //! If creature is on transport, we assume waypoints set in DB are already transport offsets
@@ -172,14 +213,29 @@ bool WaypointMovementGenerator<Creature>::StartMove(Creature* creature)
             trans->CalculatePassengerPosition(formationDest.x, formationDest.y, formationDest.z, &formationDest.orientation);
     }
 
-    float z = node.z;
-    creature->UpdateAllowedPositionZ(node.x, node.y, z);
-    //! Do not use formationDest here, MoveTo requires transport offsets due to DisableTransportPathTransformations() call
-    //! but formationDest contains global coordinates
-    init.MoveTo(node.x, node.y, z, true, true);
+    if (lastNode > i_currentNode)
+    {
+        init.Path().push_back(G3D::Vector3(creature->GetPositionX(), creature->GetPositionY(), creature->GetPositionZ()));
+        for (uint32 idx = i_currentNode; idx <= lastNode; ++idx)
+        {
+            WaypointData const& wp = i_path.at(idx);
+            init.Path().push_back(G3D::Vector3(wp.x, wp.y, wp.z));
+        }
+        init.SetFirstPointId(i_currentNode);
+        init.SetNoDepartureBlend();
+    }
+    else
+    {
+        float z = node.z;
+        if (!flightMover)
+            creature->UpdateAllowedPositionZ(node.x, node.y, z);
+        //! Do not use formationDest here, MoveTo requires transport offsets due to DisableTransportPathTransformations() call
+        //! but formationDest contains global coordinates
+        init.MoveTo(node.x, node.y, z, true, true);
+    }
 
-    if (node.orientation.has_value() && node.delay > 0)
-        init.SetFacing(*node.orientation);
+    if (finalNode.orientation.has_value() && finalNode.delay > 0)
+        init.SetFacing(*finalNode.orientation);
 
     switch (node.move_type)
     {
@@ -239,6 +295,13 @@ bool WaypointMovementGenerator<Creature>::DoUpdate(Creature* creature, uint32 di
     }
     else
     {
+        int32 const reachedNode = creature->movespline->currentPathIdx() - 1;
+        while (i_splineEndNode > i_currentNode && reachedNode >= int32(i_currentNode))
+        {
+            OnWaypointPassed(creature);
+            ++i_currentNode;
+        }
+
         bool finished = creature->movespline->Finalized();
         // xinef: code to detect pre-empetively if we should start movement to next waypoint
         // xinef: do not start pre-empetive movement if current node has delay or we are ending waypoint movement
