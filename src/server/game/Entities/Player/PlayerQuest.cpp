@@ -1635,10 +1635,9 @@ QuestGiverStatus Player::GetQuestDialogStatus(Object* questgiver)
         if (!quest)
             continue;
 
-        ConditionList conditions = sConditionMgr->GetConditionsForNotGroupedEntry(CONDITION_SOURCE_TYPE_QUEST_AVAILABLE, quest->GetQuestId());
-        if (!sConditionMgr->IsObjectMeetToConditions(this, conditions))
-            continue;
-
+        // Quest availability conditions (area, level, reputation, ...) gate offering a quest,
+        // not turning it in. Applying them here made completed quests report DIALOG_STATUS_NONE
+        // whenever the player finished the objectives outside the restricted area.
         QuestStatus status = GetQuestStatus(questId);
         if (status == QUEST_STATUS_COMPLETE && !GetQuestRewardStatus(questId))
         {
