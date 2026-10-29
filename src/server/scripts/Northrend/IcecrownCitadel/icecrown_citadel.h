@@ -36,6 +36,7 @@ uint32 const MaxHeroicAttempts = 50;
 extern Position const ValithriaSpawnPos;
 // Defined in boss_sindragosa.cpp
 extern Position const SindragosaSpawnPos;
+extern Position const SindragosaLandPos;
 // Defined in boss_the_lich_king.cpp
 extern Position const TerenasSpawn;
 extern Position const TerenasSpawnHeroic;
