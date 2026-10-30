@@ -3617,7 +3617,7 @@ float Creature::GetAggroRange(Unit const* target) const
 
 float Creature::GetFlightClearanceThreshold() const
 {
-    return std::max(GetCollisionHeight() * 0.5f, GROUND_HEIGHT_TOLERANCE);
+    return std::max(GetCollisionWidth() * 0.5f, GROUND_HEIGHT_TOLERANCE);
 }
 
 void Creature::UpdateMovementFlags()
@@ -3630,8 +3630,9 @@ void Creature::UpdateMovementFlags()
     if (!info)
         return;
 
-    // Script-controlled flags still need a correct anim tier for path-driven flight.
-    bool const scriptControlsFlags = info->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE);
+    // Creatures with CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE control movement flags and anim tier in their own scripts
+    if (info->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE))
+        return;
 
     float ground = GetFloorZ();
 
@@ -3644,57 +3645,53 @@ void Creature::UpdateMovementFlags()
     bool const hadFlightFlags = HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);
     bool const flightAllowed = GetMovementTemplate().IsFlightAllowed() || hadFlightFlags;
     bool const aboveGround = G3D::fuzzyGt(GetPositionZ(), ground + hoverOffset + GetFlightClearanceThreshold());
-    bool const wantFlight = isFlightPath ||
-        (!hasActiveSpline && flightAllowed && aboveGround && !IsFalling());
+    bool const wantFlight = isFlightPath || (flightAllowed && aboveGround && !IsFalling());
 
     LiquidData const& liquidData = GetLiquidData();
 
-    if (!scriptControlsFlags)
+    if (wantFlight)
     {
-        if (wantFlight)
+        if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly || HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
         {
-            if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly || HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-            {
-                if (!HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-                    SetCanFly(true);
-            }
-            else if (!IsLevitating())
-                SetDisableGravity(true);
-
-            if (!HasHoverAura() && IsHovering())
-                SetHover(false);
+            if (!HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+                SetCanFly(true);
         }
-        else
-        {
-            if (HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-                SetCanFly(false);
+        else if (!IsLevitating())
+            SetDisableGravity(true);
 
-            if (IsLevitating())
-                SetDisableGravity(false);
-
-            if (IsAlive() && (GetMovementTemplate().Ground == CreatureGroundMovementType::Hover || HasHoverAura()) && !IsHovering())
-                SetHover(true);
-        }
-
-        if (!isInAir)
-            RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
-
-        bool Swim = false;
-        switch (liquidData.Status)
-        {
-            case LIQUID_MAP_WATER_WALK:
-            case LIQUID_MAP_IN_WATER:
-                Swim = GetPositionZ() - liquidData.DepthLevel > GetCollisionHeight() * 0.75f; // Shallow water at ~75% of collision height
-                break;
-            case LIQUID_MAP_UNDER_WATER:
-                Swim = true;
-                break;
-            default:
-                break;
-        }
-
-        SetSwim(CanSwim() && Swim);
+        if (!HasHoverAura() && IsHovering())
+            SetHover(false);
     }
+    else
+    {
+        if (HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+            SetCanFly(false);
+
+        if (IsLevitating())
+            SetDisableGravity(false);
+
+        if (IsAlive() && (GetMovementTemplate().Ground == CreatureGroundMovementType::Hover || HasHoverAura()) && !IsHovering())
+            SetHover(true);
+    }
+
+    if (!isInAir)
+        RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
+
+    bool Swim = false;
+    switch (liquidData.Status)
+    {
+        case LIQUID_MAP_WATER_WALK:
+        case LIQUID_MAP_IN_WATER:
+            Swim = GetPositionZ() - liquidData.DepthLevel > GetCollisionHeight() * 0.75f; // Shallow water at ~75% of collision height
+            break;
+        case LIQUID_MAP_UNDER_WATER:
+            Swim = true;
+            break;
+        default:
+            break;
+    }
+
+    SetSwim(CanSwim() && Swim);
 
     uint8 const currentAnimTier = GetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER);
     bool const hasFlightFlags = HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);
@@ -3712,9 +3709,9 @@ void Creature::UpdateMovementFlags()
             animTier = UNIT_BYTE1_FLAG_GROUND;
         else if (inWater)
             animTier = underWater ? UNIT_BYTE1_FLAG_SUBMERGED : UNIT_BYTE1_FLAG_GROUND;
-        else if (hasActiveSpline)
-            animTier = isFlightPath ? UNIT_BYTE1_FLAG_FLY : (hasHoverFlag ? UNIT_BYTE1_FLAG_HOVER : UNIT_BYTE1_FLAG_GROUND);
-        else if ((hasFlightFlags || hadAirTier) && aboveGround)
+        else if ((flightAllowed || hasFlightFlags) && aboveGround)
+            animTier = UNIT_BYTE1_FLAG_FLY;
+        else if (hasActiveSpline && isFlightPath)
             animTier = UNIT_BYTE1_FLAG_FLY;
         else if (hasHoverFlag)
             animTier = UNIT_BYTE1_FLAG_HOVER;

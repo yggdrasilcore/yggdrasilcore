@@ -973,10 +973,9 @@ namespace
                     bool const destinationAir = PointRequiresFlight(creature, dest) &&
                         std::fabs(points.back().z - dest.z) > creature->GetFlightClearanceThreshold();
                     bool const currentAir = PointRequiresFlight(creature, current);
-                    bool const groundPath = navMeshGround && !destinationAir;
 
-                    requiresFlight = !groundPath && (destinationAir || currentAir);
-                    if (requiresFlight)
+                    requiresFlight = currentAir || destinationAir;
+                    if (destinationAir)
                     {
                         // Navmesh can project an air waypoint onto the floor; keep the authored Z.
                         if (navMeshGround)

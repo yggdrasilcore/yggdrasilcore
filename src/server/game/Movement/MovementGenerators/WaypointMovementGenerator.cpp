@@ -42,8 +42,12 @@ namespace
 
     bool IsFlightWaypointMover(Creature const* creature)
     {
-        return creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING) &&
-            creature->GetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER) == UNIT_BYTE1_FLAG_FLY;
+        if (!creature->GetMovementTemplate().IsFlightAllowed() &&
+            !creature->HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING))
+            return false;
+
+        float const ground = creature->GetFloorZ();
+        return G3D::fuzzyGt(creature->GetPositionZ(), ground + creature->GetHoverHeight() + creature->GetFlightClearanceThreshold());
     }
 }
 
