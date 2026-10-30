@@ -32,13 +32,4 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 (33440, 26, -7587.61, -1127.06, 299.039, NULL, 0, 1, 0, 100, 0);
 
 -- All Blackrock Drake paths use run instead of land.
-UPDATE `waypoint_data` SET `move_type` = 1
-WHERE `id` IN (
-    SELECT `path_id` FROM `creature_addon`
-    WHERE `path_id` > 0 AND `guid` IN (
-        SELECT `guid` FROM `creature` WHERE `id1` = 8964 OR `id2` = 8964 OR `id3` = 8964
-    )
-    UNION
-    SELECT `path_id` FROM `creature_template_addon`
-    WHERE `path_id` > 0 AND `entry` = 8964
-);
+UPDATE `waypoint_data` SET `move_type` = 1 WHERE `id` IN (33430, 33440);
