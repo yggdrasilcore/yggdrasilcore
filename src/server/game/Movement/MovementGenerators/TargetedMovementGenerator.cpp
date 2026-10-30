@@ -765,14 +765,35 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             followingMaster = true;
     }
 
-    bool const petFollowingPlayer = followingMaster && target->IsPlayer() && cOwner && cOwner->IsPet();
-    auto endTooFarFromPlayerZ = [&](float endZ)
+    bool const petFollowingPlayer = cOwner && target->IsPlayer() &&
+        (cOwner->IsPet() || cOwner->IsGuardian()) &&
+        target->GetGUID() == cOwner->GetCharmerOrOwnerGUID();
+
+    // Judge the endpoint the way the spline will actually end it: MoveSplineInit
+    // ground-snaps the final control point, so a path that looks level on paper
+    // can still end at the cliff foot. Deny based on that snapped Z.
+    auto endpointOffPlayerLevel = [&](float endX, float endY, float endZ)
     {
-        return petFollowingPlayer && std::fabs(endZ - target->GetPositionZ()) > FOLLOW_MAX_PLAYER_Z_DELTA;
+        if (!petFollowingPlayer)
+            return false;
+
+        owner->UpdateAllowedPositionZ(endX, endY, endZ);
+        return std::fabs(endZ - target->GetPositionZ()) > FOLLOW_MAX_PLAYER_Z_DELTA;
     };
 
-    // Denied ledge path: go straight to the player instead. The final point stays
-    // un-snapped so the pet holds the player's level until the next move.
+    // Release the denied-leg gravity hold when a new move is actually issued.
+    auto releaseGravityLock = [&]()
+    {
+        if (i_gravityLocked)
+        {
+            owner->SetDisableGravity(false);
+            i_gravityLocked = false;
+        }
+    };
+
+    // Denied ledge path: go straight to the player instead. Keep the final point
+    // un-snapped and hold gravity at the spot until the next move is issued, so
+    // the client cannot drop the pet off the ledge while it waits.
     auto launchDirectToPlayer = [&]()
     {
         owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
@@ -788,6 +809,9 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                 init.SetVelocity(*velocity);
         }
         init.Launch();
+
+        owner->SetDisableGravity(true);
+        i_gravityLocked = true;
     };
 
     bool forceDest =
@@ -857,6 +881,7 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             float x, y, z;
             targetPosition.GetPosition(x, y, z);
 
+            releaseGravityLock();
             owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
 
             Movement::MoveSplineInit init(owner);
@@ -909,8 +934,9 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                 return false;
             if (!BuildFollowHopPrefix(owner, x, y, z, hopPath))
                 return false;
-            if (endTooFarFromPlayerZ(hopPath.back().z))
+            if (endpointOffPlayerLevel(hopPath.back().x, hopPath.back().y, hopPath.back().z))
                 return false;
+            releaseGravityLock();
             owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
             Movement::MoveSplineInit init(owner);
             init.MovebyPath(hopPath);
@@ -948,10 +974,10 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
 
         if (petFollowingPlayer)
         {
-            float const pathEndZ = i_path->GetPath().empty()
-                ? i_path->GetActualEndPosition().z
-                : i_path->GetPath().back().z;
-            if (endTooFarFromPlayerZ(pathEndZ))
+            G3D::Vector3 const end = i_path->GetPath().empty()
+                ? i_path->GetActualEndPosition()
+                : i_path->GetPath().back();
+            if (endpointOffPlayerLevel(end.x, end.y, end.z))
             {
                 launchDirectToPlayer();
                 return true;
@@ -969,6 +995,7 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                     return true;
         }
 
+        releaseGravityLock();
         Movement::MoveSplineInit init(owner);
         init.MovebyPath(i_path->GetPath());
         if (_inheritWalkState)
@@ -986,6 +1013,12 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
 template<class T>
 void FollowMovementGenerator<T>::DoInitialize(T* owner)
 {
+    if (i_gravityLocked)
+    {
+        owner->SetDisableGravity(false);
+        i_gravityLocked = false;
+    }
+
     i_path = nullptr;
     _lastTargetPosition.reset();
     owner->AddUnitState(UNIT_STATE_FOLLOW);
@@ -994,6 +1027,12 @@ void FollowMovementGenerator<T>::DoInitialize(T* owner)
 template<class T>
 void FollowMovementGenerator<T>::DoFinalize(T* owner)
 {
+    if (i_gravityLocked)
+    {
+        owner->SetDisableGravity(false);
+        i_gravityLocked = false;
+    }
+
     owner->ClearUnitState(UNIT_STATE_FOLLOW | UNIT_STATE_FOLLOW_MOVE);
 }
 
