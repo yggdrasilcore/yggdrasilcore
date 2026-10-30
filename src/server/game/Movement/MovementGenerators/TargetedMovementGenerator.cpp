@@ -810,6 +810,10 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         }
         init.Launch();
 
+        // A stale falling flag would make UpdateMovementFlags treat the pet as
+        // airborne-with-gravity and drop it again; clear it and hold the spot.
+        owner->RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
+        owner->m_movementInfo.SetFallTime(0);
         owner->SetDisableGravity(true);
         i_gravityLocked = true;
     };
