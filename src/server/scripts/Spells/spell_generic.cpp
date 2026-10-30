@@ -5708,6 +5708,28 @@ class spell_gen_bm_on : public SpellScript
     }
 };
 
+// 38182 - Stormhammer
+// 38066 - Unstable Concoction
+// Knock the player off their mount when the spell lands
+class spell_gen_rider_guard_dismount : public SpellScript
+{
+    PrepareSpellScript(spell_gen_rider_guard_dismount);
+
+    void HandleSchoolDamage(SpellEffIndex /*effIndex*/)
+    {
+        if (Player* target = GetHitPlayer())
+        {
+            target->Dismount();
+            target->RemoveAurasByType(SPELL_AURA_MOUNTED);
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_gen_rider_guard_dismount::HandleSchoolDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+    }
+};
+
 void AddSC_generic_spell_scripts()
 {
     RegisterSpellScript(spell_silithyst);
@@ -5716,6 +5738,7 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_the_flag_of_ownership);
     RegisterSpellScript(spell_gen_have_item_auras);
     RegisterSpellScript(spell_gen_mine_sweeper);
+    RegisterSpellScript(spell_gen_rider_guard_dismount);
     RegisterSpellAndAuraScriptPair(spell_gen_reduced_above_60, spell_gen_reduced_above_60_aura);
     RegisterSpellScriptWithArgs(spell_gen_relocaste_dest, "spell_q10838_demoniac_scryer_visual", 0, 0, 20.0, 0);
     RegisterSpellScriptWithArgs(spell_gen_relocaste_dest, "spell_q20438_q24556_aquantos_laundry", 0, 0, 7.0f, 0);
