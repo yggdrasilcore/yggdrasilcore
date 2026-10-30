@@ -501,8 +501,18 @@ namespace
         }
 
         if (groundMode)
-            for (Vector3& point : args.path)
+        {
+            for (std::size_t i = 0; i < args.path.size(); ++i)
+            {
+                // A denied follow leg keeps its authored endpoint: snapping it to
+                // the floor below the ledge is what makes the pet drop off.
+                if (args.noFinalGroundSnap && i + 1 == args.path.size())
+                    continue;
+
+                Vector3& point = args.path[i];
                 point.z = SnapControlPointZ(unit, point.x, point.y, point.z);
+            }
+        }
 
         float const orient = NormalizeOrientation(realPos.orientation);
         Vector3 const firstLeg = args.path[1] - src;

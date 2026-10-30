@@ -28,6 +28,10 @@
 constexpr float FOLLOW_MESH_CHUNK = 150.0f;
 constexpr float FOLLOW_HOP_DIST = 40.0f;
 constexpr float FOLLOW_HOP_STEP = 4.0f;
+// Pets following their player must never take a path that ends more than this
+// far above or below the player: the navmesh detours around a ledge and the
+// leg ends at the cliff foot, dropping the pet off.
+constexpr float FOLLOW_MAX_PLAYER_Z_DELTA = 3.0f;
 
 static bool FollowHopBlocked(Unit const* owner, G3D::Vector3 const& a, G3D::Vector3 const& b)
 {
@@ -761,6 +765,31 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             followingMaster = true;
     }
 
+    bool const petFollowingPlayer = followingMaster && target->IsPlayer() && cOwner && cOwner->IsPet();
+    auto endTooFarFromPlayerZ = [&](float endZ)
+    {
+        return petFollowingPlayer && std::fabs(endZ - target->GetPositionZ()) > FOLLOW_MAX_PLAYER_Z_DELTA;
+    };
+
+    // Denied ledge path: go straight to the player instead. The final point stays
+    // un-snapped so the pet holds the player's level until the next move.
+    auto launchDirectToPlayer = [&]()
+    {
+        owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
+        Movement::MoveSplineInit init(owner);
+        init.MoveTo(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+        init.SetNoFinalGroundSnap();
+        if (_inheritWalkState)
+            init.SetWalk(target->IsWalking() || target->movespline->isWalking());
+        if (_inheritSpeed)
+        {
+            G3D::Vector3 const dest(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+            if (Optional<float> velocity = GetVelocity(owner, target, dest, owner->IsGuardian()))
+                init.SetVelocity(*velocity);
+        }
+        init.Launch();
+    };
+
     bool forceDest =
         (followingMaster) || // allow pets following their master to cheat while generating paths
         (i_target->IsPlayer() && i_target->ToPlayer()->IsGameMaster()) // for .npc follow
@@ -880,6 +909,8 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                 return false;
             if (!BuildFollowHopPrefix(owner, x, y, z, hopPath))
                 return false;
+            if (endTooFarFromPlayerZ(hopPath.back().z))
+                return false;
             owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
             Movement::MoveSplineInit init(owner);
             init.MovebyPath(hopPath);
@@ -913,6 +944,18 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                 owner->StopMoving();
 
             return true;
+        }
+
+        if (petFollowingPlayer)
+        {
+            float const pathEndZ = i_path->GetPath().empty()
+                ? i_path->GetActualEndPosition().z
+                : i_path->GetPath().back().z;
+            if (endTooFarFromPlayerZ(pathEndZ))
+            {
+                launchDirectToPlayer();
+                return true;
+            }
         }
 
         owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);

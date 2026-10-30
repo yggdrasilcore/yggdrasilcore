@@ -115,6 +115,7 @@ namespace Movement
          */
         void SetFirstPointId(int32 pointId) { args.path_Idx_offset = pointId; }
         void SetNoDepartureBlend() { args.noDepartureBlend = true; }
+        void SetNoFinalGroundSnap() { args.noFinalGroundSnap = true; }
 
         /* Enables CatmullRom spline interpolation mode(makes path smooth)
          * if not enabled linear spline mode will be choosen. Disabled by default
