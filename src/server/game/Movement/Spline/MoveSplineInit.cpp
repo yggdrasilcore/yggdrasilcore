@@ -699,7 +699,9 @@ namespace
                 else if (args.flags.parabolic || args.flags.falling)
                     airPath = hasFlightFlags;
                 else if (flightCapable)
-                    airPath = args.pathHintValid ? args.pathRequiresFlight : PathRequiresFlight(creature, args.path);
+                    // Keep the flight state seeded from movement flags; a ground-shaped path
+                    // does not mean an airborne creature should stop flying.
+                    airPath = args.flags.flying || (args.pathHintValid ? args.pathRequiresFlight : PathRequiresFlight(creature, args.path));
 
                 creature->SetFlightPath(airPath);
 
@@ -732,7 +734,14 @@ namespace
         // Every ground move renders as a client-side spline: blend the departure toward the
         // current facing with a single validated arc and snap Z to terrain/WMO/floors.
         if (CanSmooth(unit, args, transport))
+        {
+            bool const flying = args.flags.flying;
             SmoothPathForCatmullRom(unit, args, real_position);
+            // EnableCatmullRom() clears the Flying bit, which is what the client uses for the
+            // flight animation. Flying alone is already a smooth (CatmullRom) spline, so restore it.
+            if (flying)
+                args.flags.EnableFlying();
+        }
 
         // Player floor/wall/air routing for everything the generator vetoes skip: flyers
         // (climb over blocked lines) and 2-point straight shots (validate, sidestep, or
