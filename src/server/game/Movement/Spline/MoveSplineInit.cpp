@@ -833,6 +833,12 @@ namespace
             }
         }
 
+        // Must be applied before the move flags are packed: the client carries
+        // gravity state with the spline itself and drops the unit at its end if
+        // the flag was only sent afterwards.
+        if (args.noGravity)
+            unit->SetDisableGravity(true);
+
         uint32 moveFlags = unit->m_movementInfo.GetMovementFlags();
         moveFlags |= MOVEMENTFLAG_SPLINE_ENABLED;
 

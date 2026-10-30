@@ -800,14 +800,10 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         Movement::MoveSplineInit init(owner);
         init.MoveTo(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
         init.SetNoFinalGroundSnap();
-        if (_inheritWalkState)
-            init.SetWalk(target->IsWalking() || target->movespline->isWalking());
-        if (_inheritSpeed)
-        {
-            G3D::Vector3 const dest(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
-            if (Optional<float> velocity = GetVelocity(owner, target, dest, owner->IsGuardian()))
-                init.SetVelocity(*velocity);
-        }
+        init.SetNoGravity();
+        // Run this leg at the mover's normal pace; inheriting a walk state made
+        // the mid-air catch-up crawl.
+        init.SetWalk(false);
         init.Launch();
 
         // A stale falling flag would make UpdateMovementFlags treat the pet as

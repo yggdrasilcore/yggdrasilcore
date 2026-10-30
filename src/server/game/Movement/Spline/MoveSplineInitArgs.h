@@ -61,6 +61,7 @@ namespace Movement
         bool TransformForTransport{true};
         bool noDepartureBlend{false};
         bool noFinalGroundSnap{false};
+        bool noGravity{false};
         bool pathHintValid{false};
         bool pathRequiresFlight{false};
 
