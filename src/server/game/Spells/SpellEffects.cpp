@@ -1744,6 +1744,13 @@ void Spell::DoCreateItem(uint8 /*effIndex*/, uint32 itemId)
             player->SendEquipError(msg, nullptr, nullptr, newitemid);
             return;
         }
+
+        // nothing could be stored, notify the player
+        if (!addNumber)
+        {
+            player->SendEquipError(msg, nullptr, nullptr, newitemid);
+            return;
+        }
     }
 
     if (addNumber)
