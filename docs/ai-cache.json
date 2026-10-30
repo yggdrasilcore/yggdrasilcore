@@ -884,18 +884,22 @@
   }
  },
  "Creature::UpdateMovementFlags@c439271a:qwen3-5-4b": {
-  "hash": "6bbf90b5f700",
-  "desc": "Updates the creature's movement flags based on its position relative to the ground, flight capabilities, and hover status, excluding player-controlled creatures. Side effects: modifies movement flags (can fly, disable gravity, hover)",
-  "raw": "{\"what\": \"Updates the creature's movement flags based on its position relative to the ground, flight capabilities, and hover status, excluding player-controlled creatures.\", \"effects\": \"modifies movement flags (can fly, disable gravity, hover)\"}",
+  "hash": "6dac263c8a07",
+  "desc": "Updates the creature's movement flags based on its position relative to the ground, active flight paths, and environmental conditions like hovering or falling. Side effects: May set CAN_FLY flag, disable gravity, or modify hover status depending on context.",
+  "raw": "{\"what\": \"Updates the creature's movement flags based on its position relative to the ground, active flight paths, and environmental conditions like hovering or falling.\", \"effects\": \"May set CAN_FLY flag, disable gravity, or modify hover status depending on context.\"}",
   "entry": {
    "class": "Creature",
    "name": "UpdateMovementFlags",
    "sig": "void UpdateMovementFlags()",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 183,
+   "line": 203,
    "access": "public",
-   "hash": "6bbf90b5f700",
-   "desc": "Updates the creature's movement flags based on its position relative to the ground, flight capabilities, and hover status, excluding player-controlled creatures. Side effects: modifies movement flags (can fly, disable gravity, hover)",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 3623
+   },
+   "hash": "6dac263c8a07",
+   "desc": "Updates the creature's movement flags based on its position relative to the ground, active flight paths, and environmental conditions like hovering or falling. Side effects: May set CAN_FLY flag, disable gravity, or modify hover status depending on context.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43489,6 +43493,24 @@
    },
    "hash": "48614b3a5225",
    "desc": "Removes interaction stops for creatures located more than 2.5 units away from the specified player by iterating through stored GUIDs and clearing their interaction stops if they are out of range.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Creature::SetFlightPath@39a96325:qwen3-5-4b": {
+  "hash": "185a7296c7d1",
+  "desc": "Sets the internal flag indicating whether a flight path is active Side effects: Updates the member variable _isFlightPath",
+  "raw": "{\"what\": \"Sets the internal flag indicating whether a flight path is active\", \"effects\": \"Updates the member variable _isFlightPath\"}",
+  "entry": {
+   "class": "Creature",
+   "name": "SetFlightPath",
+   "sig": "void SetFlightPath(bool flight)",
+   "file": "src/server/game/Entities/Creature/Creature.h",
+   "line": 90,
+   "access": "public",
+   "impl": null,
+   "hash": "185a7296c7d1",
+   "desc": "Sets the internal flag indicating whether a flight path is active Side effects: Updates the member variable _isFlightPath",
    "ai": true,
    "model": "qwen3.5:4b"
   }
