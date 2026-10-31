@@ -1,0 +1,2 @@
+-- Fixes a missing client-side collission on Ratchet ship on XYZ -1462, -3912 12
+replace into `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `ScriptName`, `VerifiedBuild`, `Comment`) values('5300556','195664','1','0','0','1','1','-1459.96','-3912.08','11.7798','4.67309','-0','-0','-0.720865','0.693075','300','0','1','',NULL,NULL);
