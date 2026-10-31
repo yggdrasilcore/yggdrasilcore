@@ -1183,13 +1183,12 @@ PacketSpoof.BanDuration = 86400
 
 Warden.Enabled = 1
 
-#    Warden.EnableChecks - Disable anticheat checks but keep payload injection.
+#    Warden.EnableInjection
+#        Description: Enable Warden payload injection.
+#        Default:     1 - (Enabled)
+#                     0 - (Disabled)
 
-Warden.EnableChecks = 1
-
-#    Warden.EnableLuaChecks - Disable Lua checks but keep Lua payload injection.
-
-Warden.EnableLuaChecks = 1
+Warden.EnableInjection = 1
 
 #
 #    Warden.NumMemChecks
