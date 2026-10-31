@@ -814,6 +814,40 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         ; // closes "bool forceDest", that way it is more appropriate, so we can comment out crap whenever we need to
 
     bool targetIsMoving = false;
+    bool const onTransport = IsFollowingOnTransport(owner, target);
+    Position targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
+
+    // Bridging mismatched transport states: straight world-space move to the player.
+    // Runs regardless of PositionOkay because a moving transport can carry the pet
+    // away from a stationary player without the target ever moving.
+    if (petFollowingPlayer && !onTransport &&
+        (owner->GetTransport() != nullptr || target->GetTransport() != nullptr) &&
+        !owner->HasUnitState(UNIT_STATE_FOLLOW_MOVE))
+    {
+        // Detach the pet so the world-spline doesn't chase the deck.
+        if (owner->GetTransport())
+            owner->GetTransport()->RemovePassenger(owner, true);
+
+        releaseGravityLock();
+        owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
+
+        Position const world = target->GetPosition();
+        Movement::MoveSplineInit init(owner);
+        init.DisableTransportPathTransformations();
+        // Straight line, no navmesh; keep the player's world Z.
+        init.MoveTo(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ(), false);
+        init.SetNoFinalGroundSnap();
+        if (_inheritWalkState)
+            init.SetWalk(target->IsWalking() || target->movespline->isWalking());
+        if (_inheritSpeed)
+            if (Optional<float> velocity = GetVelocity(owner, target, G3D::Vector3(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ()), owner->IsGuardian()))
+                init.SetVelocity(*velocity);
+        init.Launch();
+        return true;
+    }
+
+    _lastTargetPosition = targetPosition;
+
     if (PositionOkay(owner, target, owner->IsGuardian() && target->IsPlayer(), targetIsMoving, time_diff))
     {
         if (owner->HasUnitState(UNIT_STATE_FOLLOW_MOVE) && owner->movespline->Finalized())
@@ -837,40 +871,6 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     }
     else
     {
-        bool const onTransport = IsFollowingOnTransport(owner, target);
-        Position targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
-        _lastTargetPosition = targetPosition;
-
-        // Bridging mismatched transport states: straight world-space move to the player.
-        if (petFollowingPlayer)
-        {
-            bool const ownerOnTransport = owner->GetTransport() != nullptr;
-            bool const targetOnTransport = target->GetTransport() != nullptr;
-            if (!onTransport && (ownerOnTransport || targetOnTransport))
-            {
-                // Detach the pet so the world-spline doesn't chase the deck.
-                if (ownerOnTransport)
-                    owner->GetTransport()->RemovePassenger(owner, true);
-
-                releaseGravityLock();
-                owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
-
-                Position const world = target->GetPosition();
-                Movement::MoveSplineInit init(owner);
-                init.DisableTransportPathTransformations();
-                // Straight line, no navmesh; keep the player's world Z.
-                init.MoveTo(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ(), false);
-                init.SetNoFinalGroundSnap();
-                if (_inheritWalkState)
-                    init.SetWalk(target->IsWalking() || target->movespline->isWalking());
-                if (_inheritSpeed)
-                    if (Optional<float> velocity = GetVelocity(owner, target, G3D::Vector3(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ()), owner->IsGuardian()))
-                        init.SetVelocity(*velocity);
-                init.Launch();
-                return true;
-            }
-        }
-
         // If player is moving and their position is not updated, we need to predict position
         if (targetIsMoving && !onTransport)
         {
