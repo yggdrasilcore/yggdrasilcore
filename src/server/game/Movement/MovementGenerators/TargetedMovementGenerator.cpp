@@ -765,11 +765,8 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             followingMaster = true;
     }
 
-    // Owner-following pets/guardians and GM-followed NPCs both follow a player.
-    // The latter have no owner GUID, so they must be matched by the GM target.
     bool const petFollowingPlayer = cOwner && target->IsPlayer() &&
-        (target->GetGUID() == cOwner->GetCharmerOrOwnerGUID() ||
-         target->ToPlayer()->IsGameMaster());
+        target->GetGUID() == cOwner->GetCharmerOrOwnerGUID();
 
     // Judge the endpoint the way the spline will actually end it: MoveSplineInit
     // ground-snaps the final control point, so a path that looks level on paper

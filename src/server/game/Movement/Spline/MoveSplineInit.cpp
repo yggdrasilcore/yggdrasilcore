@@ -494,6 +494,13 @@ namespace
         bool const groundMode = IsGroundMode(unit);
         bool const flightMode = !groundMode && args.flags.flying;
 
+        // Orientation-only move (SetFacingTo / stop-in-place) places both
+        // endpoints at the unit's current position. Ground-snapping them moves
+        // the unit's own origin to the floor, so an airborne unit drops the
+        // moment the facing spline is applied. Keep in-place splines untouched.
+        if (args.path.size() == 2 && (args.path[1] - args.path[0]).length() < 0.01f)
+            return;
+
         if (flightMode && args.noDepartureBlend)
         {
             args.flags.EnableCatmullRom();
@@ -502,7 +509,9 @@ namespace
 
         if (groundMode)
         {
-            for (std::size_t i = 0; i < args.path.size(); ++i)
+            // Never move the spline's origin: it is where the unit actually is.
+            // Snapping it would teleport a mid-air unit down at the first tick.
+            for (std::size_t i = 1; i < args.path.size(); ++i)
             {
                 // A denied follow leg keeps its authored endpoint: snapping it to
                 // the floor below the ledge is what makes the pet drop off.
