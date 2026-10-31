@@ -494,6 +494,13 @@ namespace
         bool const groundMode = IsGroundMode(unit);
         bool const flightMode = !groundMode && args.flags.flying;
 
+        // Orientation-only move (SetFacingTo / stop-in-place) places both
+        // endpoints at the unit's current position. Ground-snapping them moves
+        // the unit's own origin to the floor, so an airborne unit drops the
+        // moment the facing spline is applied. Keep in-place splines untouched.
+        if (args.path.size() == 2 && (args.path[1] - args.path[0]).length() < 0.01f)
+            return;
+
         if (flightMode && args.noDepartureBlend)
         {
             args.flags.EnableCatmullRom();
@@ -501,8 +508,19 @@ namespace
         }
 
         if (groundMode)
-            for (Vector3& point : args.path)
+        {
+            // Never move the spline's origin: it is where the unit actually is.
+            // Snapping it would teleport a mid-air unit down at the first tick.
+            for (std::size_t i = 1; i < args.path.size(); ++i)
+            {
+                // A denied follow leg keeps its authored endpoint (snapping drops the pet).
+                if (args.noFinalGroundSnap && i + 1 == args.path.size())
+                    continue;
+
+                Vector3& point = args.path[i];
                 point.z = SnapControlPointZ(unit, point.x, point.y, point.z);
+            }
+        }
 
         float const orient = NormalizeOrientation(realPos.orientation);
         Vector3 const firstLeg = args.path[1] - src;
@@ -822,6 +840,10 @@ namespace
                 }
             }
         }
+
+        // Apply noGravity before packing move flags so the client carries it.
+        if (args.noGravity)
+            unit->SetDisableGravity(true);
 
         uint32 moveFlags = unit->m_movementInfo.GetMovementFlags();
         moveFlags |= MOVEMENTFLAG_SPLINE_ENABLED;

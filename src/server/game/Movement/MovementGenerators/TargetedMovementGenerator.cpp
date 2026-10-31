@@ -28,6 +28,7 @@
 constexpr float FOLLOW_MESH_CHUNK = 150.0f;
 constexpr float FOLLOW_HOP_DIST = 40.0f;
 constexpr float FOLLOW_HOP_STEP = 4.0f;
+constexpr float FOLLOW_MAX_PLAYER_Z_DELTA = 3.0f; // pet follow endpoint must not end more than this above/below the player
 
 static bool FollowHopBlocked(Unit const* owner, G3D::Vector3 const& a, G3D::Vector3 const& b)
 {
@@ -761,12 +762,92 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             followingMaster = true;
     }
 
+    bool const petFollowingPlayer = cOwner && target->IsPlayer() &&
+        target->GetGUID() == cOwner->GetCharmerOrOwnerGUID();
+
+    // Deny based on the spline's ground-snapped final Z, not the authored level.
+    auto endpointOffPlayerLevel = [&](float endX, float endY, float endZ)
+    {
+        if (!petFollowingPlayer)
+            return false;
+
+        // Either the authored or snapped Z landing away from the player drops the pet.
+        float const rawZ = endZ;
+        owner->UpdateAllowedPositionZ(endX, endY, endZ);
+        float const playerZ = target->GetPositionZ();
+        return std::fabs(rawZ - playerZ) > FOLLOW_MAX_PLAYER_Z_DELTA ||
+            std::fabs(endZ - playerZ) > FOLLOW_MAX_PLAYER_Z_DELTA;
+    };
+
+    // Release the denied-leg gravity hold on the next issued move.
+    auto releaseGravityLock = [&]()
+    {
+        if (i_gravityLocked)
+        {
+            owner->SetDisableGravity(false);
+            i_gravityLocked = false;
+        }
+    };
+
+    // Denied ledge path: go straight to the player, unsnapped, holding gravity.
+    auto launchDirectToPlayer = [&]()
+    {
+        owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
+        Movement::MoveSplineInit init(owner);
+        init.MoveTo(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
+        init.SetNoFinalGroundSnap();
+        init.SetNoGravity();
+        // Run this leg at the mover's normal pace.
+        init.SetWalk(false);
+        init.Launch();
+
+        // Clear stale falling flags so the pet holds the spot.
+        owner->RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
+        owner->m_movementInfo.SetFallTime(0);
+        owner->SetDisableGravity(true);
+        i_gravityLocked = true;
+    };
+
     bool forceDest =
         (followingMaster) || // allow pets following their master to cheat while generating paths
         (i_target->IsPlayer() && i_target->ToPlayer()->IsGameMaster()) // for .npc follow
         ; // closes "bool forceDest", that way it is more appropriate, so we can comment out crap whenever we need to
 
     bool targetIsMoving = false;
+    bool const onTransport = IsFollowingOnTransport(owner, target);
+    Position targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
+
+    // Bridging mismatched transport states: straight world-space move to the player.
+    // Runs regardless of PositionOkay because a moving transport can carry the pet
+    // away from a stationary player without the target ever moving.
+    if (petFollowingPlayer && !onTransport &&
+        (owner->GetTransport() != nullptr || target->GetTransport() != nullptr) &&
+        !owner->HasUnitState(UNIT_STATE_FOLLOW_MOVE))
+    {
+        // Detach the pet so the world-spline doesn't chase the deck.
+        if (owner->GetTransport())
+            owner->GetTransport()->RemovePassenger(owner, true);
+
+        releaseGravityLock();
+        owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
+
+        Position const world = target->GetPosition();
+        Movement::MoveSplineInit init(owner);
+        init.DisableTransportPathTransformations();
+        // Straight line, no navmesh; keep the player's world Z.
+        init.MoveTo(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ(), false);
+        init.SetNoFinalGroundSnap();
+        if (_inheritWalkState)
+            init.SetWalk(target->IsWalking() || target->movespline->isWalking());
+        if (_inheritSpeed)
+            if (Optional<float> velocity = GetVelocity(owner, target, G3D::Vector3(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ()), owner->IsGuardian()))
+                init.SetVelocity(*velocity);
+        init.Launch();
+        return true;
+    }
+
+    _lastTargetPosition = targetPosition;
+
     if (PositionOkay(owner, target, owner->IsGuardian() && target->IsPlayer(), targetIsMoving, time_diff))
     {
         if (owner->HasUnitState(UNIT_STATE_FOLLOW_MOVE) && owner->movespline->Finalized())
@@ -790,10 +871,6 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     }
     else
     {
-        bool const onTransport = IsFollowingOnTransport(owner, target);
-        Position targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
-        _lastTargetPosition = targetPosition;
-
         // If player is moving and their position is not updated, we need to predict position
         if (targetIsMoving && !onTransport)
         {
@@ -828,6 +905,7 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             float x, y, z;
             targetPosition.GetPosition(x, y, z);
 
+            releaseGravityLock();
             owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
 
             Movement::MoveSplineInit init(owner);
@@ -880,9 +958,14 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                 return false;
             if (!BuildFollowHopPrefix(owner, x, y, z, hopPath))
                 return false;
+            if (endpointOffPlayerLevel(hopPath.back().x, hopPath.back().y, hopPath.back().z))
+                return false;
+            releaseGravityLock();
             owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
             Movement::MoveSplineInit init(owner);
             init.MovebyPath(hopPath);
+            if (petFollowingPlayer)
+                init.SetNoFinalGroundSnap();
             if (_inheritWalkState)
                 init.SetWalk(target->IsWalking() || target->movespline->isWalking());
             if (_inheritSpeed)
@@ -915,6 +998,18 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             return true;
         }
 
+        if (petFollowingPlayer)
+        {
+            G3D::Vector3 const end = i_path->GetPath().empty()
+                ? i_path->GetActualEndPosition()
+                : i_path->GetPath().back();
+            if (endpointOffPlayerLevel(end.x, end.y, end.z))
+            {
+                launchDirectToPlayer();
+                return true;
+            }
+        }
+
         owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
 
         // Pets with no mesh path: hop ground-snapped steps instead of driving
@@ -926,8 +1021,12 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                     return true;
         }
 
+        releaseGravityLock();
         Movement::MoveSplineInit init(owner);
         init.MovebyPath(i_path->GetPath());
+        // Never snap the follow endpoint down to the floor (mid-air owner descent).
+        if (petFollowingPlayer)
+            init.SetNoFinalGroundSnap();
         if (_inheritWalkState)
             init.SetWalk(target->IsWalking() || target->movespline->isWalking());
 
@@ -943,6 +1042,12 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
 template<class T>
 void FollowMovementGenerator<T>::DoInitialize(T* owner)
 {
+    if (i_gravityLocked)
+    {
+        owner->SetDisableGravity(false);
+        i_gravityLocked = false;
+    }
+
     i_path = nullptr;
     _lastTargetPosition.reset();
     owner->AddUnitState(UNIT_STATE_FOLLOW);
@@ -951,6 +1056,12 @@ void FollowMovementGenerator<T>::DoInitialize(T* owner)
 template<class T>
 void FollowMovementGenerator<T>::DoFinalize(T* owner)
 {
+    if (i_gravityLocked)
+    {
+        owner->SetDisableGravity(false);
+        i_gravityLocked = false;
+    }
+
     owner->ClearUnitState(UNIT_STATE_FOLLOW | UNIT_STATE_FOLLOW_MOVE);
 }
 
