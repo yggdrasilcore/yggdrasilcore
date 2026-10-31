@@ -766,7 +766,6 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     }
 
     bool const petFollowingPlayer = cOwner && target->IsPlayer() &&
-        (cOwner->IsPet() || cOwner->IsGuardian()) &&
         target->GetGUID() == cOwner->GetCharmerOrOwnerGUID();
 
     // Judge the endpoint the way the spline will actually end it: MoveSplineInit
@@ -777,8 +776,13 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         if (!petFollowingPlayer)
             return false;
 
+        // Check both the authored endpoint and the ground-snapped one. Either one
+        // landing away from the player means following it would drop the pet.
+        float const rawZ = endZ;
         owner->UpdateAllowedPositionZ(endX, endY, endZ);
-        return std::fabs(endZ - target->GetPositionZ()) > FOLLOW_MAX_PLAYER_Z_DELTA;
+        float const playerZ = target->GetPositionZ();
+        return std::fabs(rawZ - playerZ) > FOLLOW_MAX_PLAYER_Z_DELTA ||
+            std::fabs(endZ - playerZ) > FOLLOW_MAX_PLAYER_Z_DELTA;
     };
 
     // Release the denied-leg gravity hold when a new move is actually issued.
@@ -940,6 +944,8 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
             Movement::MoveSplineInit init(owner);
             init.MovebyPath(hopPath);
+            if (petFollowingPlayer)
+                init.SetNoFinalGroundSnap();
             if (_inheritWalkState)
                 init.SetWalk(target->IsWalking() || target->movespline->isWalking());
             if (_inheritSpeed)
@@ -998,6 +1004,10 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         releaseGravityLock();
         Movement::MoveSplineInit init(owner);
         init.MovebyPath(i_path->GetPath());
+        // Never let the spline snap a pet's follow endpoint down to the floor:
+        // that is the server-side descent away from a mid-air owner.
+        if (petFollowingPlayer)
+            init.SetNoFinalGroundSnap();
         if (_inheritWalkState)
             init.SetWalk(target->IsWalking() || target->movespline->isWalking());
 
