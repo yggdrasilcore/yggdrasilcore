@@ -28,10 +28,7 @@
 constexpr float FOLLOW_MESH_CHUNK = 150.0f;
 constexpr float FOLLOW_HOP_DIST = 40.0f;
 constexpr float FOLLOW_HOP_STEP = 4.0f;
-// Pets following their player must never take a path that ends more than this
-// far above or below the player: the navmesh detours around a ledge and the
-// leg ends at the cliff foot, dropping the pet off.
-constexpr float FOLLOW_MAX_PLAYER_Z_DELTA = 3.0f;
+constexpr float FOLLOW_MAX_PLAYER_Z_DELTA = 3.0f; // pet follow endpoint must not end more than this above/below the player
 
 static bool FollowHopBlocked(Unit const* owner, G3D::Vector3 const& a, G3D::Vector3 const& b)
 {
@@ -768,16 +765,13 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     bool const petFollowingPlayer = cOwner && target->IsPlayer() &&
         target->GetGUID() == cOwner->GetCharmerOrOwnerGUID();
 
-    // Judge the endpoint the way the spline will actually end it: MoveSplineInit
-    // ground-snaps the final control point, so a path that looks level on paper
-    // can still end at the cliff foot. Deny based on that snapped Z.
+    // Deny based on the spline's ground-snapped final Z, not the authored level.
     auto endpointOffPlayerLevel = [&](float endX, float endY, float endZ)
     {
         if (!petFollowingPlayer)
             return false;
 
-        // Check both the authored endpoint and the ground-snapped one. Either one
-        // landing away from the player means following it would drop the pet.
+        // Either the authored or snapped Z landing away from the player drops the pet.
         float const rawZ = endZ;
         owner->UpdateAllowedPositionZ(endX, endY, endZ);
         float const playerZ = target->GetPositionZ();
@@ -785,7 +779,7 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             std::fabs(endZ - playerZ) > FOLLOW_MAX_PLAYER_Z_DELTA;
     };
 
-    // Release the denied-leg gravity hold when a new move is actually issued.
+    // Release the denied-leg gravity hold on the next issued move.
     auto releaseGravityLock = [&]()
     {
         if (i_gravityLocked)
@@ -795,9 +789,7 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         }
     };
 
-    // Denied ledge path: go straight to the player instead. Keep the final point
-    // un-snapped and hold gravity at the spot until the next move is issued, so
-    // the client cannot drop the pet off the ledge while it waits.
+    // Denied ledge path: go straight to the player, unsnapped, holding gravity.
     auto launchDirectToPlayer = [&]()
     {
         owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
@@ -805,13 +797,11 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         init.MoveTo(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ());
         init.SetNoFinalGroundSnap();
         init.SetNoGravity();
-        // Run this leg at the mover's normal pace; inheriting a walk state made
-        // the mid-air catch-up crawl.
+        // Run this leg at the mover's normal pace.
         init.SetWalk(false);
         init.Launch();
 
-        // A stale falling flag would make UpdateMovementFlags treat the pet as
-        // airborne-with-gravity and drop it again; clear it and hold the spot.
+        // Clear stale falling flags so the pet holds the spot.
         owner->RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
         owner->m_movementInfo.SetFallTime(0);
         owner->SetDisableGravity(true);
@@ -851,21 +841,14 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         Position targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
         _lastTargetPosition = targetPosition;
 
-        // Owner and target are in different transport states: one of them just
-        // stepped onto (or off) a moving transport. Mesh/transport-relative
-        // pathing cannot bridge that, so make one straight world-space move to
-        // the player and let the transport re-probe attach the pet to the deck.
+        // Bridging mismatched transport states: straight world-space move to the player.
         if (petFollowingPlayer)
         {
             bool const ownerOnTransport = owner->GetTransport() != nullptr;
             bool const targetOnTransport = target->GetTransport() != nullptr;
-            // At least one side is on a transport, but not the same one (or the
-            // same-transport case would already be handled below).
             if (!onTransport && (ownerOnTransport || targetOnTransport))
             {
-                // If the pet is the one still aboard, detach it first: an
-                // ONTRANSPORT spline is sent in transport offsets, not world
-                // coordinates, and would chase the deck instead of the player.
+                // Detach the pet so the world-spline doesn't chase the deck.
                 if (ownerOnTransport)
                     owner->GetTransport()->RemovePassenger(owner, true);
 
@@ -875,10 +858,8 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
                 Position const world = target->GetPosition();
                 Movement::MoveSplineInit init(owner);
                 init.DisableTransportPathTransformations();
-                // generatePath = false: straight line, no navmesh.
+                // Straight line, no navmesh; keep the player's world Z.
                 init.MoveTo(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ(), false);
-                // Keep the player's world Z (e.g. a raised deck) instead of
-                // snapping the endpoint to the terrain underneath.
                 init.SetNoFinalGroundSnap();
                 if (_inheritWalkState)
                     init.SetWalk(target->IsWalking() || target->movespline->isWalking());
@@ -1043,8 +1024,7 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         releaseGravityLock();
         Movement::MoveSplineInit init(owner);
         init.MovebyPath(i_path->GetPath());
-        // Never let the spline snap a pet's follow endpoint down to the floor:
-        // that is the server-side descent away from a mid-air owner.
+        // Never snap the follow endpoint down to the floor (mid-air owner descent).
         if (petFollowingPlayer)
             init.SetNoFinalGroundSnap();
         if (_inheritWalkState)

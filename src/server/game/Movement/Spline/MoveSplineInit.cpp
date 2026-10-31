@@ -513,8 +513,7 @@ namespace
             // Snapping it would teleport a mid-air unit down at the first tick.
             for (std::size_t i = 1; i < args.path.size(); ++i)
             {
-                // A denied follow leg keeps its authored endpoint: snapping it to
-                // the floor below the ledge is what makes the pet drop off.
+                // A denied follow leg keeps its authored endpoint (snapping drops the pet).
                 if (args.noFinalGroundSnap && i + 1 == args.path.size())
                     continue;
 
@@ -842,9 +841,7 @@ namespace
             }
         }
 
-        // Must be applied before the move flags are packed: the client carries
-        // gravity state with the spline itself and drops the unit at its end if
-        // the flag was only sent afterwards.
+        // Apply noGravity before packing move flags so the client carries it.
         if (args.noGravity)
             unit->SetDisableGravity(true);
 
