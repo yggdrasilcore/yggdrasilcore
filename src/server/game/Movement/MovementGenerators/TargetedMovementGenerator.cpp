@@ -851,6 +851,45 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         Position targetPosition = onTransport ? target->m_movementInfo.transport.pos : target->GetPosition();
         _lastTargetPosition = targetPosition;
 
+        // Owner and target are in different transport states: one of them just
+        // stepped onto (or off) a moving transport. Mesh/transport-relative
+        // pathing cannot bridge that, so make one straight world-space move to
+        // the player and let the transport re-probe attach the pet to the deck.
+        if (petFollowingPlayer)
+        {
+            bool const ownerOnTransport = owner->GetTransport() != nullptr;
+            bool const targetOnTransport = target->GetTransport() != nullptr;
+            // At least one side is on a transport, but not the same one (or the
+            // same-transport case would already be handled below).
+            if (!onTransport && (ownerOnTransport || targetOnTransport))
+            {
+                // If the pet is the one still aboard, detach it first: an
+                // ONTRANSPORT spline is sent in transport offsets, not world
+                // coordinates, and would chase the deck instead of the player.
+                if (ownerOnTransport)
+                    owner->GetTransport()->RemovePassenger(owner, true);
+
+                releaseGravityLock();
+                owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
+
+                Position const world = target->GetPosition();
+                Movement::MoveSplineInit init(owner);
+                init.DisableTransportPathTransformations();
+                // generatePath = false: straight line, no navmesh.
+                init.MoveTo(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ(), false);
+                // Keep the player's world Z (e.g. a raised deck) instead of
+                // snapping the endpoint to the terrain underneath.
+                init.SetNoFinalGroundSnap();
+                if (_inheritWalkState)
+                    init.SetWalk(target->IsWalking() || target->movespline->isWalking());
+                if (_inheritSpeed)
+                    if (Optional<float> velocity = GetVelocity(owner, target, G3D::Vector3(world.GetPositionX(), world.GetPositionY(), world.GetPositionZ()), owner->IsGuardian()))
+                        init.SetVelocity(*velocity);
+                init.Launch();
+                return true;
+            }
+        }
+
         // If player is moving and their position is not updated, we need to predict position
         if (targetIsMoving && !onTransport)
         {
