@@ -547,8 +547,7 @@ void WorldConfig::BuildConfigCache()
 
     // Warden
     SetConfigValue<bool>(CONFIG_WARDEN_ENABLED, "Warden.Enabled", true);
-    SetConfigValue<bool>(CONFIG_WARDEN_ENABLE_CHECKS, "Warden.EnableChecks", true);
-    SetConfigValue<bool>(CONFIG_WARDEN_ENABLE_LUA_CHECKS, "Warden.EnableLuaChecks", true);
+    SetConfigValue<bool>(CONFIG_WARDEN_ENABLE_INJECTION, "Warden.EnableInjection", true);
     SetConfigValue<uint32>(CONFIG_WARDEN_NUM_MEM_CHECKS, "Warden.NumMemChecks", 3);
     SetConfigValue<uint32>(CONFIG_WARDEN_NUM_LUA_CHECKS, "Warden.NumLuaChecks", 1);
     SetConfigValue<uint32>(CONFIG_WARDEN_NUM_OTHER_CHECKS, "Warden.NumOtherChecks", 7);
