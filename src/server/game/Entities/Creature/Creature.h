@@ -86,6 +86,9 @@ public:
     [[nodiscard]] bool CanFly() const override { return GetMovementTemplate().IsFlightAllowed() || IsFlying(); }
     [[nodiscard]] bool CanHover() const { return GetMovementTemplate().Ground == CreatureGroundMovementType::Hover || IsHovering(); }
     [[nodiscard]] bool IsRooted() const { return GetMovementTemplate().IsRooted(); }
+    [[nodiscard]] bool IsFlightPath() const { return _isFlightPath; }
+    void SetFlightPath(bool flight) { _isFlightPath = flight; }
+    [[nodiscard]] float GetFlightClearanceThreshold() const;
     static constexpr uint32 INTERACTION_STOP_AURA = 35340;
     void PauseMovementForInteraction(Player* caster);
     // Releases this creature if it was stopped by the given player.
@@ -524,6 +527,7 @@ protected:
     void RegenerateHealth();
     void Regenerate(Powers power);
     MovementGeneratorType m_defaultMovementType;
+    bool _isFlightPath = false;
     ObjectGuid::LowType m_spawnId;                      ///< For new or temporary creatures is 0 for saved it is lowguid
     uint8 m_equipmentId;
     int8 m_originalEquipmentId; // can be -1
