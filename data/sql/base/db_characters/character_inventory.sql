@@ -22,9 +22,9 @@ DROP TABLE IF EXISTS `character_inventory`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `character_inventory` (
   `guid` int unsigned NOT NULL DEFAULT '0' COMMENT 'Global Unique Identifier',
-  `bag` int unsigned NOT NULL DEFAULT '0',
+  `bag` bigint unsigned NOT NULL DEFAULT '0',
   `slot` tinyint unsigned NOT NULL DEFAULT '0',
-  `item` int unsigned NOT NULL DEFAULT '0' COMMENT 'Item Global Unique Identifier',
+  `item` bigint unsigned NOT NULL DEFAULT '0' COMMENT 'Item Global Unique Identifier',
   PRIMARY KEY (`item`),
   UNIQUE KEY `guid` (`guid`,`bag`,`slot`),
   KEY `idx_guid` (`guid`)
