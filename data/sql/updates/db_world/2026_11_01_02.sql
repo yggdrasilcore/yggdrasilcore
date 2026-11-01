@@ -1,3 +1,6 @@
+-- Remove erroneous sit state and permanent sleep aura from Hamat
+DELETE FROM `creature_addon` WHERE `guid` = 97150;
+
 -- Make Hamat and Saga flag ally enemies for PvP
 UPDATE `factiontemplate_dbc` SET `Flags` = `Flags` | 2048 WHERE `ID` = 1921;
 
