@@ -94,6 +94,13 @@ static uint16 GetCheckPacketSize(WardenCheck const* check)
 
 void WardenWin::SendPayload()
 {
+    // Payload injection can be toggled independently of the anticheat checks.
+    if (!sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_INJECTION))
+    {
+        _sendPayload = false;
+        return;
+    }
+
     // Keep payload injection independent of the anticheat check cycle and
     // defer it until the client module and any in-flight request are ready.
     if (!_initialized || _dataSent || _pendingPayloadResponses)
@@ -424,22 +431,6 @@ void WardenWin::RequestChecks()
 {
     LOG_DEBUG("warden", "Request data");
 
-    if (!sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_CHECKS))
-    {
-        // Anticheat checks are disabled. Keep Warden alive as a payload
-        // transport so modules can still inject Lua.
-        if (!_payloadMgr.QueuedPayloads.empty())
-        {
-            SendPayload();
-            return;
-        }
-
-        _checkInProgress = false;
-        uint32 const holdOff = sWorld->getIntConfig(CONFIG_WARDEN_CLIENT_CHECK_HOLDOFF);
-        _checkTimer = (holdOff < 1 ? 1 : holdOff) * IN_MILLISECONDS;
-        return;
-    }
-
     _checkInProgress = true;
 
     // If all checks were done, fill the todo list again
@@ -478,8 +469,11 @@ void WardenWin::RequestChecks()
 
     // Deliver custom payloads independently of the Lua anticheat check pool.
     // This keeps injection working when Lua checks are disabled.
-    for (auto it = _payloadMgr.QueuedPayloads.rbegin(); it != _payloadMgr.QueuedPayloads.rend(); ++it)
-        _CurrentChecks.push_front(*it);
+    if (sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_INJECTION))
+    {
+        for (auto it = _payloadMgr.QueuedPayloads.rbegin(); it != _payloadMgr.QueuedPayloads.rend(); ++it)
+            _CurrentChecks.push_front(*it);
+    }
 
     _payloadMgr.QueuedPayloads.clear();
 
@@ -488,9 +482,6 @@ void WardenWin::RequestChecks()
     {
         for (uint8 checkType = 0; checkType < MAX_WARDEN_CHECK_TYPES; ++checkType)
         {
-            if (checkType == WARDEN_CHECK_LUA_TYPE && !sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_LUA_CHECKS))
-                continue;
-
             for (uint32 y = 0; y < sWorld->getIntConfig(GetMaxWardenChecksForType(checkType)); ++y)
             {
                 // If todo list is done break loop (will be filled on next Update() run)
@@ -537,7 +528,7 @@ void WardenWin::RequestChecks()
         }
 
         // Always include lua checks
-        if (!hasLuaChecks && sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_LUA_CHECKS))
+        if (!hasLuaChecks)
         {
             for (uint32 i = 0; i < sWorld->getIntConfig(GetMaxWardenChecksForType(WARDEN_CHECK_LUA_TYPE)); ++i)
             {
