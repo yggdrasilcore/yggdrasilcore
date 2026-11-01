@@ -33124,9 +33124,9 @@
   }
  },
  "Unit::GetMeleeRange@ff3796b3:qwen3-5-4b": {
-  "hash": "bdd6e120a4fc",
-  "desc": "Calculates the melee attack range by summing the combat reach of the unit and its target, plus a fixed offset.",
-  "raw": "{\"what\": \"Calculates the melee attack range by summing the combat reach of the unit and its target, plus a fixed offset.\", \"effects\": \"none\"}",
+  "hash": "4a9fe444ad86",
+  "desc": "Calculates the effective melee range between the calling unit and a target by combining combat reach values with an additional offset, then adjusting for vertical height differences (hovering) to determine the true 3D distance.",
+  "raw": "{\"what\": \"Calculates the effective melee range between the calling unit and a target by combining combat reach values with an additional offset, then adjusting for vertical height differences (hovering) to determine the true 3D distance.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "GetMeleeRange",
@@ -33138,8 +33138,8 @@
     "file": "src/server/game/Entities/Unit/Unit.cpp",
     "line": 683
    },
-   "hash": "bdd6e120a4fc",
-   "desc": "Calculates the melee attack range by summing the combat reach of the unit and its target, plus a fixed offset.",
+   "hash": "4a9fe444ad86",
+   "desc": "Calculates the effective melee range between the calling unit and a target by combining combat reach values with an additional offset, then adjusting for vertical height differences (hovering) to determine the true 3D distance.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
