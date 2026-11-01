@@ -683,6 +683,13 @@ bool Unit::IsWithinMeleeRange(Unit const* obj, float dist) const
 float Unit::GetMeleeRange(Unit const* target) const
 {
     float range = GetCombatReach() + target->GetCombatReach() + 4.0f / 3.0f;
+
+    // Hovering units are raised above the ground, which eats into the 3D melee check.
+    // Fold the hover offset into the reach so it does not shrink the horizontal radius.
+    float hoverDelta = GetHoverHeight() - target->GetHoverHeight();
+    if (hoverDelta != 0.0f)
+        range = std::sqrt(range * range + hoverDelta * hoverDelta);
+
     return std::max(range, NOMINAL_MELEE_RANGE);
 }
 
