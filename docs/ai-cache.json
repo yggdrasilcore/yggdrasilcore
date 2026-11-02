@@ -30334,55 +30334,37 @@
   }
  },
  "Transport::AddPassenger@4a779e7d:qwen3-5-4b": {
-  "hash": "6f3d3b3b481c",
-  "desc": "Adds a passenger to the vehicle's passenger set Side effects: modifies internal state",
-  "raw": "{\"what\": \"Adds a passenger to the vehicle's passenger set\", \"effects\": \"modifies internal state\"}",
+  "hash": "db9faf8d3301",
+  "desc": "",
+  "raw": "",
   "entry": {
    "class": "Transport",
    "name": "AddPassenger",
    "sig": "void AddPassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 37,
+   "line": 41,
    "access": "public",
    "impl": null,
-   "hash": "6f3d3b3b481c",
-   "desc": "Adds a passenger to the vehicle's passenger set Side effects: modifies internal state",
+   "hash": "db9faf8d3301",
+   "desc": "",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Transport::RemovePassenger@e1376b70:qwen3-5-4b": {
-  "hash": "a36f39dae9f9",
-  "desc": "Removes a specified passenger from the vehicle's passenger set. If 'withAll' is true, it also removes all other passengers; otherwise, only the specific passenger is removed. Side effects: Modifies the internal state by updating the passenger list.",
-  "raw": "{\n  \"what\": \"Removes a specified passenger from the vehicle's passenger set. If 'withAll' is true, it also removes all other passengers; otherwise, only the specific passenger is removed.\",\n  \"effects\": \"Modifies the internal state by updating the passenger list.\"\n}",
+  "hash": "3d9165f7c26d",
+  "desc": "Removes a specified passenger from the vehicle's passenger list. If 'withAll' is true, it also removes all other passengers; otherwise, only the given passenger is removed. Side effects: Modifies the internal state by updating the passenger list (_passengers) and potentially releasing other passengers if withAll is true.",
+  "raw": "{\n  \"what\": \"Removes a specified passenger from the vehicle's passenger list. If 'withAll' is true, it also removes all other passengers; otherwise, only the given passenger is removed.\",\n  \"effects\": \"Modifies the internal state by updating the passenger list (_passengers) and potentially releasing other passengers if withAll is true.\"\n}",
   "entry": {
    "class": "Transport",
    "name": "RemovePassenger",
    "sig": "void RemovePassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 38,
+   "line": 42,
    "access": "public",
    "impl": null,
-   "hash": "a36f39dae9f9",
-   "desc": "Removes a specified passenger from the vehicle's passenger set. If 'withAll' is true, it also removes all other passengers; otherwise, only the specific passenger is removed. Side effects: Modifies the internal state by updating the passenger list.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Transport::GetPassengers@70aa1e02:qwen3-5-4b": {
-  "hash": "27640bdf5d59",
-  "desc": "Returns a constant reference to the internal set of passengers stored in the object.",
-  "raw": "{\"what\": \"Returns a constant reference to the internal set of passengers stored in the object.\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Transport",
-   "name": "GetPassengers",
-   "sig": "PassengerSet const& GetPassengers() const",
-   "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 39,
-   "access": "public",
-   "impl": null,
-   "hash": "27640bdf5d59",
-   "desc": "Returns a constant reference to the internal set of passengers stored in the object.",
+   "hash": "3d9165f7c26d",
+   "desc": "Removes a specified passenger from the vehicle's passenger list. If 'withAll' is true, it also removes all other passengers; otherwise, only the given passenger is removed. Side effects: Modifies the internal state by updating the passenger list (_passengers) and potentially releasing other passengers if withAll is true.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30463,22 +30445,22 @@
   }
  },
  "MotionTransport::CleanupsBeforeDelete@fd9b9db4:qwen3-5-4b": {
-  "hash": "12871948f182",
-  "desc": "Removes all passengers from the transport by iterating through them, removing each passenger object, and resetting their movement information related to the transport. Side effects: The method modifies the internal state of the transport by emptying its passenger list and updates the state of each removed passenger (removing them from the transport and clearing movement flags).",
-  "raw": "{\n  \"what\": \"Removes all passengers from the transport by iterating through them, removing each passenger object, and resetting their movement information related to the transport.\",\n  \"effects\": \"The method modifies the internal state of the transport by emptying its passenger list and updates the state of each removed passenger (removing them from the transport and clearing movement flags).\"\n}",
+  "hash": "a1fc9f2aabd5",
+  "desc": "Removes all passengers from the transport by iterating through the passenger list, resolving their objects, and cleaning up associated movement flags and references. It also handles static passengers separately. Side effects: Modifies the internal state of the class by removing passengers from `_passengers` and `_staticPassengers` lists, erasing them from `ResolvePassenger` results if they no longer exist, and resetting transport-related movement data on passenger objects.",
+  "raw": "{\n  \"what\": \"Removes all passengers from the transport by iterating through the passenger list, resolving their objects, and cleaning up associated movement flags and references. It also handles static passengers separately.\",\n  \"effects\": \"Modifies the internal state of the class by removing passengers from `_passengers` and `_staticPassengers` lists, erasing them from `ResolvePassenger` results if they no longer exist, and resetting transport-related movement data on passenger objects.\"\n}",
   "entry": {
    "class": "MotionTransport",
    "name": "CleanupsBeforeDelete",
    "sig": "void CleanupsBeforeDelete(bool finalCleanup = true)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 58,
+   "line": 72,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 119
+    "line": 186
    },
-   "hash": "12871948f182",
-   "desc": "Removes all passengers from the transport by iterating through them, removing each passenger object, and resetting their movement information related to the transport. Side effects: The method modifies the internal state of the transport by emptying its passenger list and updates the state of each removed passenger (removing them from the transport and clearing movement flags).",
+   "hash": "a1fc9f2aabd5",
+   "desc": "Removes all passengers from the transport by iterating through the passenger list, resolving their objects, and cleaning up associated movement flags and references. It also handles static passengers separately. Side effects: Modifies the internal state of the class by removing passengers from `_passengers` and `_staticPassengers` lists, erasing them from `ResolvePassenger` results if they no longer exist, and resetting transport-related movement data on passenger objects.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30547,64 +30529,64 @@
   }
  },
  "MotionTransport::UpdatePosition@1e0f9fd1:qwen3-5-4b": {
-  "hash": "2ebf0551aeaa",
-  "desc": "Updates the position of a vehicle or entity by loading necessary map data, relocating the main object, updating its model position, and managing passenger positions (including static passengers). Side effects: Modifies internal state: loads grid data if missing, updates relocation coordinates, refreshes model geometry, adjusts dynamic passenger locations, and ensures static passengers are loaded or updated.",
-  "raw": "{\n  \"what\": \"Updates the position of a vehicle or entity by loading necessary map data, relocating the main object, updating its model position, and managing passenger positions (including static passengers).\",\n  \"effects\": \"Modifies internal state: loads grid data if missing, updates relocation coordinates, refreshes model geometry, adjusts dynamic passenger locations, and ensures static passengers are loaded or updated.\"\n}",
+  "hash": "2c24a1517c01",
+  "desc": "Updates the entity's position by loading necessary map grids, relocating the entity, updating its model position, and managing passenger positions (updating existing ones or loading static passengers if none were previously present). Side effects: May trigger grid loading for the specified coordinates; updates internal state regarding passenger presence.",
+  "raw": "{\"what\": \"Updates the entity's position by loading necessary map grids, relocating the entity, updating its model position, and managing passenger positions (updating existing ones or loading static passengers if none were previously present).\", \"effects\": \"May trigger grid loading for the specified coordinates; updates internal state regarding passenger presence.\"}",
   "entry": {
    "class": "MotionTransport",
    "name": "UpdatePosition",
    "sig": "void UpdatePosition(float x, float y, float z, float o)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 63,
+   "line": 77,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 256
+    "line": 352
    },
-   "hash": "2ebf0551aeaa",
-   "desc": "Updates the position of a vehicle or entity by loading necessary map data, relocating the main object, updating its model position, and managing passenger positions (including static passengers). Side effects: Modifies internal state: loads grid data if missing, updates relocation coordinates, refreshes model geometry, adjusts dynamic passenger locations, and ensures static passengers are loaded or updated.",
+   "hash": "2c24a1517c01",
+   "desc": "Updates the entity's position by loading necessary map grids, relocating the entity, updating its model position, and managing passenger positions (updating existing ones or loading static passengers if none were previously present). Side effects: May trigger grid loading for the specified coordinates; updates internal state regarding passenger presence.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "MotionTransport::AddPassenger@4a779e7d:qwen3-5-4b": {
-  "hash": "4ebd347fb7e9",
-  "desc": "Adds a passenger to the transport's internal list and, if requested via 'withAll', updates the passenger's state to reflect it is now on the transport (including pathfinding flags, movement info, and transport assignment).",
-  "raw": "{\n  \"what\": \"Adds a passenger to the transport's internal list and, if requested via 'withAll', updates the passenger's state to reflect it is now on the transport (including pathfinding flags, movement info, and transport assignment).\",\n  \"effects\": \"None\"\n}",
+  "hash": "c47fb8331cae",
+  "desc": "Adds a passenger to the current transport by inserting their GUID into an internal set, optionally removing them from any other transport if 'withAll' is true, and updates their movement state and pathfinding flags if they are a player or unit. Side effects: Modifies the internal passenger list; may remove the passenger from another transport; sets the passenger's transport reference and movement flags; adds a script event for players; potentially ignores pathfinding for units.",
+  "raw": "{\n  \"what\": \"Adds a passenger to the current transport by inserting their GUID into an internal set, optionally removing them from any other transport if 'withAll' is true, and updates their movement state and pathfinding flags if they are a player or unit.\",\n  \"effects\": \"Modifies the internal passenger list; may remove the passenger from another transport; sets the passenger's transport reference and movement flags; adds a script event for players; potentially ignores pathfinding for units.\"\n}",
   "entry": {
    "class": "MotionTransport",
    "name": "AddPassenger",
    "sig": "void AddPassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 65,
+   "line": 79,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 272
+    "line": 368
    },
-   "hash": "4ebd347fb7e9",
-   "desc": "Adds a passenger to the transport's internal list and, if requested via 'withAll', updates the passenger's state to reflect it is now on the transport (including pathfinding flags, movement info, and transport assignment).",
+   "hash": "c47fb8331cae",
+   "desc": "Adds a passenger to the current transport by inserting their GUID into an internal set, optionally removing them from any other transport if 'withAll' is true, and updates their movement state and pathfinding flags if they are a player or unit. Side effects: Modifies the internal passenger list; may remove the passenger from another transport; sets the passenger's transport reference and movement flags; adds a script event for players; potentially ignores pathfinding for units.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "MotionTransport::RemovePassenger@e1376b70:qwen3-5-4b": {
-  "hash": "95106a206d2b",
-  "desc": "Removes a specified passenger from the transport's internal passenger lists (both dynamic and static), notifies game scripts of the removal, updates fall information for the player if present, and optionally clears all movement-related transport data and unit states associated with the passenger. Side effects: modifies internal passenger collections, triggers script events, updates player fall physics data, and conditionally resets passenger movement flags and unit pathfinding states",
-  "raw": "{\n  \"what\": \"Removes a specified passenger from the transport's internal passenger lists (both dynamic and static), notifies game scripts of the removal, updates fall information for the player if present, and optionally clears all movement-related transport data and unit states associated with the passenger.\",\n  \"effects\": \"modifies internal passenger collections, triggers script events, updates player fall physics data, and conditionally resets passenger movement flags and unit pathfinding states\"\n}",
+  "hash": "7636029aaa15",
+  "desc": "Removes a passenger from the transport's internal passenger lists and optionally updates the passenger's state to reflect removal.",
+  "raw": "{\"what\": \"Removes a passenger from the transport's internal passenger lists and optionally updates the passenger's state to reflect removal.\", \"effects\": \"None\"}",
   "entry": {
    "class": "MotionTransport",
    "name": "RemovePassenger",
    "sig": "void RemovePassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 66,
+   "line": 80,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 301
+    "line": 409
    },
-   "hash": "95106a206d2b",
-   "desc": "Removes a specified passenger from the transport's internal passenger lists (both dynamic and static), notifies game scripts of the removal, updates fall information for the player if present, and optionally clears all movement-related transport data and unit states associated with the passenger. Side effects: modifies internal passenger collections, triggers script events, updates player fall physics data, and conditionally resets passenger movement flags and unit pathfinding states",
+   "hash": "7636029aaa15",
+   "desc": "Removes a passenger from the transport's internal passenger lists and optionally updates the passenger's state to reflect removal.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30631,22 +30613,22 @@
   }
  },
  "MotionTransport::CreateGOPassenger@21f7be6b:qwen3-5-4b": {
-  "hash": "abb16fe5a256",
-  "desc": "Creates a new GameObject representing a passenger for a MotionTransport by loading it from the database, setting its transport association and initial position based on provided data, calculating the final passenger position, validating the location, adding it to the map, and storing it in a static list.",
-  "raw": "{\n  \"what\": \"Creates a new GameObject representing a passenger for a MotionTransport by loading it from the database, setting its transport association and initial position based on provided data, calculating the final passenger position, validating the location, adding it to the map, and storing it in a static list.\",\n  \"effects\": \"None\"\n}",
+  "hash": "4d33d5fa899e",
+  "desc": "Creates a new GameObject representing a passenger for a MotionTransport by loading data from the database, setting transport properties, calculating and applying the passenger's position, adding it to the map, and registering it in static passengers.",
+  "raw": "{\"what\": \"Creates a new GameObject representing a passenger for a MotionTransport by loading data from the database, setting transport properties, calculating and applying the passenger's position, adding it to the map, and registering it in static passengers.\", \"effects\": \"None\"}",
   "entry": {
    "class": "MotionTransport",
    "name": "CreateGOPassenger",
    "sig": "GameObject* CreateGOPassenger(ObjectGuid::LowType guid, GameObjectData const* data)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 68,
+   "line": 82,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 374
+    "line": 494
    },
-   "hash": "abb16fe5a256",
-   "desc": "Creates a new GameObject representing a passenger for a MotionTransport by loading it from the database, setting its transport association and initial position based on provided data, calculating the final passenger position, validating the location, adding it to the map, and storing it in a static list.",
+   "hash": "4d33d5fa899e",
+   "desc": "Creates a new GameObject representing a passenger for a MotionTransport by loading data from the database, setting transport properties, calculating and applying the passenger's position, adding it to the map, and registering it in static passengers.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30672,62 +30654,44 @@
    "model": "qwen3.5:4b"
   }
  },
- "MotionTransport::GetStaticPassengers@63faa4c8:qwen3-5-4b": {
-  "hash": "8005b468f1da",
-  "desc": "Returns a constant reference to the static set of passengers",
-  "raw": "{\"what\": \"Returns a constant reference to the static set of passengers\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "MotionTransport",
-   "name": "GetStaticPassengers",
-   "sig": "PassengerSet const& GetStaticPassengers() const",
-   "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 71,
-   "access": "public",
-   "impl": null,
-   "hash": "8005b468f1da",
-   "desc": "Returns a constant reference to the static set of passengers",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
  "MotionTransport::UnloadStaticPassengers@d26240dc:qwen3-5-4b": {
-  "hash": "24d87e34367c",
-  "desc": "Marks the transport as having no passengers loaded and iterates through all static passengers to remove them from the system. Side effects: Sets passenger load status to false; removes all static passengers from the internal list and marks them for removal in the world.",
-  "raw": "{\n  \"what\": \"Marks the transport as having no passengers loaded and iterates through all static passengers to remove them from the system.\",\n  \"effects\": \"Sets passenger load status to false; removes all static passengers from the internal list and marks them for removal in the world.\"\n}",
+  "hash": "25fa88303a67",
+  "desc": "Marks the motion transport as having unloaded passengers and removes all static passengers from its internal lists, adding them to a removal list if they still exist. Side effects: Sets passenger load status to false; erases static passengers from internal maps; adds existing passengers to their object's removal list.",
+  "raw": "{\n  \"what\": \"Marks the motion transport as having unloaded passengers and removes all static passengers from its internal lists, adding them to a removal list if they still exist.\",\n  \"effects\": \"Sets passenger load status to false; erases static passengers from internal maps; adds existing passengers to their object's removal list.\"\n}",
   "entry": {
    "class": "MotionTransport",
    "name": "UnloadStaticPassengers",
    "sig": "void UnloadStaticPassengers()",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 72,
+   "line": 90,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 439
+    "line": 562
    },
-   "hash": "24d87e34367c",
-   "desc": "Marks the transport as having no passengers loaded and iterates through all static passengers to remove them from the system. Side effects: Sets passenger load status to false; removes all static passengers from the internal list and marks them for removal in the world.",
+   "hash": "25fa88303a67",
+   "desc": "Marks the motion transport as having unloaded passengers and removes all static passengers from its internal lists, adding them to a removal list if they still exist. Side effects: Sets passenger load status to false; erases static passengers from internal maps; adds existing passengers to their object's removal list.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "MotionTransport::UnloadNonStaticPassengers@04b01577:qwen3-5-4b": {
-  "hash": "067f3db2c573",
-  "desc": "Iterates through the list of passengers, skipping any that are players, and marks all other passengers for removal by adding them to their object's removal list. Side effects: Passengers (excluding players) are marked for removal; no state changes to the passenger objects themselves beyond this marking.",
-  "raw": "{\"what\": \"Iterates through the list of passengers, skipping any that are players, and marks all other passengers for removal by adding them to their object's removal list.\", \"effects\": \"Passengers (excluding players) are marked for removal; no state changes to the passenger objects themselves beyond this marking.\"}",
+  "hash": "f603ab4b94b6",
+  "desc": "Removes all non-player, non-static passengers from the motion transport by iterating through their GUIDs and adding them to the removal list if they are valid WorldObjects. Side effects: Passengers are removed from the vehicle's passenger list and added to the object removal queue.",
+  "raw": "{\"what\": \"Removes all non-player, non-static passengers from the motion transport by iterating through their GUIDs and adding them to the removal list if they are valid WorldObjects.\", \"effects\": \"Passengers are removed from the vehicle's passenger list and added to the object removal queue.\"}",
   "entry": {
    "class": "MotionTransport",
    "name": "UnloadNonStaticPassengers",
    "sig": "void UnloadNonStaticPassengers()",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 73,
+   "line": 91,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 449
+    "line": 582
    },
-   "hash": "067f3db2c573",
-   "desc": "Iterates through the list of passengers, skipping any that are players, and marks all other passengers for removal by adding them to their object's removal list. Side effects: Passengers (excluding players) are marked for removal; no state changes to the passenger objects themselves beyond this marking.",
+   "hash": "f603ab4b94b6",
+   "desc": "Removes all non-player, non-static passengers from the motion transport by iterating through their GUIDs and adding them to the removal list if they are valid WorldObjects. Side effects: Passengers are removed from the vehicle's passenger list and added to the object removal queue.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30922,22 +30886,22 @@
   }
  },
  "StaticTransport::CleanupsBeforeDelete@fd9b9db4:qwen3-5-4b": {
-  "hash": "d5beea3dac9d",
-  "desc": "Iterates through all passengers in the transport, removing them from the passenger list and clearing their association with the transport (setting transport pointer to null, resetting movement info, and removing the ONTRANSPORT flag). Side effects: The _passengers container is modified by removing elements; object state is modified by setting pointers and flags.",
-  "raw": "{\"what\": \"Iterates through all passengers in the transport, removing them from the passenger list and clearing their association with the transport (setting transport pointer to null, resetting movement info, and removing the ONTRANSPORT flag).\", \"effects\": \"The _passengers container is modified by removing elements; object state is modified by setting pointers and flags.\"}",
+  "hash": "92dac153c000",
+  "desc": "Iteratively removes all passengers from the transport by resolving their GUIDs, erasing them from the passenger list if they no longer exist, and clearing their transport associations and movement flags. Side effects: Removes passengers from the internal _passengers list, sets their transport pointer to null, resets their transport movement info, and removes the ONTRANSPORT movement flag.",
+  "raw": "{\n  \"what\": \"Iteratively removes all passengers from the transport by resolving their GUIDs, erasing them from the passenger list if they no longer exist, and clearing their transport associations and movement flags.\",\n  \"effects\": \"Removes passengers from the internal _passengers list, sets their transport pointer to null, resets their transport movement info, and removes the ONTRANSPORT movement flag.\"\n}",
   "entry": {
    "class": "StaticTransport",
    "name": "CleanupsBeforeDelete",
    "sig": "void CleanupsBeforeDelete(bool finalCleanup = true)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 123,
+   "line": 140,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 853
+    "line": 1012
    },
-   "hash": "d5beea3dac9d",
-   "desc": "Iterates through all passengers in the transport, removing them from the passenger list and clearing their association with the transport (setting transport pointer to null, resetting movement info, and removing the ONTRANSPORT flag). Side effects: The _passengers container is modified by removing elements; object state is modified by setting pointers and flags.",
+   "hash": "92dac153c000",
+   "desc": "Iteratively removes all passengers from the transport by resolving their GUIDs, erasing them from the passenger list if they no longer exist, and clearing their transport associations and movement flags. Side effects: Removes passengers from the internal _passengers list, sets their transport pointer to null, resets their transport movement info, and removes the ONTRANSPORT movement flag.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -31027,64 +30991,64 @@
   }
  },
  "StaticTransport::UpdatePassengerPositions@754d60bc:qwen3-5-4b": {
-  "hash": "1003e8ecc285",
-  "desc": "Updates the in-world positions of all passengers belonging to static transport vehicles by retrieving their coordinates from the vehicle's movement info and relocating them on the game map.",
-  "raw": "{\"what\": \"Updates the in-world positions of all passengers belonging to static transport vehicles by retrieving their coordinates from the vehicle's movement info and relocating them on the game map.\", \"effects\": \"none\"}",
+  "hash": "fb937862a012",
+  "desc": "Retrieves all passenger GUIDs from the transport and iterates through them to update their positions on the map. It filters out passengers not in the world or belonging to vehicles, calculates their specific coordinates based on the transport's movement data, and then relocates them using the appropriate relocation function for their type (Creature, Player, GameObject, or DynamicObject). Side effects: Passengers are relocated to new positions; players have fall information updated.",
+  "raw": "{\"what\": \"Retrieves all passenger GUIDs from the transport and iterates through them to update their positions on the map. It filters out passengers not in the world or belonging to vehicles, calculates their specific coordinates based on the transport's movement data, and then relocates them using the appropriate relocation function for their type (Creature, Player, GameObject, or DynamicObject).\", \"effects\": \"Passengers are relocated to new positions; players have fall information updated.\"}",
   "entry": {
    "class": "StaticTransport",
    "name": "UpdatePassengerPositions",
    "sig": "void UpdatePassengerPositions()",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 129,
+   "line": 146,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 1021
+    "line": 1176
    },
-   "hash": "1003e8ecc285",
-   "desc": "Updates the in-world positions of all passengers belonging to static transport vehicles by retrieving their coordinates from the vehicle's movement info and relocating them on the game map.",
+   "hash": "fb937862a012",
+   "desc": "Retrieves all passenger GUIDs from the transport and iterates through them to update their positions on the map. It filters out passengers not in the world or belonging to vehicles, calculates their specific coordinates based on the transport's movement data, and then relocates them using the appropriate relocation function for their type (Creature, Player, GameObject, or DynamicObject). Side effects: Passengers are relocated to new positions; players have fall information updated.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "StaticTransport::AddPassenger@4a779e7d:qwen3-5-4b": {
-  "hash": "a0b5e2e5ab5f",
-  "desc": "Adds a passenger to the transport's list and optionally relocates them inside the vehicle if 'withAll' is true. Side effects: Modifies the internal passenger list; may trigger script events for player passengers; updates passenger movement flags and position data.",
-  "raw": "{\n  \"what\": \"Adds a passenger to the transport's list and optionally relocates them inside the vehicle if 'withAll' is true.\",\n  \"effects\": \"Modifies the internal passenger list; may trigger script events for player passengers; updates passenger movement flags and position data.\"\n}",
+  "hash": "33c858830be5",
+  "desc": "Adds a passenger to the transport's internal list and optionally updates their movement state if they are already on another transport.",
+  "raw": "{\"what\": \"Adds a passenger to the transport's internal list and optionally updates their movement state if they are already on another transport.\", \"effects\": \"None\"}",
   "entry": {
    "class": "StaticTransport",
    "name": "AddPassenger",
    "sig": "void AddPassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 131,
+   "line": 148,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 1034
+    "line": 1223
    },
-   "hash": "a0b5e2e5ab5f",
-   "desc": "Adds a passenger to the transport's list and optionally relocates them inside the vehicle if 'withAll' is true. Side effects: Modifies the internal passenger list; may trigger script events for player passengers; updates passenger movement flags and position data.",
+   "hash": "33c858830be5",
+   "desc": "Adds a passenger to the transport's internal list and optionally updates their movement state if they are already on another transport.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "StaticTransport::RemovePassenger@e1376b70:qwen3-5-4b": {
-  "hash": "e0fc80552291",
-  "desc": "Removes a passenger from the transport's internal list and optionally updates their movement state to reflect they are no longer on the vehicle. Side effects: The passenger is removed from the transport; if the passenger belongs to a player, game logic is notified and fall information is updated. If 'withAll' is true, the passenger's transport reference and movement flags are cleared.",
-  "raw": "{\"what\": \"Removes a passenger from the transport's internal list and optionally updates their movement state to reflect they are no longer on the vehicle.\", \"effects\": \"The passenger is removed from the transport; if the passenger belongs to a player, game logic is notified and fall information is updated. If 'withAll' is true, the passenger's transport reference and movement flags are cleared.\"}",
+  "hash": "d2f430ca892a",
+  "desc": "Removes a passenger from the transport's internal list and updates game state if the passenger is a player. Side effects: Modifies the transport's passenger list; may trigger script events for players; clears movement flags and transport association for the passenger if 'withAll' is true.",
+  "raw": "{\"what\": \"Removes a passenger from the transport's internal list and updates game state if the passenger is a player.\", \"effects\": \"Modifies the transport's passenger list; may trigger script events for players; clears movement flags and transport association for the passenger if 'withAll' is true.\"}",
   "entry": {
    "class": "StaticTransport",
    "name": "RemovePassenger",
    "sig": "void RemovePassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 132,
+   "line": 149,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 1058
+    "line": 1256
    },
-   "hash": "e0fc80552291",
-   "desc": "Removes a passenger from the transport's internal list and optionally updates their movement state to reflect they are no longer on the vehicle. Side effects: The passenger is removed from the transport; if the passenger belongs to a player, game logic is notified and fall information is updated. If 'withAll' is true, the passenger's transport reference and movement flags are cleared.",
+   "hash": "d2f430ca892a",
+   "desc": "Removes a passenger from the transport's internal list and updates game state if the passenger is a player. Side effects: Modifies the transport's passenger list; may trigger script events for players; clears movement flags and transport association for the passenger if 'withAll' is true.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43511,6 +43475,24 @@
    "impl": null,
    "hash": "185a7296c7d1",
    "desc": "Sets the internal flag indicating whether a flight path is active Side effects: Updates the member variable _isFlightPath",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Transport::SetMap@b1d7cad4:qwen3-5-4b": {
+  "hash": "cc38807998b3",
+  "desc": "Overrides the base class method to set the current map for this object by calling the parent implementation and storing a pointer to the provided map in an atomic variable. Side effects: The internal state of the object is updated via an atomic store operation.",
+  "raw": "{\n  \"what\": \"Overrides the base class method to set the current map for this object by calling the parent implementation and storing a pointer to the provided map in an atomic variable.\",\n  \"effects\": \"The internal state of the object is updated via an atomic store operation.\"\n}",
+  "entry": {
+   "class": "Transport",
+   "name": "SetMap",
+   "sig": "void SetMap(Map* map)",
+   "file": "src/server/game/Entities/Transport/Transport.h",
+   "line": 36,
+   "access": "public",
+   "impl": null,
+   "hash": "cc38807998b3",
+   "desc": "Overrides the base class method to set the current map for this object by calling the parent implementation and storing a pointer to the provided map in an atomic variable. Side effects: The internal state of the object is updated via an atomic store operation.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
