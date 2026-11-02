@@ -7,3 +7,22 @@ INSERT INTO `smart_scripts` (`entryorguid`,`source_type`,`id`,`link`,`event_type
 (28864,0,3,0,40,0,100,512,6,28864,0,0,0,0,80,2886400,2,0,0,0,0,1,0,0,0,0,0,0,0,0,'Scourge Gryphon - On Waypoint 6 Reached - Run Script'),
 (2886400,9,0,0,0,0,100,0,4000,4000,0,0,0,0,28,46598,0,0,0,0,0,23,0,0,0,0,0,0,0,0,'Scourge Gryphon - Script - Remove Aura ''Ride Vehicle Hardcoded'''),
 (2886400,9,1,0,0,0,100,0,100,100,0,0,0,0,41,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Scourge Gryphon - Script - Despawn Instant');
+
+-- Corrects Scarlet Peasant behavior
+REPLACE INTO `broadcast_text` (`ID`, `LanguageID`, `MaleText`, `FemaleText`, `EmoteID1`, `EmoteID2`, `EmoteID3`, `EmoteDelay1`, `EmoteDelay2`, `EmoteDelay3`, `SoundEntriesId`, `EmotesID`, `Flags`, `VerifiedBuild`) values
+('29012','0','I\'ve got five kids, $G man:lady;! They\'ll die without me!','I\'ve got five kids, $G man:lady;! They\'ll die without me!','0','0','0','0','0','0','0','0','1','18019');
+
+delete from `creature_text` where `CreatureID`=28557;
+insert into `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `BroadcastTextId`, `TextRange`, `comment`) values
+('28557','0','0','Ungh... I... I think I pooped...','12','0','100','0','0','0','29015','0','Scarlet Peasant'),
+('28557','0','1','I... I got a sick grandma at home... I... I\'m all she\'s got, $G mister:miss;.','12','0','100','0','0','0','29016','0','Scarlet Peasant'),
+('28557','0','2','I picked the wrong week to quit drinkin\'!','12','0','100','0','0','0','29014','0','Scarlet Peasant'),
+('28557','0','3','I\'ve got five kids, $G man:lady;! They\'ll die without me!','12','0','100','0','0','0','29012','0','Scarlet Peasant'),
+('28557','0','4','You don\'t have to do this! Nobody has to die!','12','0','100','0','0','0','29013','0','Scarlet Peasant'),
+('28557','0','5','Please, no! Spare me!','12','0','100','0','0','0','29009','0','Scarlet Peasant'),
+('28557','0','6','Don\'t kill me! I only took this job for the benefits!','12','0','100','0','0','0','29010','0','Scarlet Peasant'),
+('28557','0','7','Let me live! I\'ll do whatever you say!','12','0','100','0','0','0','29011','0','Scarlet Peasant');
+
+DELETE FROM ycore_world.smart_scripts WHERE (entryorguid=28557 AND source_type=0) OR (source_type=9 AND entryorguid BETWEEN 2855700 AND 2855703);
+
+UPDATE ycore_world.creature_template SET AIName='', ScriptName='npc_scarlet_peasant' WHERE entry=28557;
