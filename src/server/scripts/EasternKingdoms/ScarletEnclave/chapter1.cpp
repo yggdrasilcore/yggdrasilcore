@@ -895,9 +895,10 @@ namespace ScarletMinerWaypoints
             waypoints.push_back({ 18, 2184.190186f, -6166.447266f, 0.968877f, 0 });
             waypoints.push_back({ 19, 2234.265625f, -6163.741211f, 0.916021f, 0 });
             waypoints.push_back({ 20, 2268.071777f, -6158.750977f, 1.822252f, 0 });
-            waypoints.push_back({ 21, 2270.028320f, -6176.505859f, 6.340538f, 0 });
-            waypoints.push_back({ 22, 2270.350001f, -6182.410001f, 10.42431f, 0 });
-            waypoints.push_back({ 23, 2271.739014f, forCart ? -6193.401855f : -6195.401855f, 13.3542f, 10000 });
+            waypoints.push_back({ 21, 2269.138f, -6167.8174f, 1.2576879f, 0 });
+            waypoints.push_back({ 22, 2270.028320f, -6176.505859f, 6.340538f, 0 });
+            waypoints.push_back({ 23, 2270.350001f, -6182.410001f, 10.42431f, 0 });
+            waypoints.push_back({ 24, 2271.739014f, forCart ? -6193.401855f : -6195.401855f, 13.3542f, 10000 });
         }
     }
 }
@@ -1018,6 +1019,8 @@ public:
         uint32 IntroPhase;
         ObjectGuid carGUID;
         uint8 cartPath;
+        ScarletMinerWaypoints::Waypoint firstWaypoint{};
+        bool initialLegDone = false;
 
         void Reset() override
         {
@@ -1025,6 +1028,7 @@ public:
             IntroTimer = 0;
             IntroPhase = 0;
             cartPath = 0;
+            initialLegDone = false;
         }
 
         void InitWaypoint()
@@ -1037,7 +1041,7 @@ public:
             for (ScarletMinerWaypoints::Waypoint const& waypoint : waypoints)
                 AddWaypoint(waypoint.id, waypoint.x, waypoint.y, waypoint.z, waypoint.waitTime);
 
-            me->SetOrientation(me->GetAngle(waypoints.front().x, waypoints.front().y));
+            firstWaypoint = waypoints.front();
         }
 
         void InitCartQuest(Player* who)
@@ -1047,6 +1051,19 @@ public:
             me->SetWalk(true);
             Start(false, who->GetGUID());
             SetDespawnAtFar(false);
+        }
+
+        void MovementInform(uint32 type, uint32 id) override
+        {
+            if (type == ESCORT_MOTION_TYPE && !initialLegDone)
+            {
+                if (me->GetDistance(firstWaypoint.x, firstWaypoint.y, firstWaypoint.z) > 2.0f)
+                    return;
+
+                initialLegDone = true;
+            }
+
+            npc_escortAI::MovementInform(type, id);
         }
 
         void WaypointReached(uint32 waypointId) override
@@ -1068,6 +1085,10 @@ public:
                     IntroPhase = 1;
                     break;
                 case 23:
+                    if (cartPath != 0)
+                        break;
+                    [[fallthrough]];
+                case 24:
                     if (Creature* car = ObjectAccessor::GetCreature(*me, carGUID))
                     {
                         me->SetFacingToObject(car);
