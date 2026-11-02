@@ -38,7 +38,7 @@ INSERT INTO `smart_scripts` (`entryorguid`,`source_type`,`id`,`link`,`event_type
 (28782,0,7,15,38,0,100,0,1,1,0,0,0,0,22,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Acherus Deathcharger - On Data Set - Set Phase 1'),
 (28782,0,8,9,1,1,100,257,30000,30000,0,0,0,0,28,23973,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Acherus Deathcharger - Phase 1 After 30 Sec - Remove Aura 23973'),
 (28782,0,9,0,61,0,100,0,0,0,0,0,0,0,41,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Acherus Deathcharger - Phase 1 After 30 Sec - Despawn'),
-(28782,0,10,0,1,0,100,257,200,200,0,0,0,0,12,28768,6,30000,0,0,0,1,0,0,0,0,0,0,0,0,'Acherus Deathcharger - 200 ms After Spawn - Summon Dark Rider'),
+(28782,0,10,0,1,0,100,1,200,200,0,0,0,0,12,28768,6,30000,0,0,0,1,0,0,0,0,0,0,0,0,'Acherus Deathcharger - 200 ms After Spawn - Summon Dark Rider'),
 (28782,0,11,0,38,0,100,0,2,1,0,0,0,0,49,0,0,0,0,0,0,12,1,0,0,0,0,0,0,0,'Acherus Deathcharger - On Data Set Combat Start - Attack Stored Rider Enemy'),
 (28782,0,12,0,38,0,100,0,2,0,0,0,0,0,27,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Acherus Deathcharger - On Data Set Combat End - Combat Stop'),
 (28782,0,13,0,0,1,100,0,500,500,500,500,0,0,2,35,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Acherus Deathcharger - Phase 1 In Combat - Keep Faction Friendly'),
