@@ -552,7 +552,7 @@ public:
             if (!cannon || !cannon->IsAlive())
                 return;
 
-            if (roll_chance_i(5))
+            if (roll_chance_i(25))
                 Talk(0);
 
             std::list<Creature*> defenders;
