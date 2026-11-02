@@ -618,12 +618,20 @@ public:
 						Talk(SAY_INTRO_HORDE_9);
 						break;
 					case EVENT_INTRO_FINISH:
-						events.SetPhase(PHASE_COMBAT);
-						_introDone = true;
-						me->SetImmuneToPC(false);
-						if (Player* target = me->SelectNearestPlayer(100.0f))
-							AttackStart(target);
-						break;
+						{
+							bool const allianceIntro = events.IsInPhase(PHASE_INTRO_A);
+							events.SetPhase(PHASE_COMBAT);
+							_introDone = true;
+							me->SetImmuneToPC(false);
+							if (allianceIntro)
+							{
+								if (Player* target = SelectNearestPlayerInRange(50.0f, 5.0f))
+									AttackStart(target);
+							}
+							else if (Player* target = me->SelectNearestPlayer(100.0f))
+								AttackStart(target);
+							break;
+						}
 					case EVENT_SUMMON_BLOOD_BEAST:
 						for (uint32 i10 = 0; i10 < 2; ++i10)
 							DoCast(me, SPELL_SUMMON_BLOOD_BEAST + i10);
@@ -731,6 +739,32 @@ public:
         }
 
     private:
+        Player* SelectNearestPlayerInRange(float rangeXY, float rangeZ) const
+        {
+            Player* target = nullptr;
+            float closestDist = rangeXY;
+            Map* map = me->GetMap();
+            for (ObjectGuid const& playerGuid : map->CopyPlayerGuids())
+            {
+                Player* player = ObjectAccessor::FindPlayer(playerGuid);
+                if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive())
+                    continue;
+
+                float dz = player->GetPositionZ() - me->GetPositionZ();
+                if (dz > rangeZ || dz < -rangeZ)
+                    continue;
+
+                float dist = me->GetExactDist2d(player);
+                if (dist <= rangeXY && (!target || dist < closestDist))
+                {
+                    closestDist = dist;
+                    target = player;
+                }
+            }
+
+            return target;
+        }
+
         uint32 _fallenChampionCastCount;
         bool _introDone;
         bool _outroStarted;
