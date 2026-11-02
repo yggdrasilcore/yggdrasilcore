@@ -82,6 +82,8 @@ struct npc_citizen_of_havenshire : public ScriptedAI
     {
         PauseWaypoints();
 
+        Unit* talkTarget = who && who->IsPlayer() ? who : me->SelectNearestPlayer(40.0f);
+
         // Rain of Darkness victims are completely passive and do not react to combat.
         if (me->HasAura(SPELL_RAIN_OF_DARKNESS))
         {
@@ -96,7 +98,7 @@ struct npc_citizen_of_havenshire : public ScriptedAI
             me->SetReactState(REACT_PASSIVE);
             me->HandleEmoteCommand(EMOTE_ONESHOT_EXCLAMATION);
             me->PlayDirectSound(me->GetEntry() == NPC_CITIZEN_OF_HAVENS_HIRE_1 ? SOUND_COWER_1 : SOUND_COWER_2);
-            Talk(SAY_FEAR);
+            Talk(SAY_FEAR, talkTarget);
             events.ScheduleEvent(EVENT_COWER, 2s);
         }
         else
@@ -104,7 +106,7 @@ struct npc_citizen_of_havenshire : public ScriptedAI
             _enraged = true;
             me->SetReactState(REACT_AGGRESSIVE);
             DoCastSelf(SPELL_CORNERED_AND_ENRAGED, true);
-            Talk(SAY_ENRAGED);
+            Talk(SAY_ENRAGED, talkTarget);
             AttackStart(who);
         }
 
@@ -115,9 +117,9 @@ struct npc_citizen_of_havenshire : public ScriptedAI
         }
     }
 
-    void JustDied(Unit* /*killer*/) override
+    void JustDied(Unit* killer) override
     {
-        Talk(SAY_DEATH);
+        Talk(SAY_DEATH, killer && killer->IsPlayer() ? killer : me->SelectNearestPlayer(40.0f));
     }
 
     void EnterEvadeMode(EvadeReason /*why*/) override
