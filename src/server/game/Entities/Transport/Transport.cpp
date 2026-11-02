@@ -290,8 +290,13 @@ void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
                 t->RemovePassenger(passenger, false);
     }
 
-    std::lock_guard<std::mutex> guard(Lock);
-    if (_passengers.insert(passenger).second)
+    bool inserted;
+    {
+        std::lock_guard<std::mutex> guard(Lock);
+        inserted = _passengers.insert(passenger).second;
+    }
+
+    if (inserted)
     {
         if (Player* plr = passenger->ToPlayer())
             sScriptMgr->OnAddPassenger(ToTransport(), plr);
@@ -316,8 +321,13 @@ void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
 void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 {
-    std::lock_guard<std::mutex> guard(Lock);
-    if (_passengers.erase(passenger) || _staticPassengers.erase(passenger))
+    bool erased;
+    {
+        std::lock_guard<std::mutex> guard(Lock);
+        erased = _passengers.erase(passenger) || _staticPassengers.erase(passenger);
+    }
+
+    if (erased)
     {
         if (Player* plr = passenger->ToPlayer())
         {
