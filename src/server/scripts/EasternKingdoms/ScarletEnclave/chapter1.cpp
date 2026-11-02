@@ -877,11 +877,9 @@ public:
             {
                 me->SetWalk(false);
 
-                //Not 100% correct, but movement is smooth. Sometimes miner walks faster
-                //than normal, this speed is fast enough to keep up at those times.
-                me->SetSpeed(MOVE_RUN, 1.25f);
+                me->SetSpeed(MOVE_RUN, miner->GetSpeedRate(MOVE_RUN));
 
-                me->GetMotionMaster()->MoveFollow(miner, 1.0f, 0);
+                me->GetMotionMaster()->MoveFollow(miner, 3.0f, M_PI);
                 me->ReplaceAllUnitFlags(UNIT_FLAG_NON_ATTACKABLE);
                 me->SetImmuneToAll(true);
                 me->SetFaction(FACTION_FRIENDLY);
