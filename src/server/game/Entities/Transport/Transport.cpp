@@ -283,6 +283,13 @@ void MotionTransport::UpdatePosition(float x, float y, float z, float o)
 
 void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
 {
+    if (withAll)
+    {
+        if (Transport* t = passenger->GetTransport()) // SHOULD NEVER HAPPEN
+            if (t != this)
+                t->RemovePassenger(passenger, false);
+    }
+
     std::lock_guard<std::mutex> guard(Lock);
     if (_passengers.insert(passenger).second)
     {
@@ -291,9 +298,6 @@ void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
         if (withAll)
         {
-            if (Transport* t = passenger->GetTransport()) // SHOULD NEVER HAPPEN
-                t->RemovePassenger(passenger, false);
-
             float x, y, z, o;
             passenger->GetPosition(x, y, z, o);
             CalculatePassengerOffset(x, y, z, &o);
