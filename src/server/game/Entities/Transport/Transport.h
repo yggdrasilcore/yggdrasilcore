@@ -37,6 +37,7 @@ public:
     virtual void AddPassenger(WorldObject* passenger, bool withAll = false) = 0;
     virtual void RemovePassenger(WorldObject* passenger, bool withAll = false) = 0;
     PassengerSet const& GetPassengers() const { return _passengers; }
+    virtual PassengerSet GetPassengersCopy() const { return _passengers; }
 
     virtual void DelayedUpdate(uint32 /*diff*/) {}
 
@@ -69,6 +70,7 @@ public:
 
     void LoadStaticPassengers();
     PassengerSet const& GetStaticPassengers() const { return _staticPassengers; }
+    PassengerSet GetPassengersCopy() const override { std::lock_guard<std::mutex> guard(Lock); return _passengers; }
     void UnloadStaticPassengers();
     void UnloadNonStaticPassengers();
     void SetPassengersLoaded(bool loaded) { _passengersLoaded = loaded; }

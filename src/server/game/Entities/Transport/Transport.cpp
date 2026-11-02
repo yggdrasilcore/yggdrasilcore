@@ -334,17 +334,17 @@ void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
             sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
         }
+    }
 
-        if (withAll)
+    if (withAll && (erased || passenger->GetTransport() == this))
+    {
+        passenger->SetTransport(nullptr);
+        passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
+        passenger->m_movementInfo.transport.guid.Clear();
+        passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
+        if (passenger->ToUnit())
         {
-            passenger->SetTransport(nullptr);
-            passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
-            passenger->m_movementInfo.transport.guid.Clear();
-            passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
-            if (passenger->ToUnit())
-            {
-                passenger->ToUnit()->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
-            }
+            passenger->ToUnit()->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
         }
     }
 }
@@ -1104,21 +1104,22 @@ void StaticTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
 void StaticTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 {
-    if (_passengers.erase(passenger))
+    bool erased = _passengers.erase(passenger);
+    if (erased)
     {
         if (Player* plr = passenger->ToPlayer())
         {
             sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
         }
+    }
 
-        if (withAll)
-        {
-            passenger->SetTransport(nullptr);
-            passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
-            passenger->m_movementInfo.transport.guid.Clear();
-            passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
-        }
+    if (withAll && (erased || passenger->GetTransport() == this))
+    {
+        passenger->SetTransport(nullptr);
+        passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
+        passenger->m_movementInfo.transport.guid.Clear();
+        passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
     }
 }
 
