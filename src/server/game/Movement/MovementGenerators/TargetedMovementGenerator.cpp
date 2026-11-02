@@ -825,8 +825,8 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         !owner->HasUnitState(UNIT_STATE_FOLLOW_MOVE))
     {
         // Detach the pet so the world-spline doesn't chase the deck.
-        if (owner->GetTransport())
-            owner->GetTransport()->RemovePassenger(owner, true);
+        if (Transport* ownerTransport = owner->GetTransport())
+            ownerTransport->RemovePassenger(owner, true);
 
         releaseGravityLock();
         owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);

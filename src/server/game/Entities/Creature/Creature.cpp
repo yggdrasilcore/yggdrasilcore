@@ -1001,10 +1001,11 @@ void Creature::Update(uint32 diff)
             {
                 m_transportCheckTimer = 1000;
                 Transport* newTransport = GetMap()->GetTransportForPos(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), this);
-                if (newTransport != GetTransport())
+                Transport* oldTransport = GetTransport();
+                if (newTransport != oldTransport)
                 {
-                    if (GetTransport())
-                        GetTransport()->RemovePassenger(this, true);
+                    if (oldTransport)
+                        oldTransport->RemovePassenger(this, true);
                     if (newTransport)
                         newTransport->AddPassenger(this, true);
                     this->StopMovingOnCurrentPos();

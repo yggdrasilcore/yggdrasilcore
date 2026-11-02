@@ -794,6 +794,10 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     {
         SetPlayer(nullptr);
         KickPlayer("WorldSession::HandlePlayerLogin Player::LoadFromDB failed"); // disconnect client, player no set to session and it will not deleted or saved at kick
+        // The player was never added to the world, so nothing else will detach it
+        // from the transport set. Do that before deleting the object.
+        if (Transport* transport = pCurrChar->GetTransport())
+            transport->RemovePassenger(pCurrChar, true);
         delete pCurrChar; // delete it manually
         m_playerLoading = false;
         return;
@@ -893,6 +897,12 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
         pCurrChar->GetSession()->SendNameQueryOpcode(pCurrChar->GetGUID());
     }
 
+    // Join the passenger set only once the player is in the map, so a failed
+    // login cannot leave a dangling entry.
+    if (Transport* transport = pCurrChar->GetTransport())
+        if (pCurrChar->IsInWorld() && transport->IsInWorld() && transport->IsInMap(pCurrChar))
+            transport->AddPassenger(pCurrChar);
+
     pCurrChar->SendInitialPacketsAfterAddToMap();
 
     CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHAR_ONLINE);
@@ -925,7 +935,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     if (Transport* t = pCurrChar->GetTransport())
         if (!t->IsInMap(pCurrChar))
         {
-            t->RemovePassenger(pCurrChar);
+            t->RemovePassenger(pCurrChar, true);
             pCurrChar->m_transport = nullptr;
             pCurrChar->m_movementInfo.transport.Reset();
             pCurrChar->m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
