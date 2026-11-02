@@ -218,7 +218,7 @@ private:
         {
             if (generator->GetMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
             {
-                generator->Pause();
+                generator->Pause(0);
                 _waypointsPaused = true;
             }
         }
@@ -231,7 +231,7 @@ private:
         if (MovementGenerator* generator = me->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE))
         {
             if (generator->GetMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
-                generator->Resume();
+                generator->Resume(0);
             else
                 StartPath();
         }
