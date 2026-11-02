@@ -561,7 +561,7 @@ public:
             if (!cannon->IsAlive())
                 return;
 
-            if (roll_chance_i(25))
+            if (roll_chance_i(20))
                 Talk(0);
 
             std::list<Creature*> defenders;
