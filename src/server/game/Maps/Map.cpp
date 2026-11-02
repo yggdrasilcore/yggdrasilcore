@@ -760,6 +760,10 @@ void Map::RemovePlayerFromMap(Player* player, bool remove)
 
     player->getHostileRefMgr().deleteReferences(true); // pussywizard: multithreading crashfix
 
+    if (remove)
+        if (Transport* transport = player->GetTransport())
+            transport->RemovePassenger(player, true);
+
     player->RemoveFromWorld();
     SendRemoveTransports(player);
 
@@ -782,6 +786,10 @@ void Map::AfterPlayerUnlinkFromMap()
 template<class T>
 void Map::RemoveFromMap(T* obj, bool remove)
 {
+    if (remove)
+        if (Transport* transport = obj->GetTransport())
+            transport->RemovePassenger(obj, true);
+
     obj->RemoveFromWorld();
 
     obj->RemoveFromGrid();
