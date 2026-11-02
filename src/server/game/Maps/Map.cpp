@@ -1750,10 +1750,11 @@ void Map::SendInitSelf(Player* player)
     // build other passengers at transport also (they always visible and marked as visible and will not send at visibility update at add to map
     if (Transport* transport = player->GetTransport())
     {
-        Transport::PassengerSet const passengers = transport->GetPassengersCopy();
-        for (WorldObject* passenger : passengers)
-            if (passenger && passenger != player && passenger->IsInWorld() && player->HaveAtClient(passenger))
-                passenger->BuildCreateUpdateBlockForPlayer(&data, player);
+        Transport::PassengerGuidSet const passengers = transport->GetPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
+            if (WorldObject* passenger = transport->GetPassenger(guid))
+                if (passenger != player && passenger->IsInWorld() && player->HaveAtClient(passenger))
+                    passenger->BuildCreateUpdateBlockForPlayer(&data, player);
     }
 
     data.BuildPacket(packet);
@@ -2837,11 +2838,11 @@ void Map::AllTransportsRemovePassengers()
         if (!transport)
             continue;
 
-        // Snapshot first: RemovePassenger mutates the live set and may invoke
-        // scripts that add/remove other passengers.
-        Transport::PassengerSet passengers = transport->GetPassengers();
-        for (WorldObject* passenger : passengers)
-            transport->RemovePassenger(passenger, true);
+        Transport::PassengerGuidSet passengers = transport->GetPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
+            if (WorldObject* passenger = transport->GetPassenger(guid))
+                if (transport->HasPassenger(guid))
+                    transport->RemovePassenger(passenger, true);
     }
 }
 

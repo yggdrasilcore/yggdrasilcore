@@ -44,7 +44,7 @@ WorldObject* Transport::ResolvePassenger(ObjectGuid const& guid) const
 
     Map* map = FindMap();
     if (!map)
-        map = _passengerMap;
+        map = _passengerMap.load(std::memory_order_relaxed);
     if (!map)
         return nullptr;
 
@@ -378,13 +378,12 @@ void MotionTransport::UpdatePosition(float x, float y, float z, float o)
     Relocate(x, y, z, o);
     UpdateModelPosition();
 
-    UpdatePassengerPositions(GetPassengers());
+    UpdatePassengerPositions(GetPassengerGuids());
 
-    PassengerSet staticPassengers = GetStaticPassengers();
-    if (staticPassengers.empty())
+    if (!HasStaticPassengers())
         LoadStaticPassengers();
     else
-        UpdatePassengerPositions(staticPassengers);
+        UpdatePassengerPositions(GetStaticPassengerGuids());
 }
 
 void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
@@ -603,10 +602,11 @@ void MotionTransport::UnloadStaticPassengers()
 
 void MotionTransport::UnloadNonStaticPassengers()
 {
-    PassengerSet const passengers = GetPassengers();
-    for (WorldObject* passenger : passengers)
+    PassengerGuidSet const passengers = GetPassengerGuids();
+    for (ObjectGuid const& guid : passengers)
     {
-        if (!passenger || passenger->IsPlayer())
+        WorldObject* passenger = GetPassenger(guid);
+        if (!passenger || !HasPassenger(guid) || passenger->IsPlayer())
             continue;
         passenger->AddObjectToRemoveList();
     }
@@ -677,10 +677,11 @@ bool MotionTransport::TeleportTransport(uint32 newMapid, float x, float y, float
     {
         // Teleport players, they need to know it
         // (vehicle passengers ride via base RelocatePassengers instead)
-        PassengerSet passengers = GetPassengers();
-        for (WorldObject* passenger : passengers)
+        PassengerGuidSet passengers = GetPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
         {
-            if (!passenger || !passenger->IsInWorld())
+            WorldObject* passenger = GetPassenger(guid);
+            if (!passenger || !HasPassenger(guid) || !passenger->IsInWorld())
                 continue;
             if (Unit* unit = passenger->ToUnit())
                 if (unit->GetVehicle())
@@ -713,10 +714,11 @@ void MotionTransport::DelayedTeleportTransport()
           z = _nextFrame->Node->z,
           o = _nextFrame->InitialOrientation;
 
-    PassengerSet passengersCopy = GetPassengers();
-    for (WorldObject* obj : passengersCopy)
+    PassengerGuidSet passengersCopy = GetPassengerGuids();
+    for (ObjectGuid const& guid : passengersCopy)
     {
-        if (!HasPassenger(obj))
+        WorldObject* obj = GetPassenger(guid);
+        if (!obj || !HasPassenger(guid))
             continue;
 
         switch (obj->GetTypeId())
@@ -790,11 +792,12 @@ void MotionTransport::DelayedTeleportTransport()
     LoadStaticPassengers();
 }
 
-void MotionTransport::UpdatePassengerPositions(PassengerSet const& passengers)
+void MotionTransport::UpdatePassengerPositions(PassengerGuidSet const& passengers)
 {
-    for (WorldObject* passenger : passengers)
+    for (ObjectGuid const& guid : passengers)
     {
-        if (!passenger || !passenger->IsInWorld())
+        WorldObject* passenger = GetPassenger(guid);
+        if (!passenger || (!HasPassenger(guid) && !HasStaticPassenger(guid)) || !passenger->IsInWorld())
             continue;
         // transport teleported but passenger not yet (can happen for players)
         if (passenger->GetMap() != GetMap())
@@ -1193,10 +1196,11 @@ void StaticTransport::UpdatePosition(float x, float y, float z, float o)
 
 void StaticTransport::UpdatePassengerPositions()
 {
-    PassengerSet passengers = GetPassengers();
-    for (WorldObject* passenger : passengers)
+    PassengerGuidSet passengers = GetPassengerGuids();
+    for (ObjectGuid const& guid : passengers)
     {
-        if (!passenger || !passenger->IsInWorld())
+        WorldObject* passenger = GetPassenger(guid);
+        if (!passenger || !HasStaticPassenger(guid) || !passenger->IsInWorld())
             continue;
 
         // if passenger is on vehicle we have to assume the vehicle is also on transport and its the vehicle that will be updating its passengers

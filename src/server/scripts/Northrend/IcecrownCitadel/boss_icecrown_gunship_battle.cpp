@@ -551,10 +551,11 @@ static void ClearGunshipHullRespawnTimes(Transport* transport)
 
     if (MotionTransport* mt = transport->ToMotionTransport())
     {
-        Transport::PassengerSet const passengers = mt->GetStaticPassengers();
-        for (WorldObject* passenger : passengers)
+        Transport::PassengerGuidSet const passengers = mt->GetStaticPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
         {
-            if (!passenger)
+            WorldObject* passenger = mt->GetPassenger(guid);
+            if (!passenger || !mt->HasStaticPassenger(guid))
                 continue;
             if (Creature* hull = passenger->ToCreature())
                 if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
@@ -728,10 +729,11 @@ public:
             uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
             if (MotionTransport* t = (transport ? transport->ToMotionTransport() : nullptr))
             {
-                Transport::PassengerSet const passengers = t->GetStaticPassengers();
-                for (WorldObject* passenger : passengers)
+                Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+                for (ObjectGuid const& guid : passengers)
                 {
-                    if (!passenger || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
+                    WorldObject* passenger = t->GetPassenger(guid);
+                    if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
                         continue;
                     passenger->ToCreature()->CastSpell(passenger->ToCreature(), explosionSpell, true);
                 }
@@ -741,10 +743,11 @@ public:
             if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
                 if (MotionTransport* t = go->ToMotionTransport())
                 {
-                    Transport::PassengerSet const passengers = t->GetStaticPassengers();
-                    for (WorldObject* passenger : passengers)
+                    Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+                    for (ObjectGuid const& guid : passengers)
                     {
-                        if (!passenger || !passenger->IsCreature() || passenger->GetEntry() != cannonEntry)
+                        WorldObject* passenger = t->GetPassenger(guid);
+                        if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != cannonEntry)
                             continue;
                         Creature* cannon = passenger->ToCreature();
                         cannon->CastSpell(cannon, SPELL_EJECT_ALL_PASSENGERS, true);
@@ -792,10 +795,11 @@ public:
                     if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(i == 0 ? DATA_ICECROWN_GUNSHIP_BATTLE : DATA_ENEMY_GUNSHIP)))
                         if (MotionTransport* t = go->ToMotionTransport())
                         {
-                            Transport::PassengerSet const passengers = t->GetPassengers();
-                            for (WorldObject* passenger : passengers)
+                            Transport::PassengerGuidSet const passengers = t->GetPassengerGuids();
+                            for (ObjectGuid const& guid : passengers)
                             {
-                                if (!passenger || !passenger->IsCreature())
+                                WorldObject* passenger = t->GetPassenger(guid);
+                                if (!passenger || !t->HasPassenger(guid) || !passenger->IsCreature())
                                     continue;
                                 Creature* c = passenger->ToCreature();
                                 if (c->GetEntry() == NPC_SKYBREAKER_MARINE || c->GetEntry() == NPC_SKYBREAKER_SERGEANT || c->GetEntry() == NPC_KOR_KRON_REAVER || c->GetEntry() == NPC_KOR_KRON_SERGEANT)
