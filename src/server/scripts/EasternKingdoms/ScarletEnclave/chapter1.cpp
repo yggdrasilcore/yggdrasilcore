@@ -956,7 +956,7 @@ public:
                 path.push_back(G3D::Vector3(waypoint.x, waypoint.y, waypoint.z));
             }
 
-            startDelay = 1500;
+            startDelay = 1000;
             startPending = true;
 
             me->ReplaceAllUnitFlags(UNIT_FLAG_NON_ATTACKABLE);
