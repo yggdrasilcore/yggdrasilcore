@@ -812,7 +812,7 @@ public:
                 Unit* resetOwner = me;
                 if (Creature* enemyShip = _instance->GetCreature(DATA_ENEMY_GUNSHIP))
                     resetOwner = enemyShip;
-                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, me->GetTransport()->GetGUID(), _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
+                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, Object::GetGUID(me->GetTransport()), _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
             }
         }
 
@@ -1722,6 +1722,8 @@ struct gunship_npc_AI : public ScriptedAI
             float x, y, z, o;
             Slot->TargetPosition.GetPosition(x, y, z, o);
             me->SetTransportHomePosition(Slot->TargetPosition);
+            if (!me->GetTransport())
+                return;
             me->GetTransport()->CalculatePassengerPosition(x, y, z, &o);
             me->SetHomePosition(x, y, z, o);
             me->GetMotionMaster()->MovePoint(EVENT_CHARGE_PREPATH, x, y, z, FORCED_MOVEMENT_NONE, 0.f, false);
