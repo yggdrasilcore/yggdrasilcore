@@ -1019,8 +1019,7 @@ public:
         uint32 IntroPhase;
         ObjectGuid carGUID;
         uint8 cartPath;
-        ScarletMinerWaypoints::Waypoint firstWaypoint{};
-        bool initialLegDone = false;
+        std::vector<ScarletMinerWaypoints::Waypoint> remainingWaypoints;
 
         void Reset() override
         {
@@ -1028,7 +1027,7 @@ public:
             IntroTimer = 0;
             IntroPhase = 0;
             cartPath = 0;
-            initialLegDone = false;
+            remainingWaypoints.clear();
         }
 
         void InitWaypoint()
@@ -1038,10 +1037,10 @@ public:
             std::vector<ScarletMinerWaypoints::Waypoint> waypoints;
             ScarletMinerWaypoints::Build(waypoints, cartPath, false);
 
-            for (ScarletMinerWaypoints::Waypoint const& waypoint : waypoints)
-                AddWaypoint(waypoint.id, waypoint.x, waypoint.y, waypoint.z, waypoint.waitTime);
-
-            firstWaypoint = waypoints.front();
+            ScarletMinerWaypoints::Waypoint const& first = waypoints.front();
+            AddWaypoint(first.id, first.x, first.y, first.z, first.waitTime);
+            remainingWaypoints.assign(waypoints.begin() + 1, waypoints.end());
+            me->SetOrientation(me->GetAngle(first.x, first.y));
         }
 
         void InitCartQuest(Player* who)
@@ -1053,21 +1052,15 @@ public:
             SetDespawnAtFar(false);
         }
 
-        void MovementInform(uint32 type, uint32 id) override
-        {
-            if (type == ESCORT_MOTION_TYPE && !initialLegDone)
-            {
-                if (me->GetDistance(firstWaypoint.x, firstWaypoint.y, firstWaypoint.z) > 2.0f)
-                    return;
-
-                initialLegDone = true;
-            }
-
-            npc_escortAI::MovementInform(type, id);
-        }
-
         void WaypointReached(uint32 waypointId) override
         {
+            if (waypointId == 1)
+            {
+                for (ScarletMinerWaypoints::Waypoint const& waypoint : remainingWaypoints)
+                    AddWaypoint(waypoint.id, waypoint.x, waypoint.y, waypoint.z, waypoint.waitTime);
+                remainingWaypoints.clear();
+            }
+
             switch (waypointId)
             {
                 case 1:
