@@ -40,10 +40,22 @@ static constexpr char _luaEvalPostfix[] = ",'GUILD')end";
 
 static_assert((sizeof(_luaEvalPrefix)-1 + sizeof(_luaEvalMidfix)-1 + sizeof(_luaEvalPostfix)-1 + WARDEN_MAX_LUA_CHECK_LENGTH) == 255);
 
-static constexpr uint16 _interactionUnpausePayloadId = 8999;
-static constexpr char _interactionUnpausePayload[] = "local f=CreateFrame('Frame')local g;f:RegisterAllEvents()f:SetScript('OnEvent',function(_,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if g then SendAddonMessage('_YU',g,'GUILD')end elseif e:find('SHOW')or e:find('QUEST_')then g=UnitGUID('npc')end end)";
+static constexpr uint16 _interactionUnpauseShowPayloadId = 8999;
+static constexpr char _interactionUnpauseShowPayload[] = "_F=CreateFrame('Frame')_F:RegisterEvent('GOSSIP_SHOW')_F:RegisterEvent('MERCHANT_SHOW')_F:RegisterEvent('TRAINER_SHOW')_F:RegisterEvent('QUEST_GREETING')_F:RegisterEvent('QUEST_DETAIL')_F:RegisterEvent('QUEST_PROGRESS')_F:RegisterEvent('QUEST_COMPLETE')";
 
-static_assert(sizeof(_interactionUnpausePayload) - 1 <= 255);
+static constexpr uint16 _interactionUnpauseClosePayloadId = 8998;
+static constexpr char _interactionUnpauseClosePayload[] = "_F:RegisterEvent('GOSSIP_CLOSED')_F:RegisterEvent('MERCHANT_CLOSED')_F:RegisterEvent('TRAINER_CLOSED')_F:RegisterEvent('QUEST_FINISHED')_F:SetScript('OnUpdate',function(_,el)if p then d=d-el if d<=0 then _S()end end end)";
+
+static constexpr uint16 _interactionUnpauseEventPayloadId = 8997;
+static constexpr char _interactionUnpauseEventPayload[] = "_F:SetScript('OnEvent',function(_,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if g then p=g d=.5 end else local n=UnitGUID('npc')if n then if p and p~=n then d=0 else p=nil end g=n end end end)";
+
+static constexpr uint16 _interactionUnpauseSendPayloadId = 8996;
+static constexpr char _interactionUnpauseSendPayload[] = "l=0 _S=function()if GetTime()-l<.25 then d=.5 return end l=GetTime()if IsInGuild()then SendChatMessage('.unpause '..p,'GUILD')else SendChatMessage('.unpause '..p,'SAY')end p=nil end";
+
+static_assert(sizeof(_interactionUnpauseShowPayload) - 1 <= 255);
+static_assert(sizeof(_interactionUnpauseClosePayload) - 1 <= 255);
+static_assert(sizeof(_interactionUnpauseEventPayload) - 1 <= 255);
+static_assert(sizeof(_interactionUnpauseSendPayload) - 1 <= 255);
 
 static constexpr uint8 GetCheckPacketBaseSize(uint8 type)
 {
@@ -123,16 +135,25 @@ void WardenWin::SendPayload()
 
         payloadMgr->RegisterPayload(strOne, idOne, true);
         payloadMgr->RegisterPayload(strTwo, idTwo, true);
-        payloadMgr->RegisterPayload(_interactionUnpausePayload, _interactionUnpausePayloadId, true);
+        payloadMgr->RegisterPayload(_interactionUnpauseShowPayload, _interactionUnpauseShowPayloadId, true);
+        payloadMgr->RegisterPayload(_interactionUnpauseClosePayload, _interactionUnpauseClosePayloadId, true);
+        payloadMgr->RegisterPayload(_interactionUnpauseEventPayload, _interactionUnpauseEventPayloadId, true);
+        payloadMgr->RegisterPayload(_interactionUnpauseSendPayload, _interactionUnpauseSendPayloadId, true);
 
         // Drop unsent bootstrap payloads so repeated QueuePayload() calls
         // do not duplicate them.
         payloadMgr->DequeuePayload(idOne);
         payloadMgr->DequeuePayload(idTwo);
-        payloadMgr->DequeuePayload(_interactionUnpausePayloadId);
+        payloadMgr->DequeuePayload(_interactionUnpauseShowPayloadId);
+        payloadMgr->DequeuePayload(_interactionUnpauseClosePayloadId);
+        payloadMgr->DequeuePayload(_interactionUnpauseEventPayloadId);
+        payloadMgr->DequeuePayload(_interactionUnpauseSendPayloadId);
 
         // QueuePayload(pushToFront) prepends, so queue in reverse execution order.
-        payloadMgr->QueuePayload(_interactionUnpausePayloadId, true);
+        payloadMgr->QueuePayload(_interactionUnpauseClosePayloadId, true);
+        payloadMgr->QueuePayload(_interactionUnpauseEventPayloadId, true);
+        payloadMgr->QueuePayload(_interactionUnpauseSendPayloadId, true);
+        payloadMgr->QueuePayload(_interactionUnpauseShowPayloadId, true);
         payloadMgr->QueuePayload(idTwo, true);
         payloadMgr->QueuePayload(idOne, true);
 
