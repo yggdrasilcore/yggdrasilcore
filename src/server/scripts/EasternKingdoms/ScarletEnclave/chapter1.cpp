@@ -32,6 +32,7 @@
 #include "Vehicle.h"
 #include "VehicleScript.h"
 
+#include <list>
 #include <vector>
 
  /*######
@@ -518,33 +519,44 @@ public:
 
     struct npc_scarlet_cannonAI : public VehicleAI
     {
-        npc_scarlet_cannonAI(Creature* creature) : VehicleAI(creature) { summonAttackers = 0; }
+        npc_scarlet_cannonAI(Creature* creature) : VehicleAI(creature) { }
+    };
+};
 
-        uint32 summonAttackers;
-        void PassengerBoarded(Unit* /*passenger*/, int8 /*seatId*/, bool apply) override
+class npc_scarlet_fleet_defender : public CreatureScript
+{
+public:
+    npc_scarlet_fleet_defender() : CreatureScript("npc_scarlet_fleet_defender") { }
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return new npc_scarlet_fleet_defenderAI(creature);
+    }
+
+    struct npc_scarlet_fleet_defenderAI : public ScriptedAI
+    {
+        npc_scarlet_fleet_defenderAI(Creature* creature) : ScriptedAI(creature) { }
+
+        void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
-            summonAttackers = apply ? 8000 : 0;
-        }
+            if (!attacker || !damage || !me->IsAlive())
+                return;
 
-        void UpdateAI(uint32 diff) override
-        {
-            VehicleAI::UpdateAI(diff);
+            Unit* cannon = nullptr;
+            if (attacker->GetEntry() == 28833)
+                cannon = attacker;
+            else if (Unit* vehicleBase = attacker->GetVehicleBase())
+                if (vehicleBase->GetEntry() == 28833)
+                    cannon = vehicleBase;
 
-            if (summonAttackers)
-            {
-                summonAttackers += diff;
-                if (summonAttackers >= 15000)
-                {
-                    for (uint8 i = 0; i < 15; ++i)
-                        if (Creature* summon = me->SummonCreature(28834 /*NPC_SCARLET_FLEET_DEFENDER*/, 2192.56f + irand(-10, 10), -6147.90f + irand(-10, 10), 5.2f, 4.7f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 45000))
-                        {
-                            summon->SetHomePosition(me->GetHomePosition());
-                            summon->AI()->AttackStart(me);
-                        }
+            if (!cannon || !cannon->IsAlive())
+                return;
 
-                    summonAttackers = 1;
-                }
-            }
+            std::list<Creature*> defenders;
+            me->GetCreatureListWithEntryInGrid(defenders, 28834, 10.0f);
+            for (Creature* defender : defenders)
+                if (defender->IsAlive())
+                    defender->AI()->AttackStart(cannon);
         }
     };
 };
@@ -1325,6 +1337,7 @@ void AddSC_the_scarlet_enclave_c1()
     new npc_scarlet_ghoul();
     new npc_dkc1_gothik();
     new npc_scarlet_cannon();
+    new npc_scarlet_fleet_defender();
     new vehicle_scarlet_cannon();
     new npc_unworthy_initiate();
     new npc_unworthy_initiate_anchor();
