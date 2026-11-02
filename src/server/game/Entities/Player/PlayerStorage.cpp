@@ -5831,7 +5831,6 @@ void Player::_LoadAuras(PreparedQueryResult result, uint32 timediff)
 
             if (Aura* aura = Aura::TryCreate(spellInfo, effmask, this, nullptr, &baseDamage[0], nullptr, caster_guid, itemGuid))
             {
-                if (!aura->CanBeSaved())
                 {
                     aura->Remove();
                     continue;
