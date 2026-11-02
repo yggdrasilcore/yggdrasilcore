@@ -173,7 +173,7 @@ struct npc_scarlet_peasant : public ScriptedAI
         me->SetEmoteState(EMOTE_STATE_WORK_MINING);
 
         events.Reset();
-        events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 1000);
+        events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 1s);
     }
 
     void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType, SpellSchoolMask) override
@@ -211,7 +211,7 @@ struct npc_scarlet_peasant : public ScriptedAI
                     }
 
                     if (_phase == PHASE_DEFENSIVE)
-                        events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 2000);
+                        events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 2s);
                     break;
                 case EVENT_COWER_APPLY:
                     if (_phase == PHASE_COWERING)
@@ -235,7 +235,7 @@ struct npc_scarlet_peasant : public ScriptedAI
                             break;
                         }
 
-                        events.ScheduleEvent(EVENT_COWER_FAILSAFE, 1000);
+                        events.ScheduleEvent(EVENT_COWER_FAILSAFE, 1s);
                     }
                     break;
                 default:
@@ -284,9 +284,9 @@ private:
         if (target)
             me->SetFacingToObject(target);
 
-        events.ScheduleEvent(EVENT_COWER_APPLY, 500);
-        events.ScheduleEvent(EVENT_COWER_SAY, 1500);
-        events.ScheduleEvent(EVENT_COWER_FAILSAFE, 1000);
+        events.ScheduleEvent(EVENT_COWER_APPLY, 500ms);
+        events.ScheduleEvent(EVENT_COWER_SAY, 1500ms);
+        events.ScheduleEvent(EVENT_COWER_FAILSAFE, 1s);
     }
 
     void StopCowering()
@@ -306,7 +306,7 @@ private:
         if (me->IsInCombat())
             EnterEvadeMode();
         else
-            events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 1000);
+            events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 1s);
     }
 
     int32 _phase;
