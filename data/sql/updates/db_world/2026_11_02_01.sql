@@ -5,5 +5,5 @@ INSERT INTO `smart_scripts` (`entryorguid`,`source_type`,`id`,`link`,`event_type
 (28864,0,1,0,25,0,100,512,0,0,0,0,0,0,11,43775,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Scourge Gryphon - On Reset - Cast ''Flight'''),
 (28864,0,2,0,25,0,100,512,0,0,0,0,0,0,53,2,28864,0,0,0,0,1,0,0,0,0,0,0,0,0,'Scourge Gryphon - On Reset - Start Waypoint'),
 (28864,0,3,0,40,0,100,512,6,28864,0,0,0,0,80,2886400,2,0,0,0,0,1,0,0,0,0,0,0,0,0,'Scourge Gryphon - On Waypoint 6 Reached - Run Script'),
-(2886400,9,0,0,0,0,100,0,7000,7000,0,0,0,0,28,46598,0,0,0,0,0,23,0,0,0,0,0,0,0,0,'Scourge Gryphon - Script - Remove Aura ''Ride Vehicle Hardcoded'''),
-(2886400,9,1,0,0,0,100,0,8000,8000,0,0,0,0,41,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Scourge Gryphon - Script - Despawn Instant');
+(2886400,9,0,0,0,0,100,0,4000,4000,0,0,0,0,28,46598,0,0,0,0,0,23,0,0,0,0,0,0,0,0,'Scourge Gryphon - Script - Remove Aura ''Ride Vehicle Hardcoded'''),
+(2886400,9,1,0,0,0,100,0,100,100,0,0,0,0,41,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,'Scourge Gryphon - Script - Despawn Instant');
