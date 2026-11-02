@@ -948,7 +948,12 @@ public:
 
             path.push_back(G3D::Vector3(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ()));
             for (ScarletMinerWaypoints::Waypoint const& waypoint : waypoints)
+            {
+                if (waypoint.id == 1)
+                    continue;
+
                 path.push_back(G3D::Vector3(waypoint.x, waypoint.y, waypoint.z));
+            }
 
             startDelay = 500;
             startPending = true;
