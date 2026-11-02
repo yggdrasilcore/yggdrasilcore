@@ -5263,7 +5263,8 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
             {
                 Relocate(x, y, z, o);
                 mapId = m_transport->GetMapId();
-                m_transport->AddPassenger(this);
+                // Do not add before the player is in the map; CharacterHandler adds
+                // the passenger only after AddPlayerToMap() succeeds.
                 AddUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
             }
         }

@@ -11569,6 +11569,9 @@ WorldLocation Player::GetStartPosition() const
 
 bool Player::HaveAtClient(WorldObject const* u) const
 {
+    if (!u)
+        return false;
+
     // Motion Transports are always present in player's client
     if (GameObject const* gameobject = u->ToGameObject())
     {

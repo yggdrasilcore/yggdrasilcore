@@ -760,6 +760,10 @@ void Map::RemovePlayerFromMap(Player* player, bool remove)
 
     player->getHostileRefMgr().deleteReferences(true); // pussywizard: multithreading crashfix
 
+    if (remove)
+        if (Transport* transport = player->GetTransport())
+            transport->RemovePassenger(player, true);
+
     player->RemoveFromWorld();
     SendRemoveTransports(player);
 
@@ -782,6 +786,10 @@ void Map::AfterPlayerUnlinkFromMap()
 template<class T>
 void Map::RemoveFromMap(T* obj, bool remove)
 {
+    if (remove)
+        if (Transport* transport = obj->GetTransport())
+            transport->RemovePassenger(obj, true);
+
     obj->RemoveFromWorld();
 
     obj->RemoveFromGrid();
@@ -1741,9 +1749,13 @@ void Map::SendInitSelf(Player* player)
 
     // build other passengers at transport also (they always visible and marked as visible and will not send at visibility update at add to map
     if (Transport* transport = player->GetTransport())
-        for (Transport::PassengerSet::const_iterator itr = transport->GetPassengers().begin(); itr != transport->GetPassengers().end(); ++itr)
-            if (player != (*itr) && player->HaveAtClient(*itr))
-                (*itr)->BuildCreateUpdateBlockForPlayer(&data, player);
+    {
+        Transport::PassengerGuidSet const passengers = transport->GetPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
+            if (WorldObject* passenger = transport->GetPassenger(guid))
+                if (passenger != player && passenger->IsInWorld() && player->HaveAtClient(passenger))
+                    passenger->BuildCreateUpdateBlockForPlayer(&data, player);
+    }
 
     data.BuildPacket(packet);
     player->SendDirectMessage(&packet);
@@ -2809,8 +2821,11 @@ void Map::LogEncounterFinished(EncounterCreditType type, uint32 creditEntry)
 bool Map::AllTransportsEmpty() const
 {
     for (TransportsContainer::const_iterator itr = _transports.begin(); itr != _transports.end(); ++itr)
-        if (!(*itr)->GetPassengers().empty())
+    {
+        Transport* transport = *itr;
+        if (transport && transport->HasPassengers())
             return false;
+    }
 
     return true;
 }
@@ -2822,8 +2837,12 @@ void Map::AllTransportsRemovePassengers()
         Transport* transport = *itr;
         if (!transport)
             continue;
-        while (!transport->GetPassengers().empty())
-            transport->RemovePassenger(*(transport->GetPassengers().begin()), true);
+
+        Transport::PassengerGuidSet passengers = transport->GetPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
+            if (WorldObject* passenger = transport->GetPassenger(guid))
+                if (transport->HasPassenger(guid))
+                    transport->RemovePassenger(passenger, true);
     }
 }
 

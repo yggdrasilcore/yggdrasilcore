@@ -550,10 +550,18 @@ static void ClearGunshipHullRespawnTimes(Transport* transport)
         return;
 
     if (MotionTransport* mt = transport->ToMotionTransport())
-        for (WorldObject* passenger : mt->GetStaticPassengers())
+    {
+        Transport::PassengerGuidSet const passengers = mt->GetStaticPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
+        {
+            WorldObject* passenger = mt->GetPassenger(guid);
+            if (!passenger || !mt->HasStaticPassenger(guid))
+                continue;
             if (Creature* hull = passenger->ToCreature())
                 if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
                     transport->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
+        }
+    }
 }
 
 class ResetEncounterEvent : public BasicEvent
@@ -684,7 +692,7 @@ public:
             if (_summonedFirstMage)
                 return;
 
-            auto* transport = me->GetTransport();
+            Transport* transport = me->GetMap()->GetTransport(me->m_movementInfo.transport.guid);
             if (!transport || transport->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? GO_THE_SKYBREAKER_H : GO_ORGRIMS_HAMMER_A))
                 return;
 
@@ -702,7 +710,8 @@ public:
                 return;
             _died = true;
             
-            auto* transport = me->GetTransport();
+            ObjectGuid transportGuid = me->m_movementInfo.transport.guid;
+            Transport* transport = me->GetMap()->GetTransport(transportGuid);
             bool isVictory = transport && (transport->GetEntry() == GO_THE_SKYBREAKER_H || transport->GetEntry() == GO_ORGRIMS_HAMMER_A);
             _instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, isVictory ? DONE : FAIL);
             me->GetMap()->SetZoneMusic(AREA_ICECROWN_CITADEL, 0);
@@ -718,14 +727,15 @@ public:
                 a->SetDuration(0);
 
             uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
-            if (MotionTransport* t = (me->GetTransport() ? me->GetTransport()->ToMotionTransport() : nullptr))
+            if (MotionTransport* t = (transport ? transport->ToMotionTransport() : nullptr))
             {
-                Transport::PassengerSet const& passengers = t->GetStaticPassengers();
-                for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+                for (ObjectGuid const& guid : passengers)
                 {
-                    if (!(*itr)->IsCreature() || (*itr)->GetEntry() != NPC_GUNSHIP_HULL)
+                    WorldObject* passenger = t->GetPassenger(guid);
+                    if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
                         continue;
-                    (*itr)->ToCreature()->CastSpell((*itr)->ToCreature(), explosionSpell, true);
+                    passenger->ToCreature()->CastSpell(passenger->ToCreature(), explosionSpell, true);
                 }
             }
 
@@ -733,12 +743,13 @@ public:
             if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
                 if (MotionTransport* t = go->ToMotionTransport())
                 {
-                    Transport::PassengerSet const& passengers = t->GetStaticPassengers();
-                    for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                    Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+                    for (ObjectGuid const& guid : passengers)
                     {
-                        if (!(*itr)->IsCreature() || (*itr)->GetEntry() != cannonEntry)
+                        WorldObject* passenger = t->GetPassenger(guid);
+                        if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != cannonEntry)
                             continue;
-                        Creature* cannon = (*itr)->ToCreature();
+                        Creature* cannon = passenger->ToCreature();
                         cannon->CastSpell(cannon, SPELL_EJECT_ALL_PASSENGERS, true);
 
                         WorldPacket data(SMSG_PLAYER_VEHICLE_DATA, cannon->GetPackGUID().size() + 4);
@@ -766,7 +777,9 @@ public:
                     if (MotionTransport* otherTransport = transport->ToMotionTransport())
                         otherTransport->EnableMovement(true);
 
-                me->GetTransport()->ToMotionTransport()->EnableMovement(true);
+                if (transport)
+                    if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                        motionTransport->EnableMovement(true);
 
                 if (Creature* ship = _instance->GetCreature(_teamIdInInstance == TEAM_HORDE ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))
                 {
@@ -782,12 +795,13 @@ public:
                     if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(i == 0 ? DATA_ICECROWN_GUNSHIP_BATTLE : DATA_ENEMY_GUNSHIP)))
                         if (MotionTransport* t = go->ToMotionTransport())
                         {
-                            Transport::PassengerSet const& passengers = t->GetPassengers();
-                            for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                            Transport::PassengerGuidSet const passengers = t->GetPassengerGuids();
+                            for (ObjectGuid const& guid : passengers)
                             {
-                                if (!(*itr)->IsCreature())
+                                WorldObject* passenger = t->GetPassenger(guid);
+                                if (!passenger || !t->HasPassenger(guid) || !passenger->IsCreature())
                                     continue;
-                                Creature* c = (*itr)->ToCreature();
+                                Creature* c = passenger->ToCreature();
                                 if (c->GetEntry() == NPC_SKYBREAKER_MARINE || c->GetEntry() == NPC_SKYBREAKER_SERGEANT || c->GetEntry() == NPC_KOR_KRON_REAVER || c->GetEntry() == NPC_KOR_KRON_SERGEANT)
                                     c->DespawnOrUnsummon(1ms);
                             }
@@ -812,7 +826,9 @@ public:
                 Unit* resetOwner = me;
                 if (Creature* enemyShip = _instance->GetCreature(DATA_ENEMY_GUNSHIP))
                     resetOwner = enemyShip;
-                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, me->GetTransport()->GetGUID(), _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
+                // Use the stored transport GUID; the transport may already be
+                // unloaded while this creature is still being removed.
+                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, transportGuid, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
             }
         }
 
@@ -914,7 +930,7 @@ public:
         npc_high_overlord_saurfang_igbAI(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript())
         {
             _events.Reset();
-            _controller.ResetSlots(TEAM_HORDE, creature->GetTransport()->ToMotionTransport());
+            _controller.ResetSlots(TEAM_HORDE, creature->GetTransport() ? creature->GetTransport()->ToMotionTransport() : nullptr);
             me->SetRegeneratingHealth(false);
             me->m_CombatDistance = 70.0f;
             _firstMageCooldown = GameTime::GetGameTime().count() + 45;
@@ -929,8 +945,12 @@ public:
             if (!me->HasNpcFlag(UNIT_NPC_FLAG_GOSSIP))
                 return;
             me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
-            me->GetTransport()->setActive(true);
-            me->GetTransport()->ToMotionTransport()->EnableMovement(true);
+            Transport* transport = me->GetTransport();
+            if (!transport)
+                return;
+            transport->setActive(true);
+            if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                motionTransport->EnableMovement(true);
             _events.ScheduleEvent(EVENT_INTRO_H_1, 5s);
             _events.ScheduleEvent(EVENT_INTRO_H_2, 16s);
             _events.ScheduleEvent(EVENT_INTRO_SUMMON_SKYBREAKER, 24s + 600ms);
@@ -1285,7 +1305,7 @@ public:
         npc_muradin_bronzebeard_igbAI(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript())
         {
             _events.Reset();
-            _controller.ResetSlots(TEAM_ALLIANCE, creature->GetTransport()->ToMotionTransport());
+            _controller.ResetSlots(TEAM_ALLIANCE, creature->GetTransport() ? creature->GetTransport()->ToMotionTransport() : nullptr);
             me->SetRegeneratingHealth(false);
             me->m_CombatDistance = 70.0f;
             _firstMageCooldown = GameTime::GetGameTime().count() + 45;
@@ -1300,8 +1320,12 @@ public:
             if (!me->HasNpcFlag(UNIT_NPC_FLAG_GOSSIP))
                 return;
             me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
-            me->GetTransport()->setActive(true);
-            me->GetTransport()->ToMotionTransport()->EnableMovement(true);
+            Transport* transport = me->GetTransport();
+            if (!transport)
+                return;
+            transport->setActive(true);
+            if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                motionTransport->EnableMovement(true);
             _events.ScheduleEvent(EVENT_INTRO_A_1, 5s);
             _events.ScheduleEvent(EVENT_INTRO_A_2, 10s);
             _events.ScheduleEvent(EVENT_INTRO_SUMMON_ORGRIMS_HAMMER, 28s);
@@ -1722,6 +1746,8 @@ struct gunship_npc_AI : public ScriptedAI
             float x, y, z, o;
             Slot->TargetPosition.GetPosition(x, y, z, o);
             me->SetTransportHomePosition(Slot->TargetPosition);
+            if (!me->GetTransport())
+                return;
             me->GetTransport()->CalculatePassengerPosition(x, y, z, &o);
             me->SetHomePosition(x, y, z, o);
             me->GetMotionMaster()->MovePoint(EVENT_CHARGE_PREPATH, x, y, z, FORCED_MOVEMENT_NONE, 0.f, false);

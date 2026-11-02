@@ -1584,7 +1584,8 @@ bool PathGenerator::IsControlledNPCNearTransport(WorldObject const* obj, float r
     float const r2 = radius * radius;
     float const x = unit->GetPositionX();
     float const y = unit->GetPositionY();
-    for (Transport* trans : map->GetAllTransports())
+    TransportsContainer const transports = map->GetAllTransports();
+    for (Transport* trans : transports)
     {
         if (!trans || !trans->IsInWorld())
             continue;

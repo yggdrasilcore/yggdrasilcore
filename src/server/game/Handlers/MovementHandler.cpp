@@ -148,7 +148,7 @@ void WorldSession::HandleMoveWorldportAck()
     if (Transport* t = _player->GetTransport())
         if (!t->IsInMap(_player))
         {
-            t->RemovePassenger(_player);
+            t->RemovePassenger(_player, true);
             _player->m_transport = nullptr;
             _player->m_movementInfo.transport.Reset();
             _player->m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
@@ -453,7 +453,8 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover
         // their position desyncs
         if ((mover->IsPlayer() || mover->IsVehicle()) && !mover->GetVehicle())
         {
-            if (!mover->GetTransport())
+            Transport* currentTransport = mover->GetTransport();
+            if (!currentTransport)
             {
                 if (Transport* transport = mover->GetMap()->GetTransport(movementInfo.transport.guid))
                 {
@@ -461,10 +462,10 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover
                     transport->AddPassenger(mover);
                 }
             }
-            else if (mover->GetTransport()->GetGUID() != movementInfo.transport.guid)
+            else if (currentTransport->GetGUID() != movementInfo.transport.guid)
             {
                 bool foundNewTransport = false;
-                mover->GetTransport()->RemovePassenger(mover);
+                currentTransport->RemovePassenger(mover);
                 if (Transport* transport = mover->GetMap()->GetTransport(movementInfo.transport.guid))
                 {
                     foundNewTransport = true;
@@ -491,12 +492,13 @@ void WorldSession::HandleMoverRelocation(MovementInfo& movementInfo, Unit* mover
     }
     else
     {
-        if ((mover->IsPlayer() || mover->IsVehicle()) && mover->GetTransport()) // if we were on a transport, leave
+        Transport* currentTransport = mover->GetTransport();
+        if ((mover->IsPlayer() || mover->IsVehicle()) && currentTransport) // if we were on a transport, leave
         {
             if (Player* plrMover = mover->ToPlayer())
                 sScriptMgr->AnticheatSetUnderACKmount(plrMover); // just for safe
 
-            mover->GetTransport()->RemovePassenger(mover);
+            currentTransport->RemovePassenger(mover, true);
             mover->SetTransport(nullptr);
             movementInfo.transport.Reset();
         }
