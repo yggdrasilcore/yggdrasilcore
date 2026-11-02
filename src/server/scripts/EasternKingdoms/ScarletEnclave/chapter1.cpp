@@ -1036,6 +1036,8 @@ public:
 
             for (ScarletMinerWaypoints::Waypoint const& waypoint : waypoints)
                 AddWaypoint(waypoint.id, waypoint.x, waypoint.y, waypoint.z, waypoint.waitTime);
+
+            me->SetOrientation(me->GetAngle(waypoints.front().x, waypoints.front().y));
         }
 
         void InitCartQuest(Player* who)
