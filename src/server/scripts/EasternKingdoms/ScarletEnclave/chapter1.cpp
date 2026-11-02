@@ -554,7 +554,7 @@ public:
             // Keep the corpse for 10 seconds, then respawn 5 seconds later.
             if (damage >= me->GetHealth())
             {
-                me->SetCorpseDelay(10);
+                me->SetCorpseDelay(20);
                 me->SetRespawnDelay(5);
             }
 
