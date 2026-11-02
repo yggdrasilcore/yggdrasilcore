@@ -10,14 +10,14 @@ INSERT INTO `smart_scripts` (`entryorguid`,`source_type`,`id`,`link`,`event_type
 
 -- Corrects Scarlet Peasant behavior
 REPLACE INTO `broadcast_text` (`ID`, `LanguageID`, `MaleText`, `FemaleText`, `EmoteID1`, `EmoteID2`, `EmoteID3`, `EmoteDelay1`, `EmoteDelay2`, `EmoteDelay3`, `SoundEntriesId`, `EmotesID`, `Flags`, `VerifiedBuild`) values
-('29012','0','I\'ve got five kids, $G man:lady;! They\'ll die without me!','I\'ve got five kids, $G man:lady;! They\'ll die without me!','0','0','0','0','0','0','0','0','1','18019');
+('29012','0','I\'ve got five kids, $g man:lady;! They\'ll die without me!','I\'ve got five kids, $g man:lady;! They\'ll die without me!','0','0','0','0','0','0','0','0','1','18019');
 
 delete from `creature_text` where `CreatureID`=28557;
 insert into `creature_text` (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `BroadcastTextId`, `TextRange`, `comment`) values
 ('28557','0','0','Ungh... I... I think I pooped...','12','0','100','0','0','0','29015','0','Scarlet Peasant'),
-('28557','0','1','I... I got a sick grandma at home... I... I\'m all she\'s got, $G mister:miss;.','12','0','100','0','0','0','29016','0','Scarlet Peasant'),
+('28557','0','1','I... I got a sick grandma at home... I... I\'m all she\'s got, $g mister:miss;.','12','0','100','0','0','0','29016','0','Scarlet Peasant'),
 ('28557','0','2','I picked the wrong week to quit drinkin\'!','12','0','100','0','0','0','29014','0','Scarlet Peasant'),
-('28557','0','3','I\'ve got five kids, $G man:lady;! They\'ll die without me!','12','0','100','0','0','0','29012','0','Scarlet Peasant'),
+('28557','0','3','I\'ve got five kids, $g man:lady;! They\'ll die without me!','12','0','100','0','0','0','29012','0','Scarlet Peasant'),
 ('28557','0','4','You don\'t have to do this! Nobody has to die!','12','0','100','0','0','0','29013','0','Scarlet Peasant'),
 ('28557','0','5','Please, no! Spare me!','12','0','100','0','0','0','29009','0','Scarlet Peasant'),
 ('28557','0','6','Don\'t kill me! I only took this job for the benefits!','12','0','100','0','0','0','29010','0','Scarlet Peasant'),

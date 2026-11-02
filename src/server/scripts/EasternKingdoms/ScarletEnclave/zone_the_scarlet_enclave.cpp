@@ -16,6 +16,7 @@
  */
 
 #include "CreatureScript.h"
+#include "ObjectAccessor.h"
 #include "PassiveAI.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
@@ -167,6 +168,7 @@ struct npc_scarlet_peasant : public ScriptedAI
     {
         _phase = PHASE_DEFENSIVE;
         _healthCowerTriggered = false;
+        _cowerTargetGuid.Clear();
 
         me->RemoveAurasDueToSpell(SPELL_STUN_SELF);
         me->SetReactState(REACT_DEFENSIVE);
@@ -224,7 +226,13 @@ struct npc_scarlet_peasant : public ScriptedAI
                     break;
                 case EVENT_COWER_SAY:
                     if (_phase == PHASE_COWERING)
-                        Talk(SAY_PEASANT_COWER);
+                    {
+                        Player* target = ObjectAccessor::GetPlayer(*me, _cowerTargetGuid);
+                        if (!target)
+                            target = me->SelectNearestPlayer(COWER_FAILSAFE_RANGE);
+
+                        Talk(SAY_PEASANT_COWER, target);
+                    }
                     break;
                 case EVENT_COWER_FAILSAFE:
                     if (_phase == PHASE_COWERING)
@@ -284,6 +292,7 @@ private:
         if (target)
             me->SetFacingToObject(target);
 
+        _cowerTargetGuid = target && target->IsPlayer() ? target->GetGUID() : ObjectGuid::Empty;
         events.ScheduleEvent(EVENT_COWER_APPLY, 500ms);
         events.ScheduleEvent(EVENT_COWER_SAY, 1500ms);
         events.ScheduleEvent(EVENT_COWER_FAILSAFE, 1s);
@@ -293,6 +302,7 @@ private:
     {
         _phase = PHASE_DEFENSIVE;
         _healthCowerTriggered = false;
+        _cowerTargetGuid.Clear();
 
         events.CancelEvent(EVENT_COWER_APPLY);
         events.CancelEvent(EVENT_COWER_SAY);
@@ -311,6 +321,7 @@ private:
 
     int32 _phase;
     bool _healthCowerTriggered;
+    ObjectGuid _cowerTargetGuid;
 };
 
 void AddSC_the_scarlet_enclave()
