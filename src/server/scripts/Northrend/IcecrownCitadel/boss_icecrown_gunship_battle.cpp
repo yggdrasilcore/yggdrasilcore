@@ -550,10 +550,17 @@ static void ClearGunshipHullRespawnTimes(Transport* transport)
         return;
 
     if (MotionTransport* mt = transport->ToMotionTransport())
-        for (WorldObject* passenger : mt->GetStaticPassengers())
+    {
+        Transport::PassengerSet const passengers = mt->GetStaticPassengers();
+        for (WorldObject* passenger : passengers)
+        {
+            if (!passenger)
+                continue;
             if (Creature* hull = passenger->ToCreature())
                 if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
                     transport->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
+        }
+    }
 }
 
 class ResetEncounterEvent : public BasicEvent
@@ -684,7 +691,7 @@ public:
             if (_summonedFirstMage)
                 return;
 
-            auto* transport = me->GetTransport();
+            Transport* transport = me->GetMap()->GetTransport(me->m_movementInfo.transport.guid);
             if (!transport || transport->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? GO_THE_SKYBREAKER_H : GO_ORGRIMS_HAMMER_A))
                 return;
 
@@ -702,7 +709,8 @@ public:
                 return;
             _died = true;
             
-            auto* transport = me->GetTransport();
+            ObjectGuid transportGuid = me->m_movementInfo.transport.guid;
+            Transport* transport = me->GetMap()->GetTransport(transportGuid);
             bool isVictory = transport && (transport->GetEntry() == GO_THE_SKYBREAKER_H || transport->GetEntry() == GO_ORGRIMS_HAMMER_A);
             _instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, isVictory ? DONE : FAIL);
             me->GetMap()->SetZoneMusic(AREA_ICECROWN_CITADEL, 0);
@@ -718,14 +726,14 @@ public:
                 a->SetDuration(0);
 
             uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
-            if (MotionTransport* t = (me->GetTransport() ? me->GetTransport()->ToMotionTransport() : nullptr))
+            if (MotionTransport* t = (transport ? transport->ToMotionTransport() : nullptr))
             {
-                Transport::PassengerSet const& passengers = t->GetStaticPassengers();
-                for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                Transport::PassengerSet const passengers = t->GetStaticPassengers();
+                for (WorldObject* passenger : passengers)
                 {
-                    if (!(*itr)->IsCreature() || (*itr)->GetEntry() != NPC_GUNSHIP_HULL)
+                    if (!passenger || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
                         continue;
-                    (*itr)->ToCreature()->CastSpell((*itr)->ToCreature(), explosionSpell, true);
+                    passenger->ToCreature()->CastSpell(passenger->ToCreature(), explosionSpell, true);
                 }
             }
 
@@ -733,12 +741,12 @@ public:
             if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
                 if (MotionTransport* t = go->ToMotionTransport())
                 {
-                    Transport::PassengerSet const& passengers = t->GetStaticPassengers();
-                    for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                    Transport::PassengerSet const passengers = t->GetStaticPassengers();
+                    for (WorldObject* passenger : passengers)
                     {
-                        if (!(*itr)->IsCreature() || (*itr)->GetEntry() != cannonEntry)
+                        if (!passenger || !passenger->IsCreature() || passenger->GetEntry() != cannonEntry)
                             continue;
-                        Creature* cannon = (*itr)->ToCreature();
+                        Creature* cannon = passenger->ToCreature();
                         cannon->CastSpell(cannon, SPELL_EJECT_ALL_PASSENGERS, true);
 
                         WorldPacket data(SMSG_PLAYER_VEHICLE_DATA, cannon->GetPackGUID().size() + 4);
@@ -766,8 +774,9 @@ public:
                     if (MotionTransport* otherTransport = transport->ToMotionTransport())
                         otherTransport->EnableMovement(true);
 
-                if (MotionTransport* motionTransport = me->GetTransport()->ToMotionTransport())
-                    motionTransport->EnableMovement(true);
+                if (transport)
+                    if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                        motionTransport->EnableMovement(true);
 
                 if (Creature* ship = _instance->GetCreature(_teamIdInInstance == TEAM_HORDE ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))
                 {
@@ -783,12 +792,12 @@ public:
                     if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(i == 0 ? DATA_ICECROWN_GUNSHIP_BATTLE : DATA_ENEMY_GUNSHIP)))
                         if (MotionTransport* t = go->ToMotionTransport())
                         {
-                            Transport::PassengerSet const& passengers = t->GetPassengers();
-                            for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+                            Transport::PassengerSet const passengers = t->GetPassengers();
+                            for (WorldObject* passenger : passengers)
                             {
-                                if (!(*itr)->IsCreature())
+                                if (!passenger || !passenger->IsCreature())
                                     continue;
-                                Creature* c = (*itr)->ToCreature();
+                                Creature* c = passenger->ToCreature();
                                 if (c->GetEntry() == NPC_SKYBREAKER_MARINE || c->GetEntry() == NPC_SKYBREAKER_SERGEANT || c->GetEntry() == NPC_KOR_KRON_REAVER || c->GetEntry() == NPC_KOR_KRON_SERGEANT)
                                     c->DespawnOrUnsummon(1ms);
                             }
@@ -813,7 +822,9 @@ public:
                 Unit* resetOwner = me;
                 if (Creature* enemyShip = _instance->GetCreature(DATA_ENEMY_GUNSHIP))
                     resetOwner = enemyShip;
-                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, Object::GetGUID(me->GetTransport()), _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
+                // Use the stored transport GUID; the transport may already be
+                // unloaded while this creature is still being removed.
+                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, transportGuid, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
             }
         }
 

@@ -1751,9 +1751,9 @@ void Map::SendInitSelf(Player* player)
     if (Transport* transport = player->GetTransport())
     {
         Transport::PassengerSet const passengers = transport->GetPassengersCopy();
-        for (Transport::PassengerSet::const_iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
-            if (*itr && player != (*itr) && player->HaveAtClient(*itr))
-                (*itr)->BuildCreateUpdateBlockForPlayer(&data, player);
+        for (WorldObject* passenger : passengers)
+            if (passenger && passenger != player && passenger->IsInWorld() && player->HaveAtClient(passenger))
+                passenger->BuildCreateUpdateBlockForPlayer(&data, player);
     }
 
     data.BuildPacket(packet);
@@ -2820,8 +2820,11 @@ void Map::LogEncounterFinished(EncounterCreditType type, uint32 creditEntry)
 bool Map::AllTransportsEmpty() const
 {
     for (TransportsContainer::const_iterator itr = _transports.begin(); itr != _transports.end(); ++itr)
-        if (!(*itr)->GetPassengers().empty())
+    {
+        Transport* transport = *itr;
+        if (transport && transport->HasPassengers())
             return false;
+    }
 
     return true;
 }
@@ -2833,8 +2836,12 @@ void Map::AllTransportsRemovePassengers()
         Transport* transport = *itr;
         if (!transport)
             continue;
-        while (!transport->GetPassengers().empty())
-            transport->RemovePassenger(*(transport->GetPassengers().begin()), true);
+
+        // Snapshot first: RemovePassenger mutates the live set and may invoke
+        // scripts that add/remove other passengers.
+        Transport::PassengerSet passengers = transport->GetPassengers();
+        for (WorldObject* passenger : passengers)
+            transport->RemovePassenger(passenger, true);
     }
 }
 

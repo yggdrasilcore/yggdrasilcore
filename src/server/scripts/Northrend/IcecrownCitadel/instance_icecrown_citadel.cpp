@@ -1392,10 +1392,14 @@ public:
             if (!gunship)
                 return;
 
-            if (gunship->GetStaticPassengers().empty())
+            if (!gunship->HasStaticPassengers())
                 gunship->LoadStaticPassengers();
 
-            for (WorldObject* passenger : gunship->GetStaticPassengers())
+            Transport::PassengerSet const passengers = gunship->GetStaticPassengers();
+            for (WorldObject* passenger : passengers)
+            {
+                if (!passenger)
+                    continue;
                 if (Creature* hull = passenger->ToCreature())
                     if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
                     {
@@ -1406,6 +1410,7 @@ public:
                         }
                         hull->SetFullHealth();
                     }
+            }
         }
 
         void SpawnGunship()
