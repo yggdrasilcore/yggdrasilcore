@@ -552,6 +552,9 @@ public:
             if (!cannon || !cannon->IsAlive())
                 return;
 
+            if (roll_chance_i(5))
+                Talk(0);
+
             std::list<Creature*> defenders;
             me->GetCreatureListWithEntryInGrid(defenders, 28834, 10.0f);
             for (Creature* defender : defenders)
