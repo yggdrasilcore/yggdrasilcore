@@ -766,7 +766,8 @@ public:
                     if (MotionTransport* otherTransport = transport->ToMotionTransport())
                         otherTransport->EnableMovement(true);
 
-                me->GetTransport()->ToMotionTransport()->EnableMovement(true);
+                if (MotionTransport* motionTransport = me->GetTransport()->ToMotionTransport())
+                    motionTransport->EnableMovement(true);
 
                 if (Creature* ship = _instance->GetCreature(_teamIdInInstance == TEAM_HORDE ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))
                 {
@@ -914,7 +915,7 @@ public:
         npc_high_overlord_saurfang_igbAI(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript())
         {
             _events.Reset();
-            _controller.ResetSlots(TEAM_HORDE, creature->GetTransport()->ToMotionTransport());
+            _controller.ResetSlots(TEAM_HORDE, creature->GetTransport() ? creature->GetTransport()->ToMotionTransport() : nullptr);
             me->SetRegeneratingHealth(false);
             me->m_CombatDistance = 70.0f;
             _firstMageCooldown = GameTime::GetGameTime().count() + 45;
@@ -929,8 +930,12 @@ public:
             if (!me->HasNpcFlag(UNIT_NPC_FLAG_GOSSIP))
                 return;
             me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
-            me->GetTransport()->setActive(true);
-            me->GetTransport()->ToMotionTransport()->EnableMovement(true);
+            Transport* transport = me->GetTransport();
+            if (!transport)
+                return;
+            transport->setActive(true);
+            if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                motionTransport->EnableMovement(true);
             _events.ScheduleEvent(EVENT_INTRO_H_1, 5s);
             _events.ScheduleEvent(EVENT_INTRO_H_2, 16s);
             _events.ScheduleEvent(EVENT_INTRO_SUMMON_SKYBREAKER, 24s + 600ms);
@@ -1285,7 +1290,7 @@ public:
         npc_muradin_bronzebeard_igbAI(Creature* creature) : ScriptedAI(creature), _instance(creature->GetInstanceScript())
         {
             _events.Reset();
-            _controller.ResetSlots(TEAM_ALLIANCE, creature->GetTransport()->ToMotionTransport());
+            _controller.ResetSlots(TEAM_ALLIANCE, creature->GetTransport() ? creature->GetTransport()->ToMotionTransport() : nullptr);
             me->SetRegeneratingHealth(false);
             me->m_CombatDistance = 70.0f;
             _firstMageCooldown = GameTime::GetGameTime().count() + 45;
@@ -1300,8 +1305,12 @@ public:
             if (!me->HasNpcFlag(UNIT_NPC_FLAG_GOSSIP))
                 return;
             me->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP);
-            me->GetTransport()->setActive(true);
-            me->GetTransport()->ToMotionTransport()->EnableMovement(true);
+            Transport* transport = me->GetTransport();
+            if (!transport)
+                return;
+            transport->setActive(true);
+            if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                motionTransport->EnableMovement(true);
             _events.ScheduleEvent(EVENT_INTRO_A_1, 5s);
             _events.ScheduleEvent(EVENT_INTRO_A_2, 10s);
             _events.ScheduleEvent(EVENT_INTRO_SUMMON_ORGRIMS_HAMMER, 28s);
