@@ -30,6 +30,8 @@
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 
+#include <vector>
+
  /*######
  ## npc_eye_of_acherus
  ######*/
@@ -845,6 +847,61 @@ enum Spells_SM
     SPELL_CART_DRAG        = 52465
 };
 
+namespace ScarletMinerWaypoints
+{
+    struct Waypoint
+    {
+        uint32 id;
+        float x;
+        float y;
+        float z;
+        uint32 waitTime;
+    };
+
+    void Build(std::vector<Waypoint>& waypoints, uint8 path, bool forCart)
+    {
+        waypoints =
+        {
+            { 1,  2389.03f,     -5902.74f,     109.014f,    5000 },
+            { 2,  2341.812012f, -5900.484863f, 102.619743f, 0 },
+            { 3,  2308.34f,     -5904.2f,      91.1099f,    0 },
+            { 4,  2300.69f,     -5912.99f,     86.1572f,    0 },
+            { 5,  2294.142090f, -5927.274414f, 75.316849f,  0 },
+            { 6,  2286.984375f, -5944.955566f, 63.714966f,  0 },
+            { 7,  2280.001709f, -5961.186035f, 54.228283f,  0 },
+            { 8,  2259.389648f, -5974.197754f, 42.359348f,  0 },
+            { 9,  2242.882812f, -5984.642578f, 32.827850f,  0 },
+            { 10, 2239.79f,     -5989.31f,     30.4453f,    0 },
+            { 11, 2236.52f,     -5994.28f,     27.4829f,    0 },
+            { 12, 2232.61f,     -6000.23f,     23.1281f,    0 },
+            { 13, 2228.69f,     -6006.46f,     17.6638f,    0 },
+            { 14, 2225.2f,      -6012.39f,     12.9487f,    0 },
+            { 15, 2217.265625f, -6028.959473f, 7.675705f,   0 },
+            { 16, 2202.595947f, -6061.325684f, 5.882018f,   0 },
+            { 17, 2188.974609f, -6080.866699f, 3.370027f,   0 }
+        };
+
+        if (path == 0)
+        {
+            waypoints.push_back({ 18, 2176.483887f, -6110.407227f, 1.855181f, 0 });
+            waypoints.push_back({ 19, 2172.516602f, -6146.752441f, 1.074235f, 0 });
+            waypoints.push_back({ 20, 2138.918457f, -6158.920898f, 1.342926f, 0 });
+            waypoints.push_back({ 21, 2129.866699f, -6174.107910f, 4.380779f, 0 });
+            waypoints.push_back({ 22, 2125.250001f, -6181.230001f, 9.91997f,  0 });
+            waypoints.push_back({ 23, 2117.709473f, forCart ? -6191.830078f : -6193.830078f, 13.3542f, 10000 });
+        }
+        else
+        {
+            waypoints.push_back({ 18, 2184.190186f, -6166.447266f, 0.968877f, 0 });
+            waypoints.push_back({ 19, 2234.265625f, -6163.741211f, 0.916021f, 0 });
+            waypoints.push_back({ 20, 2268.071777f, -6158.750977f, 1.822252f, 0 });
+            waypoints.push_back({ 21, 2270.028320f, -6176.505859f, 6.340538f, 0 });
+            waypoints.push_back({ 22, 2270.350001f, -6182.410001f, 10.42431f, 0 });
+            waypoints.push_back({ 23, 2271.739014f, forCart ? -6193.401855f : -6195.401855f, 13.3542f, 10000 });
+        }
+    }
+}
+
 class npc_scarlet_miner_cart : public CreatureScript
 {
 public:
@@ -857,7 +914,7 @@ public:
 
     struct npc_scarlet_miner_cartAI : public PassiveAI
     {
-        npc_scarlet_miner_cartAI(Creature* creature) : PassiveAI(creature)
+        npc_scarlet_miner_cartAI(Creature* creature) : PassiveAI(creature), startDelay(0), startPending(false)
         {
             me->SetImmuneToAll(true);
             me->SetFaction(FACTION_FRIENDLY);
@@ -865,25 +922,54 @@ public:
         }
 
         ObjectGuid minerGUID;
+        Movement::PointsArray path;
+        uint32 startDelay;
+        bool startPending;
 
         void SetGUID(ObjectGuid const& guid, int32 /*id*/) override
         {
             minerGUID = guid;
         }
 
-        void DoAction(int32 /*param*/) override
+        void DoAction(int32 param) override
         {
-            if (Creature* miner = ObjectAccessor::GetCreature(*me, minerGUID))
+            if (startPending || !path.empty())
+                return;
+
+            Creature* miner = ObjectAccessor::GetCreature(*me, minerGUID);
+            if (!miner)
+                return;
+
+            me->SetWalk(false);
+            me->SetSpeed(MOVE_RUN, miner->GetSpeedRate(MOVE_RUN));
+
+            std::vector<ScarletMinerWaypoints::Waypoint> waypoints;
+            ScarletMinerWaypoints::Build(waypoints, uint8(param), true);
+
+            path.push_back(G3D::Vector3(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ()));
+            for (ScarletMinerWaypoints::Waypoint const& waypoint : waypoints)
+                path.push_back(G3D::Vector3(waypoint.x, waypoint.y, waypoint.z));
+
+            startDelay = 500;
+            startPending = true;
+
+            me->ReplaceAllUnitFlags(UNIT_FLAG_NON_ATTACKABLE);
+            me->SetImmuneToAll(true);
+            me->SetFaction(FACTION_FRIENDLY);
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (!startPending)
+                return;
+
+            if (startDelay <= diff)
             {
-                me->SetWalk(false);
-
-                me->SetSpeed(MOVE_RUN, miner->GetSpeedRate(MOVE_RUN));
-
-                me->GetMotionMaster()->MoveFollow(miner, 3.0f, M_PI);
-                me->ReplaceAllUnitFlags(UNIT_FLAG_NON_ATTACKABLE);
-                me->SetImmuneToAll(true);
-                me->SetFaction(FACTION_FRIENDLY);
+                startPending = false;
+                me->GetMotionMaster()->MoveSplinePath(&path);
             }
+            else
+                startDelay -= diff;
         }
 
         void PassengerBoarded(Unit* who, int8 /*seatId*/, bool apply) override
@@ -926,52 +1012,25 @@ public:
         uint32 IntroTimer;
         uint32 IntroPhase;
         ObjectGuid carGUID;
+        uint8 cartPath;
 
         void Reset() override
         {
             carGUID.Clear();
             IntroTimer = 0;
             IntroPhase = 0;
+            cartPath = 0;
         }
 
         void InitWaypoint()
         {
-            AddWaypoint(1, 2389.03f,     -5902.74f,     109.014f, 5000);
-            AddWaypoint(2, 2341.812012f, -5900.484863f, 102.619743f);
-            AddWaypoint(3, 2308.34f, -5904.2f, 91.1099f);
-            AddWaypoint(4, 2300.69f, -5912.99f, 86.1572f);
-            AddWaypoint(5, 2294.142090f, -5927.274414f, 75.316849f);
-            AddWaypoint(6, 2286.984375f, -5944.955566f, 63.714966f);
-            AddWaypoint(7, 2280.001709f, -5961.186035f, 54.228283f);
-            AddWaypoint(8, 2259.389648f, -5974.197754f, 42.359348f);
-            AddWaypoint(9, 2242.882812f, -5984.642578f, 32.827850f);
-            AddWaypoint(10, 2239.79f, -5989.31f, 30.4453f);
-            AddWaypoint(11, 2236.52f, -5994.28f, 27.4829f);
-            AddWaypoint(12, 2232.61f, -6000.23f, 23.1281f);
-            AddWaypoint(13, 2228.69f, -6006.46f, 17.6638f);
-            AddWaypoint(14, 2225.2f, -6012.39f, 12.9487f);
-            AddWaypoint(15, 2217.265625f, -6028.959473f, 7.675705f);
-            AddWaypoint(16, 2202.595947f, -6061.325684f, 5.882018f);
-            AddWaypoint(17, 2188.974609f, -6080.866699f, 3.370027f);
+            cartPath = uint8(urand(0, 1));
 
-            if (urand(0, 1))
-            {
-                AddWaypoint(18, 2176.483887f, -6110.407227f, 1.855181f);
-                AddWaypoint(19, 2172.516602f, -6146.752441f, 1.074235f);
-                AddWaypoint(20, 2138.918457f, -6158.920898f, 1.342926f);
-                AddWaypoint(21, 2129.866699f, -6174.107910f, 4.380779f);
-                AddWaypoint(22, 2125.250001f, -6181.230001f, 9.91997f);
-                AddWaypoint(23, 2117.709473f, -6193.830078f, 13.3542f, 10000);
-            }
-            else
-            {
-                AddWaypoint(18, 2184.190186f, -6166.447266f, 0.968877f);
-                AddWaypoint(19, 2234.265625f, -6163.741211f, 0.916021f);
-                AddWaypoint(20, 2268.071777f, -6158.750977f, 1.822252f);
-                AddWaypoint(21, 2270.028320f, -6176.505859f, 6.340538f);
-                AddWaypoint(22, 2270.350001f, -6182.410001f, 10.42431f);
-                AddWaypoint(23, 2271.739014f, -6195.401855f, 13.3542f, 10000);
-            }
+            std::vector<ScarletMinerWaypoints::Waypoint> waypoints;
+            ScarletMinerWaypoints::Build(waypoints, cartPath, false);
+
+            for (ScarletMinerWaypoints::Waypoint const& waypoint : waypoints)
+                AddWaypoint(waypoint.id, waypoint.x, waypoint.y, waypoint.z, waypoint.waitTime);
         }
 
         void InitCartQuest(Player* who)
@@ -1004,8 +1063,6 @@ public:
                 case 23:
                     if (Creature* car = ObjectAccessor::GetCreature(*me, carGUID))
                     {
-                        car->SetPosition(car->GetPositionX(), car->GetPositionY(), me->GetPositionZ() + 1, car->GetOrientation());
-                        car->StopMovingOnCurrentPos();
                         me->SetFacingToObject(car);
                         car->RemoveAura(SPELL_CART_DRAG);
                     }
@@ -1032,7 +1089,7 @@ public:
                     else
                     {
                         if (Creature* car = ObjectAccessor::GetCreature(*me, carGUID))
-                            car->AI()->DoAction(0);
+                            car->AI()->DoAction(cartPath);
                         IntroPhase = 0;
                     }
                 }
