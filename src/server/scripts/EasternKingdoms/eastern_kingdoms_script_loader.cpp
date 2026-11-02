@@ -101,6 +101,7 @@ void AddSC_the_scarlet_enclave_c1();
 void AddSC_the_scarlet_enclave_c2();
 void AddSC_the_scarlet_enclave_c3();
 void AddSC_the_scarlet_enclave_c5();
+void AddSC_the_scarlet_enclave_citizens();
 void AddSC_instance_scarlet_monastery();     //Scarlet Monastery
 void AddSC_boss_kirtonos_the_herald();
 void AddSC_boss_darkmaster_gandling();
@@ -253,6 +254,7 @@ void AddEasternKingdomsScripts()
     AddSC_the_scarlet_enclave_c2();
     AddSC_the_scarlet_enclave_c3();
     AddSC_the_scarlet_enclave_c5();
+    AddSC_the_scarlet_enclave_citizens();
     AddSC_instance_scarlet_monastery();     //Scarlet Monastery
     AddSC_boss_kirtonos_the_herald();
     AddSC_boss_darkmaster_gandling();
