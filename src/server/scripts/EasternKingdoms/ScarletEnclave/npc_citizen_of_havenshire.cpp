@@ -31,6 +31,7 @@ enum CitizenOfHavenshire
     SPELL_RAIN_OF_DARKNESS      = 52149,
     SPELL_CORNERED_AND_ENRAGED  = 52262,
     SPELL_LICH_KING_VO_BLOCKER  = 58207,
+    SPELL_DEATH_GRIP            = 49560,
 
     SOUND_COWER_1              = 14561,
     SOUND_COWER_2              = 14564,
@@ -153,6 +154,11 @@ struct npc_citizen_of_havenshire : public ScriptedAI
             me->SetHealth(me->CountPctFromMaxHealth(10));
             me->SetRegeneratingHealth(false);
         }
+        else if (spell->Id == SPELL_DEATH_GRIP && me->HasAura(SPELL_RAIN_OF_DARKNESS))
+        {
+            me->RemoveAurasDueToSpell(SPELL_RAIN_OF_DARKNESS);
+            me->SetRegeneratingHealth(true);
+        }
     }
 
     void UpdateAI(uint32 diff) override
@@ -186,16 +192,11 @@ struct npc_citizen_of_havenshire : public ScriptedAI
         if (!me->IsInCombat())
             return;
 
-        if (hasRainOfDarkness)
+        if (hasRainOfDarkness || !_enraged)
         {
             me->SetReactState(REACT_PASSIVE);
-            UpdateVictim();
-            return;
-        }
 
-        if (!_enraged)
-        {
-            UpdateVictim();
+            me->SelectVictim();
             return;
         }
 
