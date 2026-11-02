@@ -29,8 +29,6 @@
 #include "SpellInfo.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
-#include "Vehicle.h"
-#include "VehicleScript.h"
 
 #include <list>
 #include <vector>
@@ -549,7 +547,18 @@ public:
                 if (vehicleBase->GetEntry() == 28833)
                     cannon = vehicleBase;
 
-            if (!cannon || !cannon->IsAlive())
+            if (!cannon)
+                return;
+
+            // Creature respawn time is corpse delay plus respawn delay.
+            // Keep the corpse for 10 seconds, then respawn 5 seconds later.
+            if (damage >= me->GetHealth())
+            {
+                me->SetCorpseDelay(10);
+                me->SetRespawnDelay(5);
+            }
+
+            if (!cannon->IsAlive())
                 return;
 
             if (roll_chance_i(25))
@@ -562,33 +571,6 @@ public:
                     defender->AI()->AttackStart(cannon);
         }
     };
-};
-
-class vehicle_scarlet_cannon : public VehicleScript
-{
-public:
-    vehicle_scarlet_cannon() : VehicleScript("vehicle_scarlet_cannon") { }
-
-    void OnRemovePassenger(Vehicle* veh, Unit* passenger) override
-    {
-        if (!veh || !veh->GetBase() || veh->GetBase()->GetEntry() != 28833 || !passenger || !passenger->IsPlayer())
-            return;
-
-        // Normal vehicle exit leaves the client stuck at the cannon.
-        // Teleport after _ExitVehicle has finished with its exit spline.
-        Player* player = passenger->ToPlayer();
-        ObjectGuid playerGuid = player->GetGUID();
-        float x = veh->GetBase()->GetPositionX();
-        float y = veh->GetBase()->GetPositionY() - 3.0f;
-        float z = veh->GetBase()->GetPositionZ();
-        float o = veh->GetBase()->GetOrientation();
-
-        player->m_Events.AddEventAtOffset([playerGuid, x, y, z, o]()
-        {
-            if (Player* teleportingPlayer = ObjectAccessor::FindConnectedPlayer(playerGuid))
-                teleportingPlayer->NearTeleportTo(x, y, z, o);
-        }, 1ms);
-    }
 };
 
 /*######
@@ -1341,7 +1323,6 @@ void AddSC_the_scarlet_enclave_c1()
     new npc_dkc1_gothik();
     new npc_scarlet_cannon();
     new npc_scarlet_fleet_defender();
-    new vehicle_scarlet_cannon();
     new npc_unworthy_initiate();
     new npc_unworthy_initiate_anchor();
     new go_acherus_soul_prison();
