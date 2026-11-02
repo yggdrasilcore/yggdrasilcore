@@ -474,15 +474,12 @@ void MotionTransport::UnloadStaticPassengers()
 
 void MotionTransport::UnloadNonStaticPassengers()
 {
-    for (PassengerSet::iterator itr = _passengers.begin(); itr != _passengers.end(); )
+    PassengerSet const passengers = _passengers;
+    for (WorldObject* passenger : passengers)
     {
-        if ((*itr)->IsPlayer())
-        {
-            ++itr;
+        if (!passenger || passenger->IsPlayer())
             continue;
-        }
-        PassengerSet::iterator itr2 = itr++;
-        (*itr2)->AddObjectToRemoveList();
+        passenger->AddObjectToRemoveList();
     }
 }
 
@@ -553,6 +550,8 @@ bool MotionTransport::TeleportTransport(uint32 newMapid, float x, float y, float
         // (vehicle passengers ride via base RelocatePassengers instead)
         for (PassengerSet::iterator itr = _passengers.begin(); itr != _passengers.end(); ++itr)
         {
+            if (!*itr || !(*itr)->IsInWorld())
+                continue;
             if (Unit* unit = (*itr)->ToUnit())
                 if (unit->GetVehicle())
                     continue;
@@ -595,16 +594,16 @@ void MotionTransport::DelayedTeleportTransport()
         switch (obj->GetTypeId())
         {
             case TYPEID_UNIT:
-                _passengers.erase(obj);
+                RemovePassenger(obj, true);
                 if (!obj->ToCreature()->IsPet())
                     obj->ToCreature()->DespawnOrUnsummon();
                 break;
             case TYPEID_GAMEOBJECT:
-                _passengers.erase(obj);
+                RemovePassenger(obj, true);
                 obj->ToGameObject()->Delete();
                 break;
             case TYPEID_DYNAMICOBJECT:
-                _passengers.erase(obj);
+                RemovePassenger(obj, true);
                 if (Unit* caster = obj->ToDynObject()->GetCaster())
                     if (Spell* s = caster->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
                         if (obj->ToDynObject()->GetSpellId() == s->GetSpellInfo()->Id)
@@ -637,11 +636,11 @@ void MotionTransport::DelayedTeleportTransport()
                                     passenger->ExitVehicle();
                                     AddPassenger(passenger, true);
                                     if (!passenger->TeleportTo(newMapId, destX, destY, destZ, destO, TELE_TO_NOT_LEAVE_TRANSPORT))
-                                        _passengers.erase(passenger);
+                                        RemovePassenger(passenger, true);
                                 }
 
                     if (!player->TeleportTo(newMapId, destX, destY, destZ, destO, TELE_TO_NOT_LEAVE_TRANSPORT))
-                        _passengers.erase(obj);
+                        RemovePassenger(obj, true);
                 }
                 break;
             default:
