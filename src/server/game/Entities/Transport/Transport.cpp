@@ -26,6 +26,7 @@
 #include "MapReference.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
@@ -68,44 +69,22 @@ WorldObject* Transport::ResolvePassenger(ObjectGuid const& guid) const
     }
 }
 
-Transport::PassengerSet Transport::GetPassengers() const
-{
-    PassengerGuidSet guids;
-    {
-        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
-        guids = _passengers;
-    }
-
-    PassengerSet passengers;
-    for (ObjectGuid const& guid : guids)
-        if (WorldObject* passenger = ResolvePassenger(guid))
-            passengers.insert(passenger);
-    return passengers;
-}
-
 bool Transport::HasPassengers() const
 {
-    return !GetPassengers().empty();
-}
-
-Transport::PassengerSet MotionTransport::GetStaticPassengers() const
-{
-    PassengerGuidSet guids;
-    {
-        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
-        guids = _staticPassengers;
-    }
-
-    PassengerSet passengers;
+    PassengerGuidSet guids = GetPassengerGuids();
     for (ObjectGuid const& guid : guids)
-        if (WorldObject* passenger = ResolvePassenger(guid))
-            passengers.insert(passenger);
-    return passengers;
+        if (ResolvePassenger(guid))
+            return true;
+    return false;
 }
 
 bool MotionTransport::HasStaticPassengers() const
 {
-    return !GetStaticPassengers().empty();
+    PassengerGuidSet guids = GetStaticPassengerGuids();
+    for (ObjectGuid const& guid : guids)
+        if (ResolvePassenger(guid))
+            return true;
+    return false;
 }
 
 MotionTransport::~MotionTransport()
@@ -1200,7 +1179,7 @@ void StaticTransport::UpdatePassengerPositions()
     for (ObjectGuid const& guid : passengers)
     {
         WorldObject* passenger = GetPassenger(guid);
-        if (!passenger || !HasStaticPassenger(guid) || !passenger->IsInWorld())
+        if (!passenger || !HasPassenger(guid) || !passenger->IsInWorld())
             continue;
 
         // if passenger is on vehicle we have to assume the vehicle is also on transport and its the vehicle that will be updating its passengers

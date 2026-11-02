@@ -25,6 +25,7 @@
 #include "ZoneScript.h"
 #include <atomic>
 #include <mutex>
+#include <set>
 
 struct CreatureData;
 
@@ -36,13 +37,10 @@ public:
     void CalculatePassengerPosition(float& x, float& y, float& z, float* o = nullptr) const override { TransportBase::CalculatePassengerPosition(x, y, z, o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation()); }
     void CalculatePassengerOffset(float& x, float& y, float& z, float* o = nullptr) const override { TransportBase::CalculatePassengerOffset(x, y, z, o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation()); }
 
-    typedef std::set<WorldObject*> PassengerSet;
     typedef std::set<ObjectGuid> PassengerGuidSet;
     virtual void AddPassenger(WorldObject* passenger, bool withAll = false) = 0;
     virtual void RemovePassenger(WorldObject* passenger, bool withAll = false) = 0;
 
-    [[nodiscard]] PassengerSet GetPassengers() const;
-    [[nodiscard]] virtual PassengerSet GetPassengersCopy() const { return GetPassengers(); }
     [[nodiscard]] PassengerGuidSet GetPassengerGuids() const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _passengers; }
     [[nodiscard]] WorldObject* GetPassenger(ObjectGuid const& guid) const { return ResolvePassenger(guid); }
 
@@ -85,7 +83,6 @@ public:
 
     void LoadStaticPassengers();
 
-    [[nodiscard]] PassengerSet GetStaticPassengers() const;
     [[nodiscard]] PassengerGuidSet GetStaticPassengerGuids() const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _staticPassengers; }
     [[nodiscard]] bool HasStaticPassenger(ObjectGuid const& guid) const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _staticPassengers.find(guid) != _staticPassengers.end(); }
     [[nodiscard]] bool HasStaticPassengers() const;
