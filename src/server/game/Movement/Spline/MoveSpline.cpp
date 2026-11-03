@@ -161,6 +161,7 @@ namespace Movement
         facing = args.facing;
         m_Id = args.splineId;
         point_Idx_offset = args.path_Idx_offset;
+        pointFlags = args.pointFlags;
         initialOrientation = args.initialOrientation;
 
         time_passed = 0;
@@ -320,5 +321,33 @@ namespace Movement
         if (isCyclic())
             point = point % (spline.last() - spline.first());
         return point;
+    }
+
+    bool MoveSpline::IsSmoothingPoint() const
+    {
+        if (pointFlags.empty())
+            return false;
+
+        int32 const idx = point_Idx - spline.first() + int32(Finalized());
+        return idx >= 0 && idx < int32(pointFlags.size()) && !pointFlags[idx];
+    }
+
+    uint32 MoveSpline::CountRealPointsReached() const
+    {
+        if (pointFlags.empty())
+        {
+            int32 const reached = currentPathIdx() - point_Idx_offset + 1;
+            return reached > 0 ? uint32(reached) : 0;
+        }
+
+        int32 idx = point_Idx - spline.first() + int32(Finalized());
+        if (idx >= int32(pointFlags.size()))
+            idx = int32(pointFlags.size()) - 1;
+
+        uint32 count = 0;
+        for (int32 i = 0; i <= idx; ++i)
+            if (pointFlags[i])
+                ++count;
+        return count;
     }
 }

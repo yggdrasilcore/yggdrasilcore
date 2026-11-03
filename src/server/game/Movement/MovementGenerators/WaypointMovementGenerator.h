@@ -55,7 +55,7 @@ class WaypointMovementGenerator<Creature> : public MovementGeneratorMedium< Crea
 {
 public:
     WaypointMovementGenerator(uint32 _path_id = 0, bool _repeating = true, bool _stalled = false)
-        : PathMovementBase(), i_nextMoveTime(0), m_isArrivalDone(false), i_splineEndNode(0), path_id(_path_id), repeating(_repeating), stalled(_stalled)  {}
+        : PathMovementBase(), i_nextMoveTime(0), m_isArrivalDone(false), i_splineStartNode(0), i_splineEndNode(0), path_id(_path_id), repeating(_repeating), stalled(_stalled)  {}
     ~WaypointMovementGenerator() { i_path.clear(); }
     void DoInitialize(Creature*);
     void DoFinalize(Creature*);
@@ -94,6 +94,7 @@ private:
 
     TimeTrackerSmall i_nextMoveTime;
     bool m_isArrivalDone;
+    uint32 i_splineStartNode;
     uint32 i_splineEndNode;
     uint32 path_id;
     bool repeating;

@@ -286,7 +286,7 @@ namespace
         return IsSegmentBlocked(unit, aL, bL, true) || IsSegmentBlocked(unit, aR, bR, true);
     }
 
-    bool IsSmoothedCurveValid(Unit* unit, PointsArray& controls, bool groundMode)
+    bool IsSmoothedCurveValid(Unit* unit, PointsArray& controls, std::vector<uint8>& pointFlags, bool groundMode)
     {
         if (controls.size() < 3)
             return true;
@@ -333,6 +333,7 @@ namespace
                                 if (!segBad(*chain[s], mid) && !segBad(mid, *chain[s + 1]))
                                 {
                                     controls.insert(controls.begin() + k + 1, mid);
+                                    pointFlags.insert(pointFlags.begin() + k + 1, 0);
                                     clean = false; // restart the scan over the repaired path
                                     continue;
                                 }
@@ -346,6 +347,7 @@ namespace
                         if (!TryDetourAroundBlockage(unit, *chain[s], push, *chain[s + 1], groundMode, detour))
                             return false;
                         controls.insert(controls.begin() + k + 1, detour);
+                        pointFlags.insert(pointFlags.begin() + k + 1, 0);
                         clean = false; // restart the scan over the repaired path
                     }
 
@@ -450,7 +452,7 @@ namespace
     // Inserts ground-snapped midpoints on long, steep spans so the spline tracks hillsides
     // instead of tunneling through them or floating above them. Inserted points lie on the
     // requested segments, so they add no curvature of their own.
-    void DensifySteepSpans(Unit* unit, PointsArray& path)
+    void DensifySteepSpans(Unit* unit, PointsArray& path, std::vector<uint8>& pointFlags)
     {
         if (path.size() < 2 || path.size() > 7)
             return;
@@ -474,6 +476,7 @@ namespace
                 continue;
 
             path.insert(path.begin() + i + 1, mid);
+            pointFlags.insert(pointFlags.begin() + i + 1, 0);
             ++i; // skip over the span just subdivided
             if (path.size() > 15)
                 return;
@@ -539,10 +542,10 @@ namespace
         if (!canBlend || std::fabs(angleDelta) <= SMOOTH_MIN_TURN)
         {
             if (groundMode)
-                DensifySteepSpans(unit, args.path);
+                DensifySteepSpans(unit, args.path, args.pointFlags);
             // Even a blend-free mmap polygon can poke through geometry once CatmullRom rounds
             // its corners, so validate the rendered curve before committing to smoothing.
-            if (!flightMode && args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, groundMode))
+            if (!flightMode && args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode))
                 return; // keep snapped points, but move linearly
             args.flags.EnableCatmullRom();
             return;
@@ -555,7 +558,7 @@ namespace
         if (!flightMode && slewRate <= 0.01f)
         {
             if (groundMode)
-                DensifySteepSpans(unit, args.path);
+                DensifySteepSpans(unit, args.path, args.pointFlags);
             return; // linear spline, no CatmullRom
         }
 
@@ -568,7 +571,7 @@ namespace
         if (!flightMode && tNeeded > SMOOTH_MAX_BLEND_T)
         {
             if (groundMode)
-                DensifySteepSpans(unit, args.path);
+                DensifySteepSpans(unit, args.path, args.pointFlags);
             LOG_DEBUG("movement", "SmoothPathForCatmullRom: turn exceeds slew rate, falling back to linear");
             return;
         }
@@ -591,6 +594,7 @@ namespace
                 if (BuildDeparturePoint(unit, src, orient, refTarget, distRef, refTurn, groundMode, tNeeded, blend))
                 {
                     args.path.insert(args.path.begin() + 1, blend);
+                    args.pointFlags.insert(args.pointFlags.begin() + 1, 0);
                     hasBlend = true;
                     blendValue = blend;
                 }
@@ -598,24 +602,26 @@ namespace
         }
 
         if (groundMode)
-            DensifySteepSpans(unit, args.path);
+            DensifySteepSpans(unit, args.path, args.pointFlags);
 
         // The rendered curve must stay inside traversable space; otherwise drop the blend
         // point first, and if the path itself still misbehaves under CatmullRom, move linearly.
-        if (!flightMode && !IsSmoothedCurveValid(unit, args.path, groundMode))
+        if (!flightMode && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode))
         {
             if (hasBlend)
             {
                 for (auto itr = args.path.begin() + 1; itr != args.path.end(); ++itr)
                     if (*itr == blendValue)
                     {
+                        std::size_t const idx = std::size_t(itr - args.path.begin());
                         args.path.erase(itr);
+                        args.pointFlags.erase(args.pointFlags.begin() + idx);
                         break;
                     }
                 hasBlend = false;
                 LOG_DEBUG("movement", "SmoothPathForCatmullRom: blend point rejected by LoS/terrain, retrying without it");
             }
-            if (args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, groundMode))
+            if (args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode))
             {
                 LOG_DEBUG("movement", "SmoothPathForCatmullRom: curve still invalid, falling back to linear spline");
                 return; // keep snapped points, but do not enable CatmullRom
@@ -754,6 +760,8 @@ namespace
         if (CanSmooth(unit, args, transport))
         {
             bool const flying = args.flags.flying;
+            // Only smoothing inserts control points; caller points are all real waypoints.
+            args.pointFlags.assign(args.path.size(), 1);
             SmoothPathForCatmullRom(unit, args, real_position);
             // EnableCatmullRom() clears the Flying bit, which is what the client uses for the
             // flight animation. Flying alone is already a smooth (CatmullRom) spline, so restore it.
