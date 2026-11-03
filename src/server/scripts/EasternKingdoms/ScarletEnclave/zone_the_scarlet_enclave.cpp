@@ -16,6 +16,7 @@
  */
 
 #include "CreatureScript.h"
+#include "ObjectAccessor.h"
 #include "PassiveAI.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
@@ -137,7 +138,194 @@ public:
     };
 };
 
+enum ScarletPeasant
+{
+    NPC_SCARLET_PEASANT         = 28557,
+
+    SPELL_STUN_SELF             = 51604,
+    SOUND_PEASANT_COWER         = 14561,
+
+    SAY_PEASANT_COWER           = 0,
+
+    EVENT_CHECK_NEAR_PLAYER     = 1,
+    EVENT_COWER_APPLY           = 2,
+    EVENT_COWER_SAY             = 3,
+    EVENT_COWER_FAILSAFE        = 4,
+
+    PHASE_DEFENSIVE             = 1,
+    PHASE_COWERING              = 2,
+    PHASE_ATTACKING             = 3,
+
+    NEAR_PLAYER_RANGE           = 5,
+    COWER_FAILSAFE_RANGE        = 40
+};
+
+struct npc_scarlet_peasant : public ScriptedAI
+{
+    npc_scarlet_peasant(Creature* creature) : ScriptedAI(creature), _phase(PHASE_DEFENSIVE), _healthCowerTriggered(false) { }
+
+    void Reset() override
+    {
+        _phase = PHASE_DEFENSIVE;
+        _healthCowerTriggered = false;
+        _cowerTargetGuid.Clear();
+
+        me->RemoveAurasDueToSpell(SPELL_STUN_SELF);
+        me->SetReactState(REACT_DEFENSIVE);
+        me->SetEmoteState(EMOTE_STATE_WORK_MINING);
+
+        events.Reset();
+        events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 1s);
+    }
+
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType, SpellSchoolMask) override
+    {
+        if (!attacker || !damage || !me->IsAlive() || _phase == PHASE_COWERING)
+            return;
+
+        if (_phase == PHASE_DEFENSIVE && damage < me->GetHealth())
+        {
+            if (roll_chance_i(50))
+                StartAttack(attacker);
+            else
+                StartCower(me->SelectNearestPlayer(30));
+        }
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        events.Update(diff);
+
+        while (uint32 eventId = events.ExecuteEvent())
+        {
+            switch (eventId)
+            {
+                case EVENT_CHECK_NEAR_PLAYER:
+                    if (_phase == PHASE_DEFENSIVE && !me->IsInCombat())
+                    {
+                        if (Unit* player = me->SelectNearestPlayer(NEAR_PLAYER_RANGE))
+                        {
+                            if (roll_chance_i(50))
+                                StartAttack(player);
+                            else
+                                StartCower(player);
+                        }
+                    }
+
+                    if (_phase == PHASE_DEFENSIVE)
+                        events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 2s);
+                    break;
+                case EVENT_COWER_APPLY:
+                    if (_phase == PHASE_COWERING)
+                    {
+                        me->SetReactState(REACT_PASSIVE);
+                        DoCastSelf(SPELL_STUN_SELF, true);
+                        me->PlayDirectSound(SOUND_PEASANT_COWER);
+                        me->SetEmoteState(EMOTE_STATE_COWER);
+                    }
+                    break;
+                case EVENT_COWER_SAY:
+                    if (_phase == PHASE_COWERING)
+                    {
+                        Player* target = ObjectAccessor::GetPlayer(*me, _cowerTargetGuid);
+                        if (!target)
+                            target = me->SelectNearestPlayer(COWER_FAILSAFE_RANGE);
+
+                        Talk(SAY_PEASANT_COWER, target);
+                    }
+                    break;
+                case EVENT_COWER_FAILSAFE:
+                    if (_phase == PHASE_COWERING)
+                    {
+                        if (!me->SelectNearestPlayer(COWER_FAILSAFE_RANGE))
+                        {
+                            StopCowering();
+                            break;
+                        }
+
+                        events.ScheduleEvent(EVENT_COWER_FAILSAFE, 1s);
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        if (_phase == PHASE_COWERING)
+            return;
+
+        if (me->IsInCombat() && !_healthCowerTriggered && me->GetHealthPct() <= 50)
+        {
+            _healthCowerTriggered = true;
+            StartCower(me->SelectNearestPlayer(30));
+            return;
+        }
+
+        if (_phase == PHASE_ATTACKING)
+        {
+            if (!UpdateVictim())
+                return;
+
+            DoMeleeAttackIfReady();
+        }
+    }
+
+private:
+    void StartAttack(Unit* target)
+    {
+        if (!target || !me->IsValidAttackTarget(target))
+            return;
+
+        _phase = PHASE_ATTACKING;
+        me->SetReactState(REACT_AGGRESSIVE);
+        AttackStart(target);
+    }
+
+    void StartCower(Unit* target)
+    {
+        _phase = PHASE_COWERING;
+
+        events.CancelEvent(EVENT_CHECK_NEAR_PLAYER);
+        me->SetReactState(REACT_PASSIVE);
+        me->AttackStop();
+
+        if (target)
+            me->SetFacingToObject(target);
+
+        _cowerTargetGuid = target && target->IsPlayer() ? target->GetGUID() : ObjectGuid::Empty;
+        events.ScheduleEvent(EVENT_COWER_APPLY, 500ms);
+        events.ScheduleEvent(EVENT_COWER_SAY, 1500ms);
+        events.ScheduleEvent(EVENT_COWER_FAILSAFE, 1s);
+    }
+
+    void StopCowering()
+    {
+        _phase = PHASE_DEFENSIVE;
+        _healthCowerTriggered = false;
+        _cowerTargetGuid.Clear();
+
+        events.CancelEvent(EVENT_COWER_APPLY);
+        events.CancelEvent(EVENT_COWER_SAY);
+        events.CancelEvent(EVENT_COWER_FAILSAFE);
+
+        me->RemoveAurasDueToSpell(SPELL_STUN_SELF);
+        me->ClearEmoteState();
+        me->SetEmoteState(EMOTE_STATE_WORK_MINING);
+        me->SetReactState(REACT_DEFENSIVE);
+
+        if (me->IsInCombat())
+            EnterEvadeMode();
+        else
+            events.ScheduleEvent(EVENT_CHECK_NEAR_PLAYER, 1s);
+    }
+
+    int32 _phase;
+    bool _healthCowerTriggered;
+    ObjectGuid _cowerTargetGuid;
+};
+
 void AddSC_the_scarlet_enclave()
 {
     new npc_valkyr_battle_maiden();
+    RegisterCreatureAI(npc_scarlet_peasant);
 }

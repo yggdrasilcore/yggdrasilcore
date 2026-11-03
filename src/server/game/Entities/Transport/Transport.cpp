@@ -24,7 +24,9 @@
 #include "GameTime.h"
 #include "MapMgr.h"
 #include "MapReference.h"
+#include "ObjectAccessor.h"
 #include "ObjectMgr.h"
+#include "Pet.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
@@ -36,20 +38,85 @@ MotionTransport::MotionTransport() : Transport(), _transportInfo(nullptr), _isMo
     m_updateFlag = UPDATEFLAG_TRANSPORT | UPDATEFLAG_LOWGUID | UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_ROTATION;
 }
 
+WorldObject* Transport::ResolvePassenger(ObjectGuid const& guid) const
+{
+    if (guid.IsEmpty())
+        return nullptr;
+
+    Map* map = FindMap();
+    if (!map)
+        map = _passengerMap.load(std::memory_order_relaxed);
+    if (!map)
+        return nullptr;
+
+    switch (guid.GetHigh())
+    {
+        case HighGuid::Player:
+            return ObjectAccessor::GetPlayer(map, guid);
+        case HighGuid::Transport:
+        case HighGuid::Mo_Transport:
+        case HighGuid::GameObject:
+            return map->GetGameObject(guid);
+        case HighGuid::Vehicle:
+        case HighGuid::Unit:
+            return map->GetCreature(guid);
+        case HighGuid::Pet:
+            return map->GetPet(guid);
+        case HighGuid::DynamicObject:
+            return map->GetDynamicObject(guid);
+        default:
+            return nullptr;
+    }
+}
+
+bool Transport::HasPassengers() const
+{
+    PassengerGuidSet guids = GetPassengerGuids();
+    for (ObjectGuid const& guid : guids)
+        if (ResolvePassenger(guid))
+            return true;
+    return false;
+}
+
+bool MotionTransport::HasStaticPassengers() const
+{
+    PassengerGuidSet guids = GetStaticPassengerGuids();
+    for (ObjectGuid const& guid : guids)
+        if (ResolvePassenger(guid))
+            return true;
+    return false;
+}
+
 MotionTransport::~MotionTransport()
 {
     HashMapHolder<MotionTransport>::Remove(this);
 
-    while (!_passengers.empty())
+    UnloadStaticPassengers();
+
+    for (;;)
     {
-        WorldObject* obj = *_passengers.begin();
+        ObjectGuid guid;
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            if (_passengers.empty())
+                break;
+            guid = *_passengers.begin();
+        }
+
+        WorldObject* obj = ResolvePassenger(guid);
+        if (!obj)
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            _passengers.erase(guid);
+            _staticPassengers.erase(guid);
+            continue;
+        }
+
         RemovePassenger(obj);
         obj->SetTransport(nullptr);
         obj->m_movementInfo.transport.Reset();
         obj->m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
     }
-
-    UnloadStaticPassengers();
 }
 
 bool MotionTransport::CreateMoTrans(ObjectGuid::LowType guidlow, uint32 entry, uint32 mapid, float x, float y, float z, float ang, uint32 animprogress)
@@ -119,9 +186,26 @@ bool MotionTransport::CreateMoTrans(ObjectGuid::LowType guidlow, uint32 entry, u
 void MotionTransport::CleanupsBeforeDelete(bool finalCleanup /*= true*/)
 {
     UnloadStaticPassengers();
-    while (!_passengers.empty())
+
+    for (;;)
     {
-        WorldObject* obj = *_passengers.begin();
+        ObjectGuid guid;
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            if (_passengers.empty())
+                break;
+            guid = *_passengers.begin();
+        }
+
+        WorldObject* obj = ResolvePassenger(guid);
+        if (!obj)
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            _passengers.erase(guid);
+            _staticPassengers.erase(guid);
+            continue;
+        }
+
         RemovePassenger(obj);
         obj->SetTransport(nullptr);
         obj->m_movementInfo.transport.Reset();
@@ -249,7 +333,7 @@ void MotionTransport::Update(uint32 diff)
               3. transport moves from active to inactive grid
               4. the grid that transport is currently in unloads
             */
-            if (_staticPassengers.empty() && GetMap()->IsGridLoaded(GetPositionX(), GetPositionY())) // 2.
+            if (!HasStaticPassengers() && GetMap()->IsGridLoaded(GetPositionX(), GetPositionY())) // 2.
                 LoadStaticPassengers();
         }
     }
@@ -273,27 +357,39 @@ void MotionTransport::UpdatePosition(float x, float y, float z, float o)
     Relocate(x, y, z, o);
     UpdateModelPosition();
 
-    UpdatePassengerPositions(_passengers);
+    UpdatePassengerPositions(GetPassengerGuids());
 
-    if (_staticPassengers.empty())
+    if (!HasStaticPassengers())
         LoadStaticPassengers();
     else
-        UpdatePassengerPositions(_staticPassengers);
+        UpdatePassengerPositions(GetStaticPassengerGuids());
 }
 
 void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
 {
-    std::lock_guard<std::mutex> guard(Lock);
-    if (_passengers.insert(passenger).second)
+    if (!passenger)
+        return;
+
+    if (withAll)
+    {
+        if (Transport* t = passenger->GetTransport()) // SHOULD NEVER HAPPEN
+            if (t != this)
+                t->RemovePassenger(passenger, false);
+    }
+
+    bool inserted;
+    {
+        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+        inserted = _passengers.insert(passenger->GetGUID()).second;
+    }
+
+    if (inserted)
     {
         if (Player* plr = passenger->ToPlayer())
             sScriptMgr->OnAddPassenger(ToTransport(), plr);
 
         if (withAll)
         {
-            if (Transport* t = passenger->GetTransport()) // SHOULD NEVER HAPPEN
-                t->RemovePassenger(passenger, false);
-
             float x, y, z, o;
             passenger->GetPosition(x, y, z, o);
             CalculatePassengerOffset(x, y, z, &o);
@@ -312,25 +408,34 @@ void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
 void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 {
-    std::lock_guard<std::mutex> guard(Lock);
-    if (_passengers.erase(passenger) || _staticPassengers.erase(passenger))
+    if (!passenger)
+        return;
+
+    bool erased;
+    {
+        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+        erased = _passengers.erase(passenger->GetGUID());
+        erased = _staticPassengers.erase(passenger->GetGUID()) || erased;
+    }
+
+    if (erased)
     {
         if (Player* plr = passenger->ToPlayer())
         {
             sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
         }
+    }
 
-        if (withAll)
+    if (withAll && (erased || passenger->GetTransport() == this))
+    {
+        passenger->SetTransport(nullptr);
+        passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
+        passenger->m_movementInfo.transport.guid.Clear();
+        passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
+        if (passenger->ToUnit())
         {
-            passenger->SetTransport(nullptr);
-            passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
-            passenger->m_movementInfo.transport.guid.Clear();
-            passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
-            if (passenger->ToUnit())
-            {
-                passenger->ToUnit()->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
-            }
+            passenger->ToUnit()->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
         }
     }
 }
@@ -378,7 +483,10 @@ Creature* MotionTransport::CreateNPCPassenger(ObjectGuid::LowType guid, Creature
         return nullptr;
     }
 
-    _staticPassengers.insert(creature);
+    {
+        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+        _staticPassengers.insert(creature->GetGUID());
+    }
     sScriptMgr->OnAddCreaturePassenger(this, creature);
     return creature;
 }
@@ -420,7 +528,10 @@ GameObject* MotionTransport::CreateGOPassenger(ObjectGuid::LowType guid, GameObj
         return nullptr;
     }
 
-    _staticPassengers.insert(go);
+    {
+        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+        _staticPassengers.insert(go->GetGUID());
+    }
     return go;
 }
 
@@ -451,24 +562,32 @@ void MotionTransport::LoadStaticPassengers()
 void MotionTransport::UnloadStaticPassengers()
 {
     SetPassengersLoaded(false);
-    while (!_staticPassengers.empty())
+
+    PassengerGuidSet guids = GetStaticPassengerGuids();
+    for (ObjectGuid const& guid : guids)
     {
-        WorldObject* obj = *_staticPassengers.begin();
-        obj->AddObjectToRemoveList();   // also removes from _staticPassengers
+        WorldObject* obj = ResolvePassenger(guid);
+        if (!obj)
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            _staticPassengers.erase(guid);
+            _passengers.erase(guid);
+            continue;
+        }
+
+        obj->AddObjectToRemoveList();
     }
 }
 
 void MotionTransport::UnloadNonStaticPassengers()
 {
-    for (PassengerSet::iterator itr = _passengers.begin(); itr != _passengers.end(); )
+    PassengerGuidSet const passengers = GetPassengerGuids();
+    for (ObjectGuid const& guid : passengers)
     {
-        if ((*itr)->IsPlayer())
-        {
-            ++itr;
+        WorldObject* passenger = GetPassenger(guid);
+        if (!passenger || !HasPassenger(guid) || passenger->IsPlayer())
             continue;
-        }
-        PassengerSet::iterator itr2 = itr++;
-        (*itr2)->AddObjectToRemoveList();
+        passenger->AddObjectToRemoveList();
     }
 }
 
@@ -537,18 +656,22 @@ bool MotionTransport::TeleportTransport(uint32 newMapid, float x, float y, float
     {
         // Teleport players, they need to know it
         // (vehicle passengers ride via base RelocatePassengers instead)
-        for (PassengerSet::iterator itr = _passengers.begin(); itr != _passengers.end(); ++itr)
+        PassengerGuidSet passengers = GetPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
         {
-            if (Unit* unit = (*itr)->ToUnit())
+            WorldObject* passenger = GetPassenger(guid);
+            if (!passenger || !HasPassenger(guid) || !passenger->IsInWorld())
+                continue;
+            if (Unit* unit = passenger->ToUnit())
                 if (unit->GetVehicle())
                     continue;
-            if ((*itr)->IsPlayer())
+            if (passenger->IsPlayer())
             {
                 float destX, destY, destZ, destO;
-                (*itr)->m_movementInfo.transport.pos.GetPosition(destX, destY, destZ, destO);
+                passenger->m_movementInfo.transport.pos.GetPosition(destX, destY, destZ, destO);
                 TransportBase::CalculatePassengerPosition(destX, destY, destZ, &destO, x, y, z, o);
 
-                (*itr)->ToUnit()->NearTeleportTo(destX, destY, destZ, destO);
+                passenger->ToUnit()->NearTeleportTo(destX, destY, destZ, destO);
             }
         }
 
@@ -570,27 +693,26 @@ void MotionTransport::DelayedTeleportTransport()
           z = _nextFrame->Node->z,
           o = _nextFrame->InitialOrientation;
 
-    PassengerSet _passengersCopy = _passengers;
-    for (PassengerSet::iterator itr = _passengersCopy.begin(); itr != _passengersCopy.end(); )
+    PassengerGuidSet passengersCopy = GetPassengerGuids();
+    for (ObjectGuid const& guid : passengersCopy)
     {
-        WorldObject* obj = (*itr++);
-
-        if (_passengers.find(obj) == _passengers.end())
+        WorldObject* obj = GetPassenger(guid);
+        if (!obj || !HasPassenger(guid))
             continue;
 
         switch (obj->GetTypeId())
         {
             case TYPEID_UNIT:
-                _passengers.erase(obj);
+                RemovePassenger(obj, true);
                 if (!obj->ToCreature()->IsPet())
                     obj->ToCreature()->DespawnOrUnsummon();
                 break;
             case TYPEID_GAMEOBJECT:
-                _passengers.erase(obj);
+                RemovePassenger(obj, true);
                 obj->ToGameObject()->Delete();
                 break;
             case TYPEID_DYNAMICOBJECT:
-                _passengers.erase(obj);
+                RemovePassenger(obj, true);
                 if (Unit* caster = obj->ToDynObject()->GetCaster())
                     if (Spell* s = caster->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
                         if (obj->ToDynObject()->GetSpellId() == s->GetSpellInfo()->Id)
@@ -610,7 +732,10 @@ void MotionTransport::DelayedTeleportTransport()
                     Player* player = obj->ToPlayer();
                     if (!player || !player->IsInWorld())
                     {
-                        _passengers.erase(obj);
+                        ObjectGuid guid = obj->GetGUID();
+                        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+                        _passengers.erase(guid);
+                        _staticPassengers.erase(guid);
                         continue;
                     }
                     // Vehicle passengers are dropped in the middle of nowhere, so lets try to eject them, add to the transport and teleport
@@ -623,11 +748,11 @@ void MotionTransport::DelayedTeleportTransport()
                                     passenger->ExitVehicle();
                                     AddPassenger(passenger, true);
                                     if (!passenger->TeleportTo(newMapId, destX, destY, destZ, destO, TELE_TO_NOT_LEAVE_TRANSPORT))
-                                        _passengers.erase(passenger);
+                                        RemovePassenger(passenger, true);
                                 }
 
                     if (!player->TeleportTo(newMapId, destX, destY, destZ, destO, TELE_TO_NOT_LEAVE_TRANSPORT))
-                        _passengers.erase(obj);
+                        RemovePassenger(obj, true);
                 }
                 break;
             default:
@@ -646,12 +771,12 @@ void MotionTransport::DelayedTeleportTransport()
     LoadStaticPassengers();
 }
 
-void MotionTransport::UpdatePassengerPositions(PassengerSet& passengers)
+void MotionTransport::UpdatePassengerPositions(PassengerGuidSet const& passengers)
 {
-    for (PassengerSet::iterator itr = passengers.begin(); itr != passengers.end(); ++itr)
+    for (ObjectGuid const& guid : passengers)
     {
-        WorldObject* passenger = *itr;
-        if (!passenger || !passenger->IsInWorld())
+        WorldObject* passenger = GetPassenger(guid);
+        if (!passenger || (!HasPassenger(guid) && !HasStaticPassenger(guid)) || !passenger->IsInWorld())
             continue;
         // transport teleported but passenger not yet (can happen for players)
         if (passenger->GetMap() != GetMap())
@@ -718,9 +843,24 @@ StaticTransport::StaticTransport() : Transport(), _needDoInitialRelocation(false
 
 StaticTransport::~StaticTransport()
 {
-    while (!_passengers.empty())
+    for (;;)
     {
-        WorldObject* obj = *_passengers.begin();
+        ObjectGuid guid;
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            if (_passengers.empty())
+                break;
+            guid = *_passengers.begin();
+        }
+
+        WorldObject* obj = ResolvePassenger(guid);
+        if (!obj)
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            _passengers.erase(guid);
+            continue;
+        }
+
         RemovePassenger(obj);
         obj->SetTransport(nullptr);
         obj->m_movementInfo.transport.Reset();
@@ -871,9 +1011,24 @@ bool StaticTransport::Create(ObjectGuid::LowType guidlow, uint32 name_id, Map* m
 
 void StaticTransport::CleanupsBeforeDelete(bool finalCleanup /*= true*/)
 {
-    while (!_passengers.empty())
+    for (;;)
     {
-        WorldObject* obj = *_passengers.begin();
+        ObjectGuid guid;
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            if (_passengers.empty())
+                break;
+            guid = *_passengers.begin();
+        }
+
+        WorldObject* obj = ResolvePassenger(guid);
+        if (!obj)
+        {
+            std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+            _passengers.erase(guid);
+            continue;
+        }
+
         RemovePassenger(obj);
         obj->SetTransport(nullptr);
         obj->m_movementInfo.transport.Reset();
@@ -1020,10 +1175,11 @@ void StaticTransport::UpdatePosition(float x, float y, float z, float o)
 
 void StaticTransport::UpdatePassengerPositions()
 {
-    for (PassengerSet::iterator itr = _passengers.begin(); itr != _passengers.end(); ++itr)
+    PassengerGuidSet passengers = GetPassengerGuids();
+    for (ObjectGuid const& guid : passengers)
     {
-        WorldObject* passenger = *itr;
-        if (!passenger || !passenger->IsInWorld())
+        WorldObject* passenger = GetPassenger(guid);
+        if (!passenger || !HasPassenger(guid) || !passenger->IsInWorld())
             continue;
 
         // if passenger is on vehicle we have to assume the vehicle is also on transport and its the vehicle that will be updating its passengers
@@ -1066,7 +1222,16 @@ void StaticTransport::UpdatePassengerPositions()
 
 void StaticTransport::AddPassenger(WorldObject* passenger, bool withAll)
 {
-    if (_passengers.insert(passenger).second)
+    if (!passenger)
+        return;
+
+    bool inserted;
+    {
+        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+        inserted = _passengers.insert(passenger->GetGUID()).second;
+    }
+
+    if (inserted)
     {
         if (Player* plr = passenger->ToPlayer())
             sScriptMgr->OnAddPassenger(ToTransport(), plr);
@@ -1090,21 +1255,30 @@ void StaticTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
 void StaticTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 {
-    if (_passengers.erase(passenger))
+    if (!passenger)
+        return;
+
+    bool erased;
+    {
+        std::lock_guard<std::recursive_mutex> guard(_passengersLock);
+        erased = _passengers.erase(passenger->GetGUID());
+    }
+
+    if (erased)
     {
         if (Player* plr = passenger->ToPlayer())
         {
             sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
         }
+    }
 
-        if (withAll)
-        {
-            passenger->SetTransport(nullptr);
-            passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
-            passenger->m_movementInfo.transport.guid.Clear();
-            passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
-        }
+    if (withAll && (erased || passenger->GetTransport() == this))
+    {
+        passenger->SetTransport(nullptr);
+        passenger->m_movementInfo.flags &= ~MOVEMENTFLAG_ONTRANSPORT;
+        passenger->m_movementInfo.transport.guid.Clear();
+        passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
     }
 }
 

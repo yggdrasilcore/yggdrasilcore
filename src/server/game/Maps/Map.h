@@ -484,7 +484,7 @@ public:
     void EnsureGridCreated(GridCoord const& gridCoord);
     [[nodiscard]] bool AllTransportsEmpty() const; // pussywizard
     void AllTransportsRemovePassengers(); // pussywizard
-    [[nodiscard]] TransportsContainer const& GetAllTransports() const { return _transports; }
+    [[nodiscard]] TransportsContainer GetAllTransports() const { return _transports; }
 
     DataMap CustomData;
 

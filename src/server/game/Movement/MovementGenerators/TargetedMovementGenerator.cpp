@@ -825,8 +825,8 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         !owner->HasUnitState(UNIT_STATE_FOLLOW_MOVE))
     {
         // Detach the pet so the world-spline doesn't chase the deck.
-        if (owner->GetTransport())
-            owner->GetTransport()->RemovePassenger(owner, true);
+        if (Transport* ownerTransport = owner->GetTransport())
+            ownerTransport->RemovePassenger(owner, true);
 
         releaseGravityLock();
         owner->AddUnitState(UNIT_STATE_FOLLOW_MOVE);
@@ -845,8 +845,6 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         init.Launch();
         return true;
     }
-
-    _lastTargetPosition = targetPosition;
 
     if (PositionOkay(owner, target, owner->IsGuardian() && target->IsPlayer(), targetIsMoving, time_diff))
     {
@@ -871,6 +869,11 @@ bool FollowMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     }
     else
     {
+        // Only remember the target position when a move is actually issued.
+        // Updating it every tick makes PositionOkay compare the target against
+        // itself, so a follower that has fallen behind never repaths.
+        _lastTargetPosition = targetPosition;
+
         // If player is moving and their position is not updated, we need to predict position
         if (targetIsMoving && !onTransport)
         {

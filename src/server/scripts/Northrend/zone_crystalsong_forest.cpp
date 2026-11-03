@@ -85,7 +85,7 @@ struct npc_preparations_for_war_vehicle : public NullCreatureAI
             if (searchForShipTimer >= 3000)
             {
                 searchForShipTimer = 1;
-                TransportsContainer const& transports = me->GetMap()->GetAllTransports();
+                TransportsContainer const transports = me->GetMap()->GetAllTransports();
                 for (TransportsContainer::const_iterator itr = transports.begin(); itr != transports.end(); ++itr)
                 {
                     if ((*itr)->GetEntry() == transportEntry)

@@ -19,6 +19,8 @@
 #include "Errors.h"
 #include "Log.h"
 #include "StringFormat.h"
+#include "World.h"
+#include "WorldConfig.h"
 
 WardenPayloadMgr::WardenPayloadMgr() { }
 
@@ -107,6 +109,12 @@ WardenCheck* WardenPayloadMgr::GetPayloadById(uint16 payloadId)
 
 void WardenPayloadMgr::QueuePayload(uint16 payloadId, bool pushToFront)
 {
+    // Payload injection can be toggled independently of the anticheat checks.
+    if (!sWorld->getBoolConfig(CONFIG_WARDEN_ENABLE_INJECTION))
+    {
+        return;
+    }
+
     auto it = CachedChecks.find(payloadId);
 
     //Do not queue a payload if there is no payload matching the payloadId.

@@ -5263,7 +5263,8 @@ bool Player::LoadFromDB(ObjectGuid playerGuid, CharacterDatabaseQueryHolder cons
             {
                 Relocate(x, y, z, o);
                 mapId = m_transport->GetMapId();
-                m_transport->AddPassenger(this);
+                // Do not add before the player is in the map; CharacterHandler adds
+                // the passenger only after AddPlayerToMap() succeeds.
                 AddUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
             }
         }
@@ -5831,7 +5832,7 @@ void Player::_LoadAuras(PreparedQueryResult result, uint32 timediff)
 
             if (Aura* aura = Aura::TryCreate(spellInfo, effmask, this, nullptr, &baseDamage[0], nullptr, caster_guid, itemGuid))
             {
-                if (!aura->CanBeSaved())
+                if (!aura->CanBeSaved() || !aura->GetCaster())
                 {
                     aura->Remove();
                     continue;

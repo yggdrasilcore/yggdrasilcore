@@ -69,6 +69,64 @@ namespace
         static std::mutex lock;
         return &lock;
     }
+
+    void RemoveInteractionStopHolder(uint32 playerLowGuid, uint64 creatureGuid)
+    {
+        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
+
+        if (auto itr = GetInteractionStopMap()->find(playerLowGuid); itr != GetInteractionStopMap()->end())
+        {
+            itr->second.erase(creatureGuid);
+            if (itr->second.empty())
+                GetInteractionStopMap()->erase(itr);
+        }
+    }
+
+    bool HasInteractionStopHolder(uint64 creatureGuid)
+    {
+        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
+        for (auto const& entry : *GetInteractionStopMap())
+            if (entry.second.find(creatureGuid) != entry.second.end())
+                return true;
+        return false;
+    }
+
+    bool PruneInteractionStopHolders(Creature* creature)
+    {
+        uint64 creatureGuid = creature->GetGUID().GetRawValue();
+
+        std::vector<uint32> holders;
+        {
+            std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
+            for (auto const& entry : *GetInteractionStopMap())
+                if (entry.second.find(creatureGuid) != entry.second.end())
+                    holders.push_back(entry.first);
+        }
+
+        std::vector<uint32> invalidHolders;
+        for (uint32 lowGuid : holders)
+        {
+            Player* holder = ObjectAccessor::FindConnectedPlayer(ObjectGuid::Create<HighGuid::Player>(lowGuid));
+            if (!holder || !holder->IsInWorld() || holder->GetMap() != creature->GetMap() || holder->GetDistance(creature) > 2.5f)
+                invalidHolders.push_back(lowGuid);
+        }
+
+        if (!invalidHolders.empty())
+        {
+            std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
+            for (uint32 lowGuid : invalidHolders)
+            {
+                if (auto itr = GetInteractionStopMap()->find(lowGuid); itr != GetInteractionStopMap()->end())
+                {
+                    itr->second.erase(creatureGuid);
+                    if (itr->second.empty())
+                        GetInteractionStopMap()->erase(itr);
+                }
+            }
+        }
+
+        return holders.size() > invalidHolders.size();
+    }
 }
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
@@ -1001,10 +1059,11 @@ void Creature::Update(uint32 diff)
             {
                 m_transportCheckTimer = 1000;
                 Transport* newTransport = GetMap()->GetTransportForPos(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), this);
-                if (newTransport != GetTransport())
+                Transport* oldTransport = GetTransport();
+                if (newTransport != oldTransport)
                 {
-                    if (GetTransport())
-                        GetTransport()->RemovePassenger(this, true);
+                    if (oldTransport)
+                        oldTransport->RemovePassenger(this, true);
                     if (newTransport)
                         newTransport->AddPassenger(this, true);
                     this->StopMovingOnCurrentPos();
@@ -3168,42 +3227,41 @@ void Creature::ClearInteractionStop(Player* player)
     if (!player)
         return;
 
-    // Only release if the stop aura was placed by this player
-    if (!GetAura(INTERACTION_STOP_AURA, player->GetGUID()))
-    {
-        if (!HasAura(INTERACTION_STOP_AURA))
-            _interactionStopResume.valid = false;
+    RemoveInteractionStopHolder(player->GetGUID().GetCounter(), GetGUID().GetRawValue());
+
+    // Another valid player is still interacting: keep the aura and the freeze.
+    if (PruneInteractionStopHolders(this))
         return;
-    }
 
-    RemoveAurasDueToSpell(INTERACTION_STOP_AURA, player->GetGUID());
-
-    // Expire any remaining generator pause immediately
-    ResumeMovement();
-    PauseMovement(1);
-
-    ResumeInteractionMovement();
-
+    if (HasAura(INTERACTION_STOP_AURA))
     {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-        if (auto itr = GetInteractionStopMap()->find(player->GetGUID().GetCounter()); itr != GetInteractionStopMap()->end())
-        {
-            itr->second.erase(GetGUID().GetRawValue());
-            if (itr->second.empty())
-                GetInteractionStopMap()->erase(itr);
-        }
+        RemoveAurasDueToSpell(INTERACTION_STOP_AURA);
+
+        // Expire any remaining generator pause immediately
+        ResumeMovement();
+        PauseMovement(1);
+
+        ResumeInteractionMovement();
     }
+    else
+        _interactionStopResume.valid = false;
 }
 
 void Creature::ForceClearInteractionStop()
 {
-    if (!HasAura(INTERACTION_STOP_AURA) && !_interactionStopResume.valid)
+    if (!HasAura(INTERACTION_STOP_AURA) && !_interactionStopResume.valid && !HasInteractionStopHolder(GetGUID().GetRawValue()))
         return;
 
     RemoveAurasDueToSpell(INTERACTION_STOP_AURA);
     ResumeMovement();
-    _interactionStopResume.valid = false;
+    ClearInteractionStopHolders();
 
+    LOG_DEBUG("entities.unit", "Creature {} (entry {}) interaction stop force-cleared",
+        GetGUID().ToString(), GetEntry());
+}
+
+void Creature::ClearInteractionStopHolders()
+{
     {
         std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
         for (auto itr = GetInteractionStopMap()->begin(); itr != GetInteractionStopMap()->end();)
@@ -3216,8 +3274,7 @@ void Creature::ForceClearInteractionStop()
         }
     }
 
-    LOG_DEBUG("entities.unit", "Creature {} (entry {}) interaction stop force-cleared by script movement",
-        GetGUID().ToString(), GetEntry());
+    _interactionStopResume.valid = false;
 }
 
 void Creature::ResumeInteractionMovement()
@@ -3225,7 +3282,7 @@ void Creature::ResumeInteractionMovement()
     if (!_interactionStopResume.valid)
         return;
 
-    if (HasAura(INTERACTION_STOP_AURA))
+    if (HasInteractionStopHolder(GetGUID().GetRawValue()))
     {
         LOG_DEBUG("entities.unit", "Creature {} (entry {}) interaction stop released by one player but still held by another, keeping freeze",
             GetGUID().ToString(), GetEntry());
@@ -3266,15 +3323,17 @@ void Creature::ClearInteractionStopsBy(Player* player)
     {
         std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
         if (auto itr = GetInteractionStopMap()->find(player->GetGUID().GetCounter()); itr != GetInteractionStopMap()->end())
-        {
-            guids = std::move(itr->second);
-            GetInteractionStopMap()->erase(itr);
-        }
+            guids = itr->second;
     }
 
     for (uint64 raw : guids)
         if (Creature* creature = player->GetMap()->GetCreature(ObjectGuid(raw)))
             creature->ClearInteractionStop(player);
+
+    {
+        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
+        GetInteractionStopMap()->erase(player->GetGUID().GetCounter());
+    }
 }
 
 void Creature::ClearInteractionStopsOutOfRange(Player* player)

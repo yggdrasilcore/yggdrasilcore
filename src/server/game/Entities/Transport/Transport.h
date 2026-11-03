@@ -23,20 +23,30 @@
 #include "TransportMgr.h"
 #include "VehicleDefines.h"
 #include "ZoneScript.h"
+#include <atomic>
+#include <mutex>
+#include <set>
 
 struct CreatureData;
 
 class Transport : public GameObject, public TransportBase
 {
 public:
-    Transport() : GameObject() {}
+    Transport() : GameObject(), _passengerMap(nullptr) {}
+    void SetMap(Map* map) override { GameObject::SetMap(map); _passengerMap.store(map, std::memory_order_relaxed); }
     void CalculatePassengerPosition(float& x, float& y, float& z, float* o = nullptr) const override { TransportBase::CalculatePassengerPosition(x, y, z, o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation()); }
     void CalculatePassengerOffset(float& x, float& y, float& z, float* o = nullptr) const override { TransportBase::CalculatePassengerOffset(x, y, z, o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation()); }
 
-    typedef std::set<WorldObject*> PassengerSet;
+    typedef std::set<ObjectGuid> PassengerGuidSet;
     virtual void AddPassenger(WorldObject* passenger, bool withAll = false) = 0;
     virtual void RemovePassenger(WorldObject* passenger, bool withAll = false) = 0;
-    PassengerSet const& GetPassengers() const { return _passengers; }
+
+    [[nodiscard]] PassengerGuidSet GetPassengerGuids() const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _passengers; }
+    [[nodiscard]] WorldObject* GetPassenger(ObjectGuid const& guid) const { return ResolvePassenger(guid); }
+
+    [[nodiscard]] bool HasPassengers() const;
+    [[nodiscard]] bool HasPassenger(ObjectGuid const& guid) const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _passengers.find(guid) != _passengers.end(); }
+    [[nodiscard]] size_t GetPassengerCount() const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _passengers.size(); }
 
     virtual void DelayedUpdate(uint32 /*diff*/) {}
 
@@ -44,7 +54,11 @@ public:
     void SetPathProgress(uint32 val) { m_goValue.Transport.PathProgress = val; }
 
 protected:
-    PassengerSet _passengers;
+    [[nodiscard]] WorldObject* ResolvePassenger(ObjectGuid const& guid) const;
+
+    mutable PassengerGuidSet _passengers;
+    std::atomic<Map*> _passengerMap;
+    mutable std::recursive_mutex _passengersLock;
 };
 
 class MotionTransport : public Transport
@@ -68,7 +82,11 @@ public:
     GameObject* CreateGOPassenger(ObjectGuid::LowType guid, GameObjectData const* data);
 
     void LoadStaticPassengers();
-    PassengerSet const& GetStaticPassengers() const { return _staticPassengers; }
+
+    [[nodiscard]] PassengerGuidSet GetStaticPassengerGuids() const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _staticPassengers; }
+    [[nodiscard]] bool HasStaticPassenger(ObjectGuid const& guid) const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _staticPassengers.find(guid) != _staticPassengers.end(); }
+    [[nodiscard]] bool HasStaticPassengers() const;
+
     void UnloadStaticPassengers();
     void UnloadNonStaticPassengers();
     void SetPassengersLoaded(bool loaded) { _passengersLoaded = loaded; }
@@ -87,7 +105,7 @@ private:
     float CalculateSegmentPos(float perc);
     bool TeleportTransport(uint32 newMapid, float x, float y, float z, float o);
     void DelayedTeleportTransport();
-    void UpdatePassengerPositions(PassengerSet& passengers);
+    void UpdatePassengerPositions(PassengerGuidSet const& passengers);
     void DoEventIfAny(KeyFrame const& node, bool departure);
 
     //! Helpers to know if stop frame was reached
@@ -105,8 +123,7 @@ private:
     bool _triggeredArrivalEvent;
     bool _triggeredDepartureEvent;
 
-    PassengerSet _staticPassengers;
-    mutable std::mutex Lock;
+    PassengerGuidSet _staticPassengers;
     bool _passengersLoaded;
     bool _delayedTeleport;
 };

@@ -270,9 +270,9 @@ void WorldSession::HandlePetitionQueryOpcode(WorldPacket& recvData)
 {
     LOG_DEBUG("network", "Received opcode CMSG_PETITION_QUERY");   // ok
 
-    ObjectGuid::LowType guildguid;
+    uint32 guildguid;
     ObjectGuid petitionguid;
-    recvData >> guildguid;                                 // in Trinity always same as petition low guid
+    recvData >> guildguid;                                 // 32-bit on the wire, always same as petition low guid
     recvData >> petitionguid;                              // petition guid
     LOG_DEBUG("network", "CMSG_PETITION_QUERY Petition ({}) Guild GUID {}", petitionguid.ToString(), guildguid);
 

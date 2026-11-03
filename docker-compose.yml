@@ -45,6 +45,7 @@ services:
       YC_LOGIN_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_auth"
       YC_WORLD_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_world"
       YC_CHARACTER_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_characters"
+      YC_SHADOWS_DATABASE_INFO: "yggdrasilcore-database;3306;root;${DOCKER_DB_ROOT_PASSWORD:-password};ycore_shadows"
     volumes:
       - ${DOCKER_VOL_ETC:-./env/dist/etc}:/yggdrasilcore/env/dist/etc
       # [osxfs optimization]: https://stackoverflow.com/a/63437557/1964544
