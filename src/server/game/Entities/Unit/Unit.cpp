@@ -3914,7 +3914,13 @@ void Unit::_UpdateSpells(uint32 time)
     for (AuraMap::iterator i = m_ownedAuras.begin(); i != m_ownedAuras.end();)
     {
         if (i->second->IsExpired())
+        {
+            if (i->second->GetId() == Creature::INTERACTION_STOP_AURA)
+                if (Creature* creature = ToCreature())
+                    creature->ClearInteractionStopHolders();
+
             RemoveOwnedAura(i, AURA_REMOVE_BY_EXPIRE);
+        }
         else if (i->second->GetSpellInfo()->IsChanneled() && i->second->GetCasterGUID() != GetGUID() && !ObjectAccessor::GetWorldObject(*this, i->second->GetCasterGUID()))
             RemoveOwnedAura(i, AURA_REMOVE_BY_CANCEL); // remove channeled auras when caster is not on the same map
         else
@@ -13859,7 +13865,7 @@ void Unit::SetInCombatState(bool PvP, Unit* enemy, uint32 duration)
     if (Creature* creature = ToCreature())
     {
         // Drop the interaction stop so combat movement is never held back
-        creature->RemoveAurasDueToSpell(Creature::INTERACTION_STOP_AURA);
+        creature->ForceClearInteractionStop();
 
         // Set home position at place of engaging combat for escorted creatures
         if ((IsAIEnabled && creature->AI()->IsEscorted()) ||
