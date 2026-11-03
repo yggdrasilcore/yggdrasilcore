@@ -68,6 +68,9 @@ namespace Movement
         int32           point_Idx;
         int32           point_Idx_offset;
 
+        // Parallel to the control points: 0 marks a smoothing midpoint.
+        std::vector<uint8> pointFlags;
+
         void init_spline(const MoveSplineInitArgs& args);
 
     protected:
@@ -120,6 +123,8 @@ namespace Movement
         [[nodiscard]] Vector3 FinalDestination() const { return Initialized() ? spline.getPoint(spline.last()) : Vector3(); }
         [[nodiscard]] Vector3 CurrentDestination() const { return Initialized() ? spline.getPoint(point_Idx + 1) : Vector3(); }
         [[nodiscard]] int32 currentPathIdx() const;
+        [[nodiscard]] bool IsSmoothingPoint() const;
+        [[nodiscard]] uint32 CountRealPointsReached() const;
 
         [[nodiscard]] bool HasAnimation() const { return splineflags.animation; }
         [[nodiscard]] uint8 GetAnimationType() const { return splineflags.animId; }

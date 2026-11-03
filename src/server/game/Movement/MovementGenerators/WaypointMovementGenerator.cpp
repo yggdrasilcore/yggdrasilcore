@@ -181,6 +181,7 @@ bool WaypointMovementGenerator<Creature>::StartMove(Creature* creature)
     }
 
     i_splineEndNode = i_currentNode;
+    i_splineStartNode = i_currentNode;
 
     // xinef: do not initialize motion if we got stunned in movementinform
     if (creature->HasUnitState(UNIT_STATE_NOT_MOVE) || creature->IsMovementPreventedByCasting())
@@ -299,8 +300,9 @@ bool WaypointMovementGenerator<Creature>::DoUpdate(Creature* creature, uint32 di
     }
     else
     {
-        int32 const reachedNode = creature->movespline->currentPathIdx() - 1;
-        while (i_splineEndNode > i_currentNode && reachedNode >= int32(i_currentNode))
+        uint32 const realReached = creature->movespline->CountRealPointsReached();
+        uint32 const realPassed = realReached ? realReached - 1 : 0;
+        while (i_splineEndNode > i_currentNode && (i_currentNode - i_splineStartNode) < realPassed)
         {
             OnWaypointPassed(creature);
             ++i_currentNode;

@@ -49,6 +49,8 @@ namespace Movement
         }
 
         PointsArray path;
+        // Parallel to path: 1 = caller point, 0 = inserted smoothing midpoint.
+        std::vector<uint8> pointFlags;
         FacingInfo facing;
         MoveSplineFlag flags;
         int32 path_Idx_offset{0};

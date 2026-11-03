@@ -561,7 +561,8 @@ public:
     {
         if ((result & (Movement::MoveSpline::Result_NextSegment | Movement::MoveSpline::Result_JustArrived)) &&
                 _unit->IsCreature() && _unit->GetMotionMaster()->GetCurrentMovementGeneratorType() == ESCORT_MOTION_TYPE &&
-                _unit->movespline->GetId() == _unit->GetMotionMaster()->GetCurrentSplineId())
+                _unit->movespline->GetId() == _unit->GetMotionMaster()->GetCurrentSplineId() &&
+                !_unit->movespline->IsSmoothingPoint())
         {
             _unit->ToCreature()->AI()->MovementInform(ESCORT_MOTION_TYPE, _unit->movespline->currentPathIdx() - 1);
         }
