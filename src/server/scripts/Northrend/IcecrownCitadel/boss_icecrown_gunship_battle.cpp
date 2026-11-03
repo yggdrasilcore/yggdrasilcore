@@ -1776,7 +1776,10 @@ struct gunship_npc_AI : public ScriptedAI
     {
         if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH && Slot)
         {
-            _reachedSlot = true;
+            _reachedSlot = IsAtSlot();
+            if (!_reachedSlot)
+                return;
+
             me->SetFacingTo(Slot->TargetPosition.GetOrientation());
             me->m_Events.AddEventAtOffset(new BattleExperienceEvent(me), BattleExperienceEvent::ExperiencedTimes[0]);
             me->CastSpell(me, SPELL_BATTLE_EXPERIENCE, true);
@@ -1785,6 +1788,21 @@ struct gunship_npc_AI : public ScriptedAI
     }
 
 protected:
+    bool IsAtSlot() const
+    {
+        if (!Slot || !me->GetTransport())
+            return false;
+
+        float x, y, z, o;
+        Slot->TargetPosition.GetPosition(x, y, z, o);
+        me->GetTransport()->CalculatePassengerPosition(x, y, z, &o);
+
+        float const dx = me->GetPositionX() - x;
+        float const dy = me->GetPositionY() - y;
+        float const dz = me->GetPositionZ() - z;
+        return dx * dx + dy * dy <= 4.0f && dz * dz <= 4.0f;
+    }
+
     void SetSlotInfo(uint32 index)
     {
         Index = index;
@@ -2148,7 +2166,7 @@ public:
         void MovementInform(uint32 type, uint32 pointId) override
         {
             gunship_npc_AI::MovementInform(type, pointId);
-            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH)
+            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH && _reachedSlot)
                 me->SetControlled(true, UNIT_STATE_ROOT);
         }
 
@@ -2224,7 +2242,7 @@ public:
         void MovementInform(uint32 type, uint32 pointId) override
         {
             gunship_npc_AI::MovementInform(type, pointId);
-            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH)
+            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH && _reachedSlot)
             {
                 me->SetControlled(true, UNIT_STATE_ROOT);
                 me->SetEmoteState(EMOTE_STATE_READY_RIFLE);

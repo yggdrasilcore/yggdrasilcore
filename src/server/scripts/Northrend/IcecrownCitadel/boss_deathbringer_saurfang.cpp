@@ -509,7 +509,7 @@ public:
 			{
 				if (me->IsEngaged())
 				{
-					std::vector<Player*> playersInArea;
+					std::vector<Player*> validTargets;
 					Map* snapMap = me->GetMap();
 					std::vector<ObjectGuid> guids = snapMap->CopyPlayerGuids();
 					for (ObjectGuid const& playerGuid : guids)
@@ -517,13 +517,12 @@ public:
 						Player* p = ObjectAccessor::FindPlayer(playerGuid);
 						if (!p || !p->IsInWorld() || p->GetMap() != snapMap)
 							continue;
-						{
-							if (p->IsAlive() && p->GetExactDist(-486.0f, 2211.0f, p->GetPositionZ()) <= 80.0f)
-								playersInArea.push_back(p);
-						}
+
+						if (IsValidEngageTarget(p))
+							validTargets.push_back(p);
 					}
 
-					if (playersInArea.empty())
+					if (validTargets.empty())
 					{
 						EnterEvadeMode(EVADE_REASON_OTHER);
 						return;
@@ -531,7 +530,7 @@ public:
 
 					Player* closestTarget = nullptr;
 					float closestDist = 999999.0f;
-					for (Player* player : playersInArea)
+					for (Player* player : validTargets)
 					{
 						float dist = me->GetExactDist(player);
 						if (dist < closestDist)
@@ -541,7 +540,7 @@ public:
 						}
 					}
 
-					for (Player* player : playersInArea)
+					for (Player* player : validTargets)
 					{
 						if (me->GetThreatMgr().GetThreat(player) <= 0.0f)
 						{
@@ -550,35 +549,29 @@ public:
 						}
 					}
 
-					for (ObjectGuid const& playerGuid : guids)
+					Unit* highestThreatTarget = nullptr;
+					float highestThreat = -1.0f;
+					for (auto* ref : me->GetThreatMgr().GetThreatList())
 					{
-						Player* p = ObjectAccessor::FindPlayer(playerGuid);
-						if (!p || !p->IsInWorld() || p->GetMap() != snapMap)
+						Player* player = ref->getTarget() ? ref->getTarget()->ToPlayer() : nullptr;
+						if (!IsValidEngageTarget(player))
 							continue;
+
+						if (ref->GetThreat() > highestThreat)
 						{
-							if (p->IsAlive() && me->GetThreatMgr().GetThreat(p) > 0.0f)
-							{
-								float distFromCenter = p->GetExactDist(-486.0f, 2211.0f, p->GetPositionZ());
-								if (distFromCenter > 80.0f && distFromCenter <= 110.0f)
-								{
-									EnterEvadeMode(EVADE_REASON_OTHER);
-									return;
-								}
-							}
+							highestThreat = ref->GetThreat();
+							highestThreatTarget = player;
 						}
 					}
 
-					if (!me->HasReactState(REACT_PASSIVE))
+					if (!highestThreatTarget)
 					{
-						if (Unit* selectedVictim = me->SelectVictim())
-						{
-							AttackStart(selectedVictim);
-						}
+						EnterEvadeMode(EVADE_REASON_OTHER);
+						return;
 					}
-					else if (me->GetVictim() && me->GetExactDist(me->GetVictim()) < 30.0f)
-					{
-						// Keep current victim if within range (REACT_PASSIVE mode)
-					}
+
+					if (me->GetVictim() != highestThreatTarget)
+						AttackStart(highestThreatTarget);
 				}
 
 				if (me->GetThreatMgr().isThreatListEmpty())
@@ -618,20 +611,12 @@ public:
 						Talk(SAY_INTRO_HORDE_9);
 						break;
 					case EVENT_INTRO_FINISH:
-						{
-							bool const allianceIntro = events.IsInPhase(PHASE_INTRO_A);
-							events.SetPhase(PHASE_COMBAT);
-							_introDone = true;
-							me->SetImmuneToPC(false);
-							if (allianceIntro)
-							{
-								if (Player* target = SelectNearestPlayerInRange(50.0f, 5.0f))
-									AttackStart(target);
-							}
-							else if (Player* target = me->SelectNearestPlayer(100.0f))
-								AttackStart(target);
-							break;
-						}
+						events.SetPhase(PHASE_COMBAT);
+						_introDone = true;
+						me->SetImmuneToPC(false);
+						if (Player* target = me->SelectNearestPlayer(100.0f))
+							AttackStart(target);
+						break;
 					case EVENT_SUMMON_BLOOD_BEAST:
 						for (uint32 i10 = 0; i10 < 2; ++i10)
 							DoCast(me, SPELL_SUMMON_BLOOD_BEAST + i10);
@@ -739,30 +724,11 @@ public:
         }
 
     private:
-        Player* SelectNearestPlayerInRange(float rangeXY, float rangeZ) const
+        bool IsValidEngageTarget(Player const* player) const
         {
-            Player* target = nullptr;
-            float closestDist = rangeXY;
-            Map* map = me->GetMap();
-            for (ObjectGuid const& playerGuid : map->CopyPlayerGuids())
-            {
-                Player* player = ObjectAccessor::FindPlayer(playerGuid);
-                if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive())
-                    continue;
-
-                float dz = player->GetPositionZ() - me->GetPositionZ();
-                if (dz > rangeZ || dz < -rangeZ)
-                    continue;
-
-                float dist = me->GetExactDist2d(player);
-                if (dist <= rangeXY && (!target || dist < closestDist))
-                {
-                    closestDist = dist;
-                    target = player;
-                }
-            }
-
-            return target;
+            return player && player->IsAlive() && player->GetMap() == me->GetMap()
+                && me->GetExactDist(player) <= 100.0f
+                && player->GetPositionX() > -564.0f;
         }
 
         uint32 _fallenChampionCastCount;
