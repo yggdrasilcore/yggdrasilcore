@@ -498,39 +498,43 @@
   }
  },
  "Creature::ClearInteractionStop@2b3fc9e7:qwen3-5-4b": {
-  "hash": "00d1cd404744",
-  "desc": "Removes the interaction stop aura applied to a specific player by this creature, resumes movement and interaction logic, and cleans up internal state tracking for that player. Side effects: Removes aura from target player; resumes movement and interaction; updates internal pause/resume flags; removes entry from interaction stop map.",
-  "raw": "{\n  \"what\": \"Removes the interaction stop aura applied to a specific player by this creature, resumes movement and interaction logic, and cleans up internal state tracking for that player.\",\n  \"effects\": \"Removes aura from target player; resumes movement and interaction; updates internal pause/resume flags; removes entry from interaction stop map.\"\n}",
+  "hash": "ae53d4699b53",
+  "desc": "Removes the interaction stop state for a specific player by clearing their hold, pruning other active holders if necessary, and handling aura removal or pause resumption logic.",
+  "raw": "{\n  \"what\": \"Removes the interaction stop state for a specific player by clearing their hold, pruning other active holders if necessary, and handling aura removal or pause resumption logic.\",\n  \"effects\": \"None\"\n}",
   "entry": {
    "class": "Creature",
    "name": "ClearInteractionStop",
    "sig": "void ClearInteractionStop(Player* player)",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 92,
+   "line": 95,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Creature/Creature.cpp",
-    "line": 3124
+    "line": 3225
    },
-   "hash": "00d1cd404744",
-   "desc": "Removes the interaction stop aura applied to a specific player by this creature, resumes movement and interaction logic, and cleans up internal state tracking for that player. Side effects: Removes aura from target player; resumes movement and interaction; updates internal pause/resume flags; removes entry from interaction stop map.",
+   "hash": "ae53d4699b53",
+   "desc": "Removes the interaction stop state for a specific player by clearing their hold, pruning other active holders if necessary, and handling aura removal or pause resumption logic.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Creature::ClearInteractionStopsBy@da2bf222:qwen3-5-4b": {
-  "hash": "3815eeaa636e",
-  "desc": "Removes interaction stops associated with a specific player by retrieving the list of affected creatures from an internal map, erasing the player's entry, and then clearing the interaction stop for each found creature. Side effects: The function modifies the internal state of the creature class by calling 'ClearInteractionStop' on affected creatures. It also removes the player's GUID from the interaction stop map.",
-  "raw": "{\"what\": \"Removes interaction stops associated with a specific player by retrieving the list of affected creatures from an internal map, erasing the player's entry, and then clearing the interaction stop for each found creature.\", \"effects\": \"The function modifies the internal state of the creature class by calling 'ClearInteractionStop' on affected creatures. It also removes the player's GUID from the interaction stop map.\"}",
+  "hash": "224026226d0d",
+  "desc": "Removes all interaction stops associated with a specific player from the creature's internal map and clears the corresponding stops on each affected creature. Side effects: modifies the creature's state by removing interaction stop entries for the player and clearing interaction stops on target creatures",
+  "raw": "{\n  \"what\": \"Removes all interaction stops associated with a specific player from the creature's internal map and clears the corresponding stops on each affected creature.\",\n  \"effects\": \"modifies the creature's state by removing interaction stop entries for the player and clearing interaction stops on target creatures\"\n}",
   "entry": {
    "class": "Creature",
    "name": "ClearInteractionStopsBy",
    "sig": "void ClearInteractionStopsBy(Player* player)",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 94,
+   "line": 102,
    "access": "public",
-   "hash": "3815eeaa636e",
-   "desc": "Removes interaction stops associated with a specific player by retrieving the list of affected creatures from an internal map, erasing the player's entry, and then clearing the interaction stop for each found creature. Side effects: The function modifies the internal state of the creature class by calling 'ClearInteractionStop' on affected creatures. It also removes the player's GUID from the interaction stop map.",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 3317
+   },
+   "hash": "224026226d0d",
+   "desc": "Removes all interaction stops associated with a specific player from the creature's internal map and clears the corresponding stops on each affected creature. Side effects: modifies the creature's state by removing interaction stop entries for the player and clearing interaction stops on target creatures",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -33712,9 +33716,9 @@
   }
  },
  "Unit::SetInCombatState@2108dbb5:qwen3-5-4b": {
-  "hash": "688010143f23",
-  "desc": "Sets the unit's combat state by updating its internal timer based on PvP status and duration, removes evasion flags or non-combat pet restrictions, disables PC immunity for creatures engaging in combat with players, sets the UNIT_FLAG_IN_COMBAT flag, and handles movement/aura adjustments for escorted creatures.",
-  "raw": "{\"what\": \"Sets the unit's combat state by updating its internal timer based on PvP status and duration, removes evasion flags or non-combat pet restrictions, disables PC immunity for creatures engaging in combat with players, sets the UNIT_FLAG_IN_COMBAT flag, and handles movement/aura adjustments for escorted creatures.\", \"effects\": \"none\"}",
+  "hash": "fdeddc7edc77",
+  "desc": "Sets the unit into a combat state by updating its internal timer based on PvP status and duration, clearing interaction stops for escort mechanics, setting the in-combat flag, and handling specific immunity removal scenarios.",
+  "raw": "{\"what\": \"Sets the unit into a combat state by updating its internal timer based on PvP status and duration, clearing interaction stops for escort mechanics, setting the in-combat flag, and handling specific immunity removal scenarios.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "SetInCombatState",
@@ -33724,10 +33728,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 13818
+    "line": 13842
    },
-   "hash": "688010143f23",
-   "desc": "Sets the unit's combat state by updating its internal timer based on PvP status and duration, removes evasion flags or non-combat pet restrictions, disables PC immunity for creatures engaging in combat with players, sets the UNIT_FLAG_IN_COMBAT flag, and handles movement/aura adjustments for escorted creatures.",
+   "hash": "fdeddc7edc77",
+   "desc": "Sets the unit into a combat state by updating its internal timer based on PvP status and duration, clearing interaction stops for escort mechanics, setting the in-combat flag, and handling specific immunity removal scenarios.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43126,22 +43130,22 @@
   }
  },
  "Creature::ResumeInteractionMovement@63e2b4c0:qwen3-5-4b": {
-  "hash": "fcff2db93ac3",
-  "desc": "Resumes the movement of a creature after an interaction has ended by releasing any frozen state, restoring its home position, and relaunching its motion generator if applicable. Side effects: Sets the creature's home position to its pre-interaction location; may log debug information regarding aura status or movement state; potentially relaunches point-based motion generators.",
-  "raw": "{\n  \"what\": \"Resumes the movement of a creature after an interaction has ended by releasing any frozen state, restoring its home position, and relaunching its motion generator if applicable.\",\n  \"effects\": \"Sets the creature's home position to its pre-interaction location; may log debug information regarding aura status or movement state; potentially relaunches point-based motion generators.\"\n}",
+  "hash": "59442b0f8ddd",
+  "desc": "Resumes the movement of a creature after an interaction has ended, provided it is not frozen by another player and meets specific conditions. Side effects: Sets the creature's home position to its pre-interaction location; potentially relaunches point motion generators if applicable.",
+  "raw": "{\n  \"what\": \"Resumes the movement of a creature after an interaction has ended, provided it is not frozen by another player and meets specific conditions.\",\n  \"effects\": \"Sets the creature's home position to its pre-interaction location; potentially relaunches point motion generators if applicable.\"\n}",
   "entry": {
    "class": "Creature",
    "name": "ResumeInteractionMovement",
    "sig": "void ResumeInteractionMovement()",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 94,
+   "line": 98,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Creature/Creature.cpp",
-    "line": 3223
+    "line": 3280
    },
-   "hash": "fcff2db93ac3",
-   "desc": "Resumes the movement of a creature after an interaction has ended by releasing any frozen state, restoring its home position, and relaunching its motion generator if applicable. Side effects: Sets the creature's home position to its pre-interaction location; may log debug information regarding aura status or movement state; potentially relaunches point-based motion generators.",
+   "hash": "59442b0f8ddd",
+   "desc": "Resumes the movement of a creature after an interaction has ended, provided it is not frozen by another player and meets specific conditions. Side effects: Sets the creature's home position to its pre-interaction location; potentially relaunches point motion generators if applicable.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43402,22 +43406,22 @@
   }
  },
  "Creature::ForceClearInteractionStop@86bdf900:qwen3-5-4b": {
-  "hash": "ef23328469b0",
-  "desc": "Removes the INTERACTION_STOP_AURA from the creature, resumes its movement, clears internal state flags, and removes the creature's GUID from all interaction stop maps while holding a lock.",
-  "raw": "{\n  \"what\": \"Removes the INTERACTION_STOP_AURA from the creature, resumes its movement, clears internal state flags, and removes the creature's GUID from all interaction stop maps while holding a lock.\",\n  \"effects\": \"none\"\n}",
+  "hash": "b5d4b614be35",
+  "desc": "Removes the INTERACTION_STOP_AURA aura from the creature, resumes its movement, and clears any interaction stop holders associated with it. Side effects: The creature's movement is resumed; auras are removed.",
+  "raw": "{\n  \"what\": \"Removes the INTERACTION_STOP_AURA aura from the creature, resumes its movement, and clears any interaction stop holders associated with it.\",\n  \"effects\": \"The creature's movement is resumed; auras are removed.\"\n}",
   "entry": {
    "class": "Creature",
    "name": "ForceClearInteractionStop",
    "sig": "void ForceClearInteractionStop()",
    "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 93,
+   "line": 96,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Creature/Creature.cpp",
-    "line": 3169
+    "line": 3250
    },
-   "hash": "ef23328469b0",
-   "desc": "Removes the INTERACTION_STOP_AURA from the creature, resumes its movement, clears internal state flags, and removes the creature's GUID from all interaction stop maps while holding a lock.",
+   "hash": "b5d4b614be35",
+   "desc": "Removes the INTERACTION_STOP_AURA aura from the creature, resumes its movement, and clears any interaction stop holders associated with it. Side effects: The creature's movement is resumed; auras are removed.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43493,6 +43497,27 @@
    "impl": null,
    "hash": "cc38807998b3",
    "desc": "Overrides the base class method to set the current map for this object by calling the parent implementation and storing a pointer to the provided map in an atomic variable. Side effects: The internal state of the object is updated via an atomic store operation.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Creature::ClearInteractionStopHolders@b5f47938:qwen3-5-4b": {
+  "hash": "9ecdf7350ed3",
+  "desc": "Removes all entries from the interaction stop map that contain the current creature's GUID, then invalidates the interaction stop resume flag. Side effects: modifies",
+  "raw": "{\"what\": \"Removes all entries from the interaction stop map that contain the current creature's GUID, then invalidates the interaction stop resume flag.\", \"effects\": \"modifies\"}",
+  "entry": {
+   "class": "Creature",
+   "name": "ClearInteractionStopHolders",
+   "sig": "void ClearInteractionStopHolders()",
+   "file": "src/server/game/Entities/Creature/Creature.h",
+   "line": 97,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Creature/Creature.cpp",
+    "line": 3263
+   },
+   "hash": "9ecdf7350ed3",
+   "desc": "Removes all entries from the interaction stop map that contain the current creature's GUID, then invalidates the interaction stop resume flag. Side effects: modifies",
    "ai": true,
    "model": "qwen3.5:4b"
   }
