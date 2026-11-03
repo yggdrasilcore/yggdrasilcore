@@ -549,6 +549,10 @@ public:
 						}
 					}
 
+					// Keep the core threat manager sorting and broadcasting its current victim.
+					if (!me->HasReactState(REACT_PASSIVE))
+						me->SelectVictim();
+
 					Unit* highestThreatTarget = nullptr;
 					float highestThreat = -1.0f;
 					for (auto* ref : me->GetThreatMgr().GetThreatList())
@@ -572,6 +576,9 @@ public:
 
 					if (me->GetVictim() != highestThreatTarget)
 						AttackStart(highestThreatTarget);
+
+					if (auto* ref = me->GetThreatMgr().GetOnlineContainer().getReferenceByTarget(highestThreatTarget))
+						me->GetThreatMgr().setCurrentVictim(ref);
 				}
 
 				if (me->GetThreatMgr().isThreatListEmpty())
