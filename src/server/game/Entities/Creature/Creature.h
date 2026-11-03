@@ -94,6 +94,7 @@ public:
     // Releases this creature if it was stopped by the given player.
     void ClearInteractionStop(Player* player);
     void ForceClearInteractionStop();
+    void ClearInteractionStopHolders();
     void ResumeInteractionMovement();
     void SetGossipScriptActive(bool active) { _gossipScriptActive = active; }
     [[nodiscard]] bool IsGossipScriptActive() const { return _gossipScriptActive; }
