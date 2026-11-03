@@ -1732,7 +1732,7 @@ void TriggerBurningPitch(Creature* c)
 
 struct gunship_npc_AI : public ScriptedAI
 {
-    gunship_npc_AI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1))
+    gunship_npc_AI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1)), _reachedSlot(false)
     {
         me->SetRegeneratingHealth(false);
     }
@@ -1742,6 +1742,7 @@ struct gunship_npc_AI : public ScriptedAI
         if (type == ACTION_SET_SLOT)
         {
             SetSlotInfo(data);
+            _reachedSlot = false;
             me->SetReactState(REACT_PASSIVE);
             float x, y, z, o;
             Slot->TargetPosition.GetPosition(x, y, z, o);
@@ -1775,6 +1776,10 @@ struct gunship_npc_AI : public ScriptedAI
     {
         if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH && Slot)
         {
+            _reachedSlot = IsAtSlot();
+            if (!_reachedSlot)
+                return;
+
             me->SetFacingTo(Slot->TargetPosition.GetOrientation());
             me->m_Events.AddEventAtOffset(new BattleExperienceEvent(me), BattleExperienceEvent::ExperiencedTimes[0]);
             me->CastSpell(me, SPELL_BATTLE_EXPERIENCE, true);
@@ -1783,6 +1788,21 @@ struct gunship_npc_AI : public ScriptedAI
     }
 
 protected:
+    bool IsAtSlot() const
+    {
+        if (!Slot || !me->GetTransport())
+            return false;
+
+        float x, y, z, o;
+        Slot->TargetPosition.GetPosition(x, y, z, o);
+        me->GetTransport()->CalculatePassengerPosition(x, y, z, &o);
+
+        float const dx = me->GetPositionX() - x;
+        float const dy = me->GetPositionY() - y;
+        float const dz = me->GetPositionZ() - z;
+        return dx * dx + dy * dy <= 4.0f && dz * dz <= 4.0f;
+    }
+
     void SetSlotInfo(uint32 index)
     {
         Index = index;
@@ -1792,6 +1812,7 @@ protected:
     InstanceScript* Instance;
     SlotInfo const* Slot;
     uint32 Index;
+    bool _reachedSlot;
 };
 
 struct npc_gunship_boarding_addAI : public ScriptedAI
@@ -2145,7 +2166,7 @@ public:
         void MovementInform(uint32 type, uint32 pointId) override
         {
             gunship_npc_AI::MovementInform(type, pointId);
-            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH)
+            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH && _reachedSlot)
                 me->SetControlled(true, UNIT_STATE_ROOT);
         }
 
@@ -2153,7 +2174,7 @@ public:
         {
             if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
                 return;
-            if (me->GetReactState() == REACT_PASSIVE)
+            if (!_reachedSlot || me->GetReactState() == REACT_PASSIVE)
                 return;
             if (checkTimer <= diff)
             {
@@ -2221,7 +2242,7 @@ public:
         void MovementInform(uint32 type, uint32 pointId) override
         {
             gunship_npc_AI::MovementInform(type, pointId);
-            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH)
+            if (type == POINT_MOTION_TYPE && pointId == EVENT_CHARGE_PREPATH && _reachedSlot)
             {
                 me->SetControlled(true, UNIT_STATE_ROOT);
                 me->SetEmoteState(EMOTE_STATE_READY_RIFLE);
@@ -2234,6 +2255,9 @@ public:
         void UpdateAI(uint32 /*diff*/) override
         {
             if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
+                return;
+
+            if (!_reachedSlot)
                 return;
 
             if (me->HasUnitState(UNIT_STATE_CASTING))
