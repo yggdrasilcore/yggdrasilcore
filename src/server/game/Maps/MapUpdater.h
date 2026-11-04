@@ -44,7 +44,7 @@ public:
     void update_finished();
 
 private:
-    void WorkerThread();
+    void WorkerThread(std::size_t index = 0);
     ProducerConsumerQueue<UpdateRequest*> _queue;
     std::atomic<int> pending_requests;  // Use std::atomic for pending_requests to avoid lock contention
     std::atomic<bool> _cancelationToken;  // Atomic flag for cancellation to avoid race conditions

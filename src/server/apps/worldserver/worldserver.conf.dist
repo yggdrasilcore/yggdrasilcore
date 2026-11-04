@@ -1088,6 +1088,16 @@ UpdateUptimeInterval = 10
 MaxCoreStuckTime = 0
 
 #
+#    DeadlockLogTime
+#        Description: Time (in seconds) a single world tick or map update may run before the
+#                     stacks of the world and map threads are logged.
+#                     This only writes a report; the server keeps running.
+#        Default:     15 - (15 seconds)
+#                     0  - (Disabled)
+
+DeadlockLogTime = 15
+
+#
 #    SaveRespawnTimeImmediately
 #        Description: Save respawn time for creatures at death and gameobjects at use/open.
 #        Default:     1 - (Enabled, Save respawn time immediately)

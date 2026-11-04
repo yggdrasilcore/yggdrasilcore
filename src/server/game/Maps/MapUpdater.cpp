@@ -17,6 +17,7 @@
 
 #include "MapUpdater.h"
 #include "DatabaseEnv.h"
+#include "DeadlockDetector.h"
 #include "LFGMgr.h"
 #include "Log.h"
 #include "Map.h"
@@ -99,7 +100,7 @@ void MapUpdater::activate(std::size_t num_threads)
     _workerThreads.reserve(num_threads);
     for (std::size_t i = 0; i < num_threads; ++i)
     {
-        _workerThreads.push_back(std::thread(&MapUpdater::WorkerThread, this));
+        _workerThreads.push_back(std::thread(&MapUpdater::WorkerThread, this, i));
     }
 }
 
@@ -169,7 +170,7 @@ void MapUpdater::update_finished()
     }
 }
 
-void MapUpdater::WorkerThread()
+void MapUpdater::WorkerThread(std::size_t index)
 {
     LoginDatabase.WarnAboutSyncQueries(true);
     CharacterDatabase.WarnAboutSyncQueries(true);
@@ -183,7 +184,11 @@ void MapUpdater::WorkerThread()
 
         if (!_cancelationToken && request)
         {
-            request->call();  // Execute the request
+            {
+                Ycore::TrackedOperation operation(Ycore::TrackedThread::MapWorker, static_cast<uint32>(index));
+                request->call();  // Execute the request
+            }
+
             delete request;  // Clean up after processing
         }
     }
