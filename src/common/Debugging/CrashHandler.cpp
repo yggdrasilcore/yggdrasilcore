@@ -25,10 +25,15 @@ namespace Ycore
     {
         // Windows crash reports are produced by WheatyExceptionReport.
     }
+
+    void ReportDeadlock(char const*, ThreadTrace const*, std::size_t)
+    {
+    }
 }
 
 #else
 
+#include <atomic>
 #include <cerrno>
 #include <climits>
 #include <cstdarg>
@@ -196,7 +201,7 @@ namespace
             std::snprintf(buffer, size, "unknown");
     }
 
-    void OpenCrashLogFile(char const* timestamp)
+    void OpenCrashLogFile(char const* timestamp, char const* prefix = "crash")
     {
         g_outputDescriptors[1] = -1;
         g_crashLogPath[0] = '\0';
@@ -204,8 +209,8 @@ namespace
         if (!g_crashLogDirectory[0])
             return;
 
-        std::snprintf(g_crashLogPath, sizeof(g_crashLogPath), "%s/crash-%s-pid%d.log",
-            g_crashLogDirectory, timestamp, static_cast<int>(::getpid()));
+        std::snprintf(g_crashLogPath, sizeof(g_crashLogPath), "%s/%s-%s-pid%d.log",
+            g_crashLogDirectory, prefix, timestamp, static_cast<int>(::getpid()));
 
         int descriptor = ::open(g_crashLogPath, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
         if (descriptor >= 0)
@@ -804,6 +809,60 @@ namespace
 
         _exit(128 + signalNumber);
     }
+}
+
+void Ycore::ReportDeadlock(char const* reason, ThreadTrace const* threads, std::size_t count)
+{
+    // A deadlock report is informational, so the crash handler must stay armed and the
+    // process must keep running. Only one report is written at a time.
+    static std::atomic<bool> reporting{ false };
+    if (reporting.exchange(true))
+        return;
+
+    char timestamp[32] = {};
+    CurrentTimestamp(timestamp, sizeof(timestamp));
+
+    g_outputDescriptors[0] = STDERR_FILENO;
+    OpenCrashLogFile(timestamp, "deadlock");
+
+    char processName[64] = {};
+    GetProcessName(processName, sizeof(processName));
+
+    Report("\n===== YggdrasilCore deadlock report =====\n");
+    Report("Time:     %s\n", timestamp);
+    Report("Reason:   %s\n", reason ? reason : "unknown");
+    Report("Process:  %s (pid %d)\n", processName, static_cast<int>(::getpid()));
+
+    if (g_crashLogPath[0])
+        Report("Log file: %s\n", g_crashLogPath);
+
+    Report("--------------------------------------\n");
+
+    for (std::size_t index = 0; index < count; ++index)
+    {
+        ThreadTrace const& thread = threads[index];
+
+        Report("Thread:   %s (tid %ld), busy for %llu ms\n",
+            thread.name ? thread.name : "?", thread.tid, thread.busyMs);
+
+        if (thread.frames && thread.frameCount > 0)
+        {
+            WriteRawTrace(thread.frames, 0, thread.frameCount);
+            WriteSymbolizedTrace(thread.frames, 0, thread.frameCount);
+        }
+        else
+            Report("  <no frames captured>\n");
+    }
+
+    Report("===== end of deadlock report =====\n");
+
+    if (g_outputDescriptors[1] >= 0)
+    {
+        ::close(g_outputDescriptors[1]);
+        g_outputDescriptors[1] = -1;
+    }
+
+    reporting.store(false);
 }
 
 void Ycore::InstallCrashHandler()
