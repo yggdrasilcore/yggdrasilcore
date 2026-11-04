@@ -543,9 +543,7 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
                 plr->GetSession()->SendPacket(&hb);
             }
         }
-        // NOTE: launch boarding spline BEFORE applying ROOT. Setting ROOT first makes
-        // MoveSplineInit strip MOVEMENTFLAG_MASK_MOVING, so observers get a neutered
-        // boarding spline and the passenger appears frozen standing (cmangos #3663 pattern).
+        unit->SetControlled(true, UNIT_STATE_ROOT);              // SMSG_FORCE_ROOT
         Movement::MoveSplineInit init(unit);
         init.DisableTransportPathTransformations();
         init.MoveTo(x, y, z, false, true);
@@ -562,7 +560,14 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
 
         init.SetTransportEnter();
         init.Launch();
-        unit->SetControlled(true, UNIT_STATE_ROOT);              // SMSG_FORCE_ROOT - applied after boarding spline sent (see note above)
+
+        // Passenger was rooted before the spline; observers get the root only after the board.
+        if (unit->IsPlayer())
+        {
+            WorldPacket rootSpline(SMSG_SPLINE_MOVE_ROOT, unit->GetPackGUID().size());
+            rootSpline << unit->GetPackGUID();
+            unit->SendMessageToSet(&rootSpline, true);
+        }
 
         // Nested attach: self drops the board-tick spline, resend once settled.
         // Needed for transports and for nested vehicles (turret accessories),
