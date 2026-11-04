@@ -187,7 +187,7 @@ bool InstanceSaveMgr::DeleteInstanceSaveIfNeeded(InstanceSave* save, bool skipMa
 InstanceSave::InstanceSave(uint16 MapId, uint32 InstanceId, Difficulty difficulty, time_t resetTime, time_t extendedResetTime)
     : m_resetTime(resetTime), m_extendedResetTime(extendedResetTime), m_instanceid(InstanceId), m_mapid(MapId), m_difficulty(IsSharedDifficultyMap(MapId) ? Difficulty(difficulty % 2) : difficulty), m_canReset(true), m_instanceData(""), m_completedEncounterMask(0)
 {
-    sScriptMgr->OnConstructInstanceSave(this);
+    GroupSocialLock::Defer([this]() { sScriptMgr->OnConstructInstanceSave(this); });
 }
 
 InstanceSave::~InstanceSave()

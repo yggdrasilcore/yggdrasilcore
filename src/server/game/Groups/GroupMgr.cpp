@@ -206,7 +206,7 @@ void GroupMgr::LoadGroups()
                 Group* group = new Group;
                 if (!group->LoadGroupFromDB(fields))
                 {
-                    delete group;
+                    GroupSocialLock::Defer([group]() { delete group; });
                     continue;
                 }
                 AddGroup(group);

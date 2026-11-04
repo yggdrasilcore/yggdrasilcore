@@ -165,7 +165,7 @@ Group::Group() : m_leaderName(""), m_groupType(GROUPTYPE_NORMAL),
     m_subGroupsCounts(nullptr), m_counter(0), m_maxEnchantingLevel(0), _difficultyChangePreventionTime(0),
     _difficultyChangePreventionType(DIFFICULTY_PREVENTION_CHANGE_NONE)
 {
-    sScriptMgr->OnConstructGroup(this);
+    GroupSocialLock::Defer([this]() { sScriptMgr->OnConstructGroup(this); });
 }
 
 Group::~Group()
