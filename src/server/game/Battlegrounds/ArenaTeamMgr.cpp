@@ -251,13 +251,18 @@ void ArenaTeamMgr::DistributeArenaPoints()
     // Temporary structure for storing maximum points to add values for all players
     std::map<ObjectGuid, uint32> PlayerPoints;
 
-    // At first update all points for all team members
+    // Snapshot the teams; the hook below runs unlocked and may mutate the map.
+    std::vector<ArenaTeam*> teams;
     for (ArenaTeamContainer::iterator teamItr = GetArenaTeamMapBegin(); teamItr != GetArenaTeamMapEnd(); ++teamItr)
         if (ArenaTeam* at = teamItr->second)
-        {
-            at->UpdateArenaPointsHelper(PlayerPoints);
-            sScriptMgr->OnBeforeUpdateArenaPoints(at, PlayerPoints);
-        }
+            teams.push_back(at);
+
+    // At first update all points for all team members
+    for (ArenaTeam* at : teams)
+    {
+        at->UpdateArenaPointsHelper(PlayerPoints);
+        GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnBeforeUpdateArenaPoints(at, PlayerPoints); });
+    }
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 

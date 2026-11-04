@@ -166,8 +166,11 @@ GroupQueueInfo* BattlegroundQueue::AddGroup(Player* leader, Group* group, Battle
     if (ginfo->teamId == TEAM_HORDE)
         index++;
 
-    sScriptMgr->OnAddGroup(this, ginfo, index, leader, group, bgTypeId, bracketEntry,
-        arenaType, isRated, isPremade, arenaRating, matchmakerRating, arenaTeamId, opponentsArenaTeamId);
+    GroupSocialLock::InvokeUnlocked([&]()
+    {
+        sScriptMgr->OnAddGroup(this, ginfo, index, leader, group, bgTypeId, bracketEntry,
+            arenaType, isRated, isPremade, arenaRating, matchmakerRating, arenaTeamId, opponentsArenaTeamId);
+    });
 
     LOG_DEBUG("bg.battleground", "Adding Group to BattlegroundQueue bgTypeId: {}, bracket_id: {}, index: {}", bgTypeId, bracketId, index);
 
@@ -424,10 +427,10 @@ bool BattlegroundQueue::GetPlayerGroupInfoSnapshot(ObjectGuid guid, GroupQueueIn
 void BattlegroundQueue::FillPlayersToBG(Battleground* bg, BattlegroundBracketId bracket_id)
 {
     GroupSocialLock lock;
-    if (!sScriptMgr->CanFillPlayersToBG(this, bg, bracket_id))
-    {
+    bool canFill = true;
+    GroupSocialLock::InvokeUnlocked([&]() { canFill = sScriptMgr->CanFillPlayersToBG(this, bg, bracket_id); });
+    if (!canFill)
         return;
-    }
 
     int32 hordeFree = bg->GetFreeSlotsForTeam(TEAM_HORDE);
     int32 aliFree = bg->GetFreeSlotsForTeam(TEAM_ALLIANCE);
@@ -617,7 +620,9 @@ bool BattlegroundQueue::CheckNormalMatch(Battleground* bgTemplate, BattlegroundB
         return m_SelectionPools[TEAM_ALLIANCE].GetPlayerCount() >= minPlayers && m_SelectionPools[TEAM_HORDE].GetPlayerCount() >= minPlayers;
     };
 
-    if (sScriptMgr->IsCheckNormalMatch(this, bgTemplate, bracket_id, minPlayers, maxPlayers))
+    bool checkNormal = false;
+    GroupSocialLock::InvokeUnlocked([&]() { checkNormal = sScriptMgr->IsCheckNormalMatch(this, bgTemplate, bracket_id, minPlayers, maxPlayers); });
+    if (checkNormal)
         return CanStartMatch();
 
     GroupsQueueType::const_iterator itr_team[PVP_TEAMS_COUNT];
@@ -813,7 +818,9 @@ void BattlegroundQueue::BattlegroundQueueUpdate(uint32 diff, BattlegroundTypeId 
         sScriptMgr->OnQueueUpdate(this, diff, bgTypeId, bracket_id, arenaType, isRated, arenaRating);
     });
 
-    if (!sScriptMgr->OnQueueUpdateValidity(this, diff, bgTypeId, bracket_id, arenaType, isRated, arenaRating))
+    bool queuesValid = true;
+    GroupSocialLock::InvokeUnlocked([&]() { queuesValid = sScriptMgr->OnQueueUpdateValidity(this, diff, bgTypeId, bracket_id, arenaType, isRated, arenaRating); });
+    if (!queuesValid)
         return;
 
     m_SelectionPools[TEAM_ALLIANCE].Init();
@@ -1077,10 +1084,10 @@ bool BattlegroundQueue::IsAllQueuesEmpty(BattlegroundBracketId bracket_id)
 void BattlegroundQueue::SendMessageBGQueue(Player* leader, Battleground* bg, PvPDifficultyEntry const* bracketEntry)
 {
     GroupSocialLock lock;
-    if (!sScriptMgr->CanSendMessageBGQueue(this, leader, bg, bracketEntry))
-    {
+    bool canAnnounce = true;
+    GroupSocialLock::InvokeUnlocked([&]() { canAnnounce = sScriptMgr->CanSendMessageBGQueue(this, leader, bg, bracketEntry); });
+    if (!canAnnounce)
         return;
-    }
 
     if (bg->isArena())
     {
@@ -1135,7 +1142,9 @@ void BattlegroundQueue::SendJoinMessageArenaQueue(Player* leader, GroupQueueInfo
     if (!sWorld->getBoolConfig(CONFIG_ARENA_QUEUE_ANNOUNCER_ENABLE))
         return;
 
-    if (!sScriptMgr->OnBeforeSendJoinMessageArenaQueue(this, leader, ginfo, bracketEntry, isRated))
+    bool sendJoin = true;
+    GroupSocialLock::InvokeUnlocked([&]() { sendJoin = sScriptMgr->OnBeforeSendJoinMessageArenaQueue(this, leader, ginfo, bracketEntry, isRated); });
+    if (!sendJoin)
         return;
 
     if (!isRated)
@@ -1216,7 +1225,9 @@ void BattlegroundQueue::SendExitMessageArenaQueue(GroupQueueInfo* ginfo)
     if (!sWorld->getBoolConfig(CONFIG_ARENA_QUEUE_ANNOUNCER_ENABLE))
         return;
 
-    if (!sScriptMgr->OnBeforeSendExitMessageArenaQueue(this, ginfo))
+    bool sendExit = true;
+    GroupSocialLock::InvokeUnlocked([&]() { sendExit = sScriptMgr->OnBeforeSendExitMessageArenaQueue(this, ginfo); });
+    if (!sendExit)
         return;
 
     ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(ginfo->ArenaTeamId);

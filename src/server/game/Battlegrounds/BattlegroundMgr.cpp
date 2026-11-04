@@ -458,7 +458,7 @@ Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundTypeId original
     if (bg->isArena())
     {
         uint32 maxPlayersPerTeam = ArenaTeam::GetReqPlayersForType(arenaType) / 2;
-        sScriptMgr->OnSetArenaMaxPlayersPerTeam(arenaType, maxPlayersPerTeam);
+        GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnSetArenaMaxPlayersPerTeam(arenaType, maxPlayersPerTeam); });
         bg->SetMaxPlayersPerTeam(maxPlayersPerTeam);
     }
 
@@ -742,7 +742,7 @@ BattlegroundQueueTypeId BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId bgType
             queueTypeID = BattlegroundMgr::ArenaTypeToQueue.at(arenaType);
         }
 
-        sScriptMgr->OnArenaTypeIDToQueueID(bgTypeId, arenaType, queueTypeID);
+        GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnArenaTypeIDToQueueID(bgTypeId, arenaType, queueTypeID); });
 
         return static_cast<BattlegroundQueueTypeId>(queueTypeID);
     }
@@ -776,7 +776,7 @@ uint8 BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId bgQueueTypeId)
         arenaType = BattlegroundMgr::QueueToArenaType.at(bgQueueTypeId);
     }
 
-    sScriptMgr->OnArenaQueueIdToArenaType(bgQueueTypeId, arenaType);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnArenaQueueIdToArenaType(bgQueueTypeId, arenaType); });
 
     return arenaType;
 }

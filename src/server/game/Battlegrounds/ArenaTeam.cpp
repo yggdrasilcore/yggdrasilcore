@@ -120,7 +120,9 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
         playerClass = playerData->Class;
     }
 
-    if (!sScriptMgr->CanAddMember(this, playerGuid))
+    bool canAdd = true;
+    GroupSocialLock::InvokeUnlocked([&]() { canAdd = sScriptMgr->CanAddMember(this, playerGuid); });
+    if (!canAdd)
         return false;
 
     // Check if player is already in a similar arena team
@@ -175,6 +177,10 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
     newMember.PersonalRating   = personalRating;
     newMember.MatchMakerRating = matchMakerRating;
     newMember.MaxMMR           = maxMMR;
+
+    // Membership may have changed while the hook ran unlocked.
+    if (GetMembersSize() >= GetType() * 2)
+        return false;
 
     Members.push_back(newMember);
     sCharacterCache->UpdateCharacterArenaTeamId(playerGuid, GetSlot(), GetId());
@@ -641,7 +647,6 @@ void ArenaTeam::MassInviteToEvent(WorldSession* session)
 
 uint8 ArenaTeam::GetSlotByType(uint32 type)
 {
-    GroupSocialLock lock;
     uint8 slot = 0xFF;
 
     auto const& itr = ArenaSlotByType.find(type);
@@ -654,7 +659,7 @@ uint8 ArenaTeam::GetSlotByType(uint32 type)
     slot = ArenaSlotByType.at(type);
 
     // Get the changed slot type
-    sScriptMgr->OnGetSlotByType(type, slot);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnGetSlotByType(type, slot); });
 
     if (slot != 0xFF)
     {
@@ -699,7 +704,7 @@ uint32 ArenaTeam::GetPoints(uint32 memberRating)
     else if (Type == ARENA_TEAM_3v3)
         points *= 0.88f;
 
-    sScriptMgr->OnGetArenaPoints(this, points);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnGetArenaPoints(this, points); });
 
     points *= sWorld->getRate(RATE_ARENA_POINTS);
 
@@ -903,34 +908,42 @@ void ArenaTeam::MemberWon(Player* player, uint32 againstMatchmakerRating, int32 
 {
     GroupSocialLock lock;
     // called for each participant after winning a match
-    for (MemberList::iterator itr = Members.begin(); itr != Members.end(); ++itr)
+    ObjectGuid playerGuid = player->GetGUID();
+    uint32 teamType = GetType();
+    ArenaTeamMember* member = GetMember(playerGuid);
+    if (!member)
+        return;
+
+    // update personal rating
+    int32 mod = GetRatingMod(member->PersonalRating, againstMatchmakerRating, true);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnBeforeUpdatingPersonalRating(mod, teamType); });
+
+    // The hook runs unlocked, so the member may have left meanwhile.
+    member = GetMember(playerGuid);
+    if (!member)
+        return;
+    member->ModifyPersonalRating(player, mod, teamType);
+
+    // update matchmaker rating (pussywizard: but don't allow it to go over team rating)
+    if (member->MatchMakerRating < Stats.Rating)
     {
-        if (itr->Guid == player->GetGUID())
-        {
-            // update personal rating
-            int32 mod = GetRatingMod(itr->PersonalRating, againstMatchmakerRating, true);
-            sScriptMgr->OnBeforeUpdatingPersonalRating(mod, GetType());
-            itr->ModifyPersonalRating(player, mod, GetType());
+        mod = std::min(MatchmakerRatingChange, Stats.Rating - member->MatchMakerRating);
+        GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnBeforeUpdatingPersonalRating(mod, teamType); });
 
-            // update matchmaker rating (pussywizard: but don't allow it to go over team rating)
-            if (itr->MatchMakerRating < Stats.Rating)
-            {
-                mod = std::min(MatchmakerRatingChange, Stats.Rating - itr->MatchMakerRating);
-                sScriptMgr->OnBeforeUpdatingPersonalRating(mod, GetType());
-                itr->ModifyMatchmakerRating(mod, GetSlot());
-            }
-
-            // update personal stats
-            itr->WeekGames += 1;
-            itr->SeasonGames += 1;
-            itr->SeasonWins += 1;
-            itr->WeekWins += 1;
-            // update unit fields
-            player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_WEEK, itr->WeekGames);
-            player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_SEASON, itr->SeasonGames);
+        member = GetMember(playerGuid);
+        if (!member)
             return;
-        }
+        member->ModifyMatchmakerRating(mod, GetSlot());
     }
+
+    // update personal stats
+    member->WeekGames += 1;
+    member->SeasonGames += 1;
+    member->SeasonWins += 1;
+    member->WeekWins += 1;
+    // update unit fields
+    player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_WEEK, member->WeekGames);
+    player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_SEASON, member->SeasonGames);
 }
 
 void ArenaTeam::UpdateArenaPointsHelper(std::map<ObjectGuid, uint32>& playerPoints)
@@ -945,30 +958,35 @@ void ArenaTeam::UpdateArenaPointsHelper(std::map<ObjectGuid, uint32>& playerPoin
     // To get points, a player has to participate in at least 30% of the matches
     uint32 requiredGames = (uint32)ceil(Stats.WeekGames * 0.3f);
 
-    for (MemberList::const_iterator itr = Members.begin(); itr != Members.end(); ++itr)
+    // Iterate a snapshot; the points hook runs unlocked.
+    MemberList members = Members;
+    for (ArenaTeamMember const& member : members)
     {
         // The player participated in enough games, update his points
         uint32 pointsToAdd = 0;
-        if (itr->WeekGames >= requiredGames)
-            pointsToAdd = GetPoints(itr->PersonalRating);
+        if (member.WeekGames >= requiredGames)
+            pointsToAdd = GetPoints(member.PersonalRating);
 
-        std::map<ObjectGuid, uint32>::iterator plr_itr = playerPoints.find(itr->Guid);
+        std::map<ObjectGuid, uint32>::iterator plr_itr = playerPoints.find(member.Guid);
         if (plr_itr != playerPoints.end())
         {
             // Check if there is already more points
             if (plr_itr->second < pointsToAdd)
-                playerPoints[itr->Guid] = pointsToAdd;
+                playerPoints[member.Guid] = pointsToAdd;
         }
         else
-            playerPoints[itr->Guid] = pointsToAdd;
+            playerPoints[member.Guid] = pointsToAdd;
     }
 }
 
 void ArenaTeam::SaveToDB(bool forceMemberSave)
 {
-    GroupSocialLock lock;
-    if (!sScriptMgr->CanSaveToDB(this))
+    bool canSave = true;
+    GroupSocialLock::InvokeUnlocked([&]() { canSave = sScriptMgr->CanSaveToDB(this); });
+    if (!canSave)
         return;
+
+    GroupSocialLock lock;
 
     // Save team and member stats to db
     // Called after a match has ended or when calculating arena_points

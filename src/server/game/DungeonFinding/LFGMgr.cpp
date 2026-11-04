@@ -514,7 +514,7 @@ namespace lfg
                 }
             }
 
-            sScriptMgr->OnInitializeLockedDungeons(player, level, lockData, dungeon);
+            GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnInitializeLockedDungeons(player, level, lockData, dungeon); });
 
             /* TODO VoA closed if WG is not under team control (LFG_LOCKSTATUS_RAID_LOCKED)
                 lockData = LFG_LOCKSTATUS_TOO_LOW_GEAR_SCORE;
@@ -563,7 +563,9 @@ namespace lfg
         if (grp && (grp->isBGGroup() || grp->isBFGroup()))
             return;
 
-        if (!sScriptMgr->OnPlayerCanJoinLfg(player, roles, dungeons, comment))
+        bool canJoin = true;
+        GroupSocialLock::InvokeUnlocked([&]() { canJoin = sScriptMgr->OnPlayerCanJoinLfg(player, roles, dungeons, comment); });
+        if (!canJoin)
             return;
 
         // pussywizard: can't join LFG/LFR while using LFR
@@ -624,7 +626,7 @@ namespace lfg
                         else
                         {
                             rDungeonId = (*dungeons.begin());
-                            sScriptMgr->OnPlayerQueueRandomDungeon(player, rDungeonId);
+                            GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnPlayerQueueRandomDungeon(player, rDungeonId); });
                         }
                         [[fallthrough]]; // On purpose (Random can only be dungeon or heroic dungeon)
                     case LFG_TYPE_HEROIC:

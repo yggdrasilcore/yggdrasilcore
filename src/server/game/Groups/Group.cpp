@@ -100,6 +100,7 @@ static void SendRollWonItemViaMail(Player* player, LootItem const* lootItem, uin
 namespace
 {
     thread_local uint32 g_socialLockDepth = 0;
+    thread_local uint32 g_socialLockHeld = 0;
     thread_local std::vector<std::function<void()>> g_deferredSocialWork;
 
     void RunDeferredSocialWork()
@@ -124,11 +125,16 @@ namespace
     }
 }
 
-GroupSocialLock::GroupSocialLock() : _lock(*sGroupMgr->GetSocialLock()) { ++g_socialLockDepth; }
+GroupSocialLock::GroupSocialLock() : _lock(*sGroupMgr->GetSocialLock())
+{
+    ++g_socialLockDepth;
+    ++g_socialLockHeld;
+}
 
 GroupSocialLock::~GroupSocialLock()
 {
     _lock.unlock();
+    --g_socialLockHeld;
     if (--g_socialLockDepth == 0)
         RunDeferredSocialWork();
 }
@@ -136,6 +142,29 @@ GroupSocialLock::~GroupSocialLock()
 bool GroupSocialLock::IsHeld()
 {
     return g_socialLockDepth != 0;
+}
+
+uint32 GroupSocialLock::ReleaseForCallback()
+{
+    uint32 held = g_socialLockHeld;
+    if (!held)
+        return 0;
+
+    std::recursive_mutex* lock = sGroupMgr->GetSocialLock();
+    for (uint32 i = 0; i < held; ++i)
+        lock->unlock();
+
+    g_socialLockHeld = 0;
+    return held;
+}
+
+void GroupSocialLock::ReacquireAfterCallback(uint32 held)
+{
+    std::recursive_mutex* lock = sGroupMgr->GetSocialLock();
+    for (uint32 i = 0; i < held; ++i)
+        lock->lock();
+
+    g_socialLockHeld = held;
 }
 
 void GroupSocialLock::Defer(std::function<void()>&& work)
@@ -1758,7 +1787,12 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                         AllowedLooterSet looters = item->GetAllowedLooters();
                         Item* _item = player->StoreNewItem(dest, roll->itemid, true, item->randomPropertyId, looters);
                         if (_item)
-                            sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, item->count, NEED, roll);
+                            GroupSocialLock::Defer([roll, playerGuid = player->GetGUID(), itemGuid = _item->GetGUID(), count = item->count]()
+                            {
+                                if (Player* receiver = ObjectAccessor::FindConnectedPlayer(playerGuid))
+                                    if (Item* reward = receiver->GetItemByGuid(itemGuid))
+                                        sScriptMgr->OnPlayerGroupRollRewardItem(receiver, reward, count, NEED, roll);
+                            });
                         player->UpdateLootAchievements(item, roll->getLoot());
                     }
                     else
@@ -1834,7 +1868,12 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                             AllowedLooterSet looters = item->GetAllowedLooters();
                             Item* _item = player->StoreNewItem(dest, roll->itemid, true, item->randomPropertyId, looters);
                             if (_item)
-                                sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, item->count, GREED, roll);
+                                GroupSocialLock::Defer([roll, playerGuid = player->GetGUID(), itemGuid = _item->GetGUID(), count = item->count]()
+                                {
+                                    if (Player* receiver = ObjectAccessor::FindConnectedPlayer(playerGuid))
+                                        if (Item* reward = receiver->GetItemByGuid(itemGuid))
+                                            sScriptMgr->OnPlayerGroupRollRewardItem(receiver, reward, count, GREED, roll);
+                                });
                             player->UpdateLootAchievements(item, roll->getLoot());
                         }
                         else
@@ -1914,7 +1953,8 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
     }
 
     RollId.erase(rollI);
-    delete roll;
+    // Queued after any roll reward hook, so the roll outlives the notification.
+    GroupSocialLock::Defer([roll]() { delete roll; });
 }
 
 void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid)
@@ -2291,9 +2331,25 @@ void Group::UpdateLooterGuid(WorldObject* pLootedObject, bool ifneed)
 
 GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* bgTemplate, BattlegroundQueueTypeId bgQueueTypeId, uint32 MinPlayerCount, uint32 /*MaxPlayerCount*/, bool isRated, uint32 arenaSlot)
 {
-    GroupSocialLock lock;
+    // Snapshot the members; the per-member hook runs unlocked.
+    std::vector<ObjectGuid> memberGuids;
+    uint32 groupSize = 0;
+    bool lfgGroup = false;
+    {
+        GroupSocialLock lock;
+        lfgGroup = isLFGGroup();
+        groupSize = GetMembersCount();
+        for (GroupReference* itr = GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            Player* member = itr->GetSource();
+            if (!member)
+                return ERR_BATTLEGROUND_JOIN_FAILED;
+            memberGuids.push_back(member->GetGUID());
+        }
+    }
+
     // check if this group is LFG group
-    if (isLFGGroup())
+    if (lfgGroup)
         return ERR_LFG_CANT_USE_BATTLEGROUND;
 
     BattlemasterListEntry const* bgEntry = sBattlemasterListStore.LookupEntry(bgTemplate->GetBgTypeID());
@@ -2301,12 +2357,11 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
         return ERR_GROUP_JOIN_BATTLEGROUND_FAIL;
 
     // too many players in the group
-    if (GetMembersCount() > bgEntry->maxGroupSize)
+    if (groupSize > bgEntry->maxGroupSize)
         return ERR_BATTLEGROUND_NONE;
 
     // get a player as reference, to compare other players' stats to (arena team id, level bracket, etc.)
-    GroupReference* first = GetFirstMember();
-    Player* reference = first ? first->GetSource() : nullptr;
+    Player* reference = memberGuids.empty() ? nullptr : ObjectAccessor::FindPlayer(memberGuids.front());
     if (!reference)
         return ERR_BATTLEGROUND_JOIN_FAILED;
 
@@ -2321,15 +2376,18 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
 
     // check every member of the group to be able to join
     uint32 memberscount = 0;
-    for (GroupReference* itr = GetFirstMember(); itr != nullptr; itr = itr->next(), ++memberscount)
+    for (ObjectGuid const& memberGuid : memberGuids)
     {
-        Player* member = itr->GetSource();
+        Player* member = ObjectAccessor::FindPlayer(memberGuid);
+        ++memberscount;
 
         // don't let join with offline members
         if (!member)
             return ERR_BATTLEGROUND_JOIN_FAILED;
 
-        if (!sScriptMgr->CanGroupJoinBattlegroundQueue(this, member, bgTemplate, MinPlayerCount, isRated, arenaSlot))
+        bool canJoin = true;
+        GroupSocialLock::InvokeUnlocked([&]() { canJoin = sScriptMgr->CanGroupJoinBattlegroundQueue(this, member, bgTemplate, MinPlayerCount, isRated, arenaSlot); });
+        if (!canJoin)
             return ERR_BATTLEGROUND_JOIN_FAILED;
 
         // don't allow cross-faction groups to join queue
@@ -2395,6 +2453,7 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
     //check against other arena team members
     if (isRated)
     {
+        GroupSocialLock lock;
         ArenaTeam* arenaTeam = sArenaTeamMgr->GetArenaTeamById(arenaTeamId);
         for (auto const& itr : arenaTeam->GetMembers())
         {

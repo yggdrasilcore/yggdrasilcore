@@ -202,9 +202,12 @@ void Arena::RemovePlayerAtLeave(Player* player)
 
 void Arena::CheckWinConditions()
 {
-    GroupSocialLock lock;
-    if (!sScriptMgr->OnBeforeArenaCheckWinConditions(this))
+    bool canCheck = true;
+    GroupSocialLock::InvokeUnlocked([&]() { canCheck = sScriptMgr->OnBeforeArenaCheckWinConditions(this); });
+    if (!canCheck)
         return;
+
+    GroupSocialLock lock;
 
     if (!GetAlivePlayersCountByTeam(TEAM_ALLIANCE) && GetPlayersCountByTeam(TEAM_HORDE))
         EndBattleground(TEAM_HORDE);
@@ -296,7 +299,7 @@ void Arena::EndBattleground(TeamId winnerTeamId)
                 winnerMatchmakerChange = bValidArena ? winnerArenaTeam->WonAgainst(winnerMatchmakerRating, loserMatchmakerRating, winnerChange, GetBgMap()) : 0;
                 loserMatchmakerChange = loserArenaTeam->LostAgainst(loserMatchmakerRating, winnerMatchmakerRating, loserChange, GetBgMap());
 
-                sScriptMgr->OnAfterArenaRatingCalculation(this, winnerMatchmakerChange, loserMatchmakerChange, winnerChange, loserChange);
+                GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnAfterArenaRatingCalculation(this, winnerMatchmakerChange, loserMatchmakerChange, winnerChange, loserChange); });
 
                 LOG_DEBUG("bg.arena", "match Type: {} --- Winner: old rating: {}, rating gain: {}, old MMR: {}, MMR gain: {} --- Loser: old rating: {}, rating loss: {}, old MMR: {}, MMR loss: {} ---",
                     GetArenaType(), winnerTeamRating, winnerChange, winnerMatchmakerRating, winnerMatchmakerChange,
