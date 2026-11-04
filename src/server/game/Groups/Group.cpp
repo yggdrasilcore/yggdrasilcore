@@ -99,8 +99,8 @@ static void SendRollWonItemViaMail(Player* player, LootItem const* lootItem, uin
 
 namespace
 {
-    // Sends are queued and flushed after the social lock is released: SendPacket
-    // dispatches the packet script hooks, which may take locks of their own.
+    // Packet sends and script hooks are queued and run after the social lock is
+    // released; both dispatch into engines that take locks of their own.
     thread_local uint32 g_socialLockDepth = 0;
     thread_local std::vector<std::function<void()>> g_deferredSocialWork;
 
@@ -251,7 +251,11 @@ bool Group::Create(Player* leader)
 
         ASSERT(AddMember(leader)); // If the leader can't be added to a new group because it appears full, something is clearly wrong.
 
-        sScriptMgr->OnCreate(this, leader);
+        GroupSocialLock::Defer([this, guid = leader->GetGUID()]()
+        {
+            if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
+                sScriptMgr->OnCreate(this, player);
+        });
     }
     else if (!AddMember(leader))
         return false;
@@ -429,7 +433,7 @@ bool Group::AddInvite(Player* player)
 
     player->SetGroupInvite(this);
 
-    sScriptMgr->OnGroupInviteMember(this, player->GetGUID());
+    GroupSocialLock::Defer([this, guid = player->GetGUID()]() { sScriptMgr->OnGroupInviteMember(this, guid); });
 
     return true;
 }
@@ -568,7 +572,7 @@ bool Group::AddMember(Player* player)
 
     if (player)
     {
-        sScriptMgr->OnGroupAddMember(this, player->GetGUID());
+        GroupSocialLock::Defer([this, guid = player->GetGUID()]() { sScriptMgr->OnGroupAddMember(this, guid); });
 
         if (!IsLeader(player->GetGUID()) && !isBGGroup() && !isBFGroup())
         {
@@ -577,12 +581,12 @@ bool Group::AddMember(Player* player)
             if (player->GetDungeonDifficulty() != GetDungeonDifficulty())
             {
                 player->SetDungeonDifficulty(GetDungeonDifficulty());
-                GroupSocialLock::Defer([player]() { player->SendDungeonDifficulty(true); });
+                GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendDungeonDifficulty(true); });
             }
             if (player->GetRaidDifficulty() != GetRaidDifficulty())
             {
                 player->SetRaidDifficulty(GetRaidDifficulty());
-                GroupSocialLock::Defer([player]() { player->SendRaidDifficulty(true); });
+                GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendRaidDifficulty(true); });
             }
         }
         else if (IsLeader(player->GetGUID()) && isLFGGroup()) // pussywizard
@@ -788,7 +792,7 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
         if (!isBGGroup() && !isBFGroup())
             Player::ResetInstances(guid, INSTANCE_RESET_GROUP_LEAVE, false);
 
-        sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason);
+        GroupSocialLock::Defer([this, guid, method, kicker, reason = std::string(reason ? reason : "")]() { sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason.c_str()); });
 
         // Crash-proof: script may have disbanded/destroyed us (zombie).
         if (m_disbanded)
@@ -826,7 +830,7 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
     // If group size before player removal <= 2 then disband it
     else
     {
-        sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason);
+        GroupSocialLock::Defer([this, guid, method, kicker, reason = std::string(reason ? reason : "")]() { sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason.c_str()); });
         // Crash-proof: script may already have disbanded us; Disband is a no-op then.
         if (m_disbanded)
             return false;
@@ -876,7 +880,7 @@ void Group::ChangeLeader(ObjectGuid newLeaderGuid)
     data << slot->name;
     BroadcastPacket(&data, true);
 
-    sScriptMgr->OnGroupChangeLeader(this, newLeaderGuid, m_leaderGuid); // This hook should be executed at the end - Not used anywhere in the original core
+    GroupSocialLock::Defer([this, newLeaderGuid, oldLeaderGuid = m_leaderGuid]() { sScriptMgr->OnGroupChangeLeader(this, newLeaderGuid, oldLeaderGuid); });
 }
 
 void Group::Disband(bool hideDestroy /* = false */)
@@ -892,7 +896,7 @@ void Group::Disband(bool hideDestroy /* = false */)
             return;
     MarkDisbanded();
 
-    sScriptMgr->OnGroupDisband(this);
+    GroupSocialLock::Defer([this]() { sScriptMgr->OnGroupDisband(this); });
 
     // Crash-proof: bail only on foreign registration; unregistered means an
     // external destroy already ran, but our memory is alive (zombie) so cleanup
@@ -1752,12 +1756,12 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                     {
                         item->is_blocked = false;
                         item->rollWinnerGUID = player->GetGUID();
-                        GroupSocialLock::Defer([player, msg, itemId = roll->itemid]() { player->SendEquipError(msg, nullptr, nullptr, itemId); });
+                        GroupSocialLock::Defer([guid = player->GetGUID(), msg, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendEquipError(msg, nullptr, nullptr, itemId); });
                         if (msg == EQUIP_ERR_INVENTORY_FULL)
                         {
                             // Only mail when bags are genuinely full. Unique/max-count failures must
                             // leave the item on the corpse so it can be re-rolled or freely looted.
-                            GroupSocialLock::Defer([player, lootItem = *item, itemId = roll->itemid]() { SendRollWonItemViaMail(player, &lootItem, itemId); });
+                            GroupSocialLock::Defer([guid = player->GetGUID(), lootItem = *item, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) SendRollWonItemViaMail(receiver, &lootItem, itemId); });
                         }
                     }
                 }
@@ -1828,12 +1832,12 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                         {
                             item->is_blocked = false;
                             item->rollWinnerGUID = player->GetGUID();
-                            GroupSocialLock::Defer([player, msg, itemId = roll->itemid]() { player->SendEquipError(msg, nullptr, nullptr, itemId); });
+                            GroupSocialLock::Defer([guid = player->GetGUID(), msg, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendEquipError(msg, nullptr, nullptr, itemId); });
                             if (msg == EQUIP_ERR_INVENTORY_FULL)
                             {
                                 // Only mail when bags are genuinely full. Unique/max-count failures must
                                 // leave the item on the corpse so it can be re-rolled or freely looted.
-                                GroupSocialLock::Defer([player, lootItem = *item, itemId = roll->itemid]() { SendRollWonItemViaMail(player, &lootItem, itemId); });
+                                GroupSocialLock::Defer([guid = player->GetGUID(), lootItem = *item, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) SendRollWonItemViaMail(receiver, &lootItem, itemId); });
                             }
                         }
                     }
@@ -1863,10 +1867,13 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                                 LootItem* lootItem = loot.LootItemInSlot(i, player);
                                 uint32 lootItemId = lootItem->itemid;
                                 uint32 lootItemCount = lootItem->count;
-                                GroupSocialLock::Defer([player, msg, lootItemId, lootItemCount]()
+                                GroupSocialLock::Defer([guid = player->GetGUID(), msg, lootItemId, lootItemCount]()
                                 {
-                                    player->SendEquipError(msg, nullptr, nullptr, lootItemId);
-                                    player->SendItemRetrievalMail(lootItemId, lootItemCount);
+                                    if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid))
+                                    {
+                                        receiver->SendEquipError(msg, nullptr, nullptr, lootItemId);
+                                        receiver->SendItemRetrievalMail(lootItemId, lootItemCount);
+                                    }
                                 });
                             }
                         }
@@ -2447,7 +2454,7 @@ void Group::SetDungeonDifficulty(Difficulty difficulty)
     {
         Player* player = itr->GetSource();
         player->SetDungeonDifficulty(difficulty);
-        GroupSocialLock::Defer([player]() { player->SendDungeonDifficulty(true); });
+        GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendDungeonDifficulty(true); });
     }
 }
 
@@ -2469,7 +2476,7 @@ void Group::SetRaidDifficulty(Difficulty difficulty)
     {
         Player* player = itr->GetSource();
         player->SetRaidDifficulty(difficulty);
-        GroupSocialLock::Defer([player]() { player->SendRaidDifficulty(true); });
+        GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendRaidDifficulty(true); });
     }
 }
 
@@ -2497,12 +2504,12 @@ void Group::ResetInstances(uint8 method, bool isRaid, Player* leader)
                     Map* map = sMapMgr->FindMap(instanceSave->GetMapId(), instanceSave->GetInstanceId());
                     if (!map || map->ToInstanceMap()->Reset(method))
                     {
-                        GroupSocialLock::Defer([leader, mapId = instanceSave->GetMapId()]() { leader->SendResetInstanceSuccess(mapId); });
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceSuccess(mapId); });
                         toUnbind.push_back(instanceSave);
                     }
                     else
                     {
-                        GroupSocialLock::Defer([leader, mapId = instanceSave->GetMapId()]() { leader->SendResetInstanceFailed(0, mapId); });
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceFailed(0, mapId); });
                     }
 
                     sInstanceSaveMgr->DeleteInstanceSavedData(instanceSave->GetInstanceId());
@@ -2525,12 +2532,12 @@ void Group::ResetInstances(uint8 method, bool isRaid, Player* leader)
                     Map* map = sMapMgr->FindMap(instanceSave->GetMapId(), instanceSave->GetInstanceId());
                     if (!map || map->ToInstanceMap()->Reset(method))
                     {
-                        GroupSocialLock::Defer([leader, mapId = instanceSave->GetMapId()]() { leader->SendResetInstanceSuccess(mapId); });
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceSuccess(mapId); });
                         toUnbind.push_back(instanceSave);
                     }
                     else
                     {
-                        GroupSocialLock::Defer([leader, mapId = instanceSave->GetMapId()]() { leader->SendResetInstanceFailed(0, mapId); });
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceFailed(0, mapId); });
                     }
 
                     sInstanceSaveMgr->DeleteInstanceSavedData(instanceSave->GetInstanceId());
