@@ -19,9 +19,31 @@
 #define _YCORE_CRASH_HANDLER_H_
 
 #include "Define.h"
+#include <cstddef>
 
 namespace Ycore
 {
+    /**
+     * @brief Stacks of one thread, as captured by the deadlock detector.
+     */
+    struct ThreadTrace
+    {
+        char const* name;
+        long tid;
+        unsigned long long busyMs;
+        void* const* frames;
+        int frameCount;
+    };
+
+    /**
+     * @brief Writes a deadlock report for the given threads.
+     *
+     * The report goes to stderr and to a log file next to the crash reports. Unlike a
+     * fatal signal report this does not terminate the process: a stalled operation may
+     * still finish, so the server keeps running.
+     */
+    YC_COMMON_API void ReportDeadlock(char const* reason, ThreadTrace const* threads, std::size_t count);
+
     /**
      * @brief Installs handlers for fatal signals (SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL).
      *

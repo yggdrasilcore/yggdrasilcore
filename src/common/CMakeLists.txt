@@ -37,6 +37,8 @@ endif()
 list(APPEND PRIVATE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/CrashHandler.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/CrashHandler.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/DeadlockDetector.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/DeadlockDetector.h
   ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/Errors.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/Debugging/Errors.h)
 

@@ -31,6 +31,7 @@
 #include "CrashHandler.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
+#include "DeadlockDetector.h"
 #include "GitRevision.h"
 #include "IoContext.h"
 #include "MapMgr.h"
@@ -387,6 +388,13 @@ int main(int argc, char** argv)
         LOG_INFO("server.worldserver", "Starting up anti-freeze thread ({} seconds max stuck time)...", coreStuckTime);
     }
 
+    // Log a deadlock when a single world tick or map update has been running for too long.
+    if (int32 deadlockLogTime = sConfigMgr->GetOption<int32>("DeadlockLogTime", 15); deadlockLogTime > 0)
+    {
+        Ycore::StartDeadlockDetector(Seconds(deadlockLogTime));
+        LOG_INFO("server.worldserver", "Starting up deadlock logging ({} seconds max operation time)...", deadlockLogTime);
+    }
+
     LOG_INFO("server.worldserver", "{} (worldserver-daemon) ready...", GitRevision::GetFullVersion());
 
     sScriptMgr->OnStartup();
@@ -599,7 +607,10 @@ void WorldUpdateLoop()
             continue;
         }
 
-        sWorld->Update(diff);
+        {
+            Ycore::TrackedOperation operation(Ycore::TrackedThread::World, 0);
+            sWorld->Update(diff);
+        }
         realPrevTime = realCurrTime;
 
 #ifdef _WIN32
