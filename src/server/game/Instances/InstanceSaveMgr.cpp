@@ -177,9 +177,7 @@ bool InstanceSaveMgr::DeleteInstanceSaveIfNeeded(InstanceSave* save, bool skipMa
         GroupSocialLock::Defer([id = save->GetInstanceId()]() { sScriptMgr->OnInstanceIdRemoved(id); });
 
         if (deleteSave)
-        {
-            delete save;
-        }
+            GroupSocialLock::Defer([save]() { delete save; });
 
         return true;
     }
@@ -279,11 +277,9 @@ bool InstanceSave::RemovePlayer(ObjectGuid guid, InstanceSaveMgr* ism)
         deleteSave = ism->DeleteInstanceSaveIfNeeded(this, false, false);
     }
 
-    // Delete save now (avoid mutex memory corruption)
+    // Delete after the caller's lock is released (avoid mutex memory corruption)
     if (deleteSave)
-    {
-        delete this;
-    }
+        GroupSocialLock::Defer([this]() { delete this; });
 
     return deleteSave;
 }
@@ -599,7 +595,7 @@ void InstanceSaveMgr::_ResetSave(InstanceSaveHashMap::iterator& itr)
 
         GroupSocialLock::Defer([id = itr->second->GetInstanceId()]() { sScriptMgr->OnInstanceIdRemoved(id); });
 
-        delete itr->second;
+        GroupSocialLock::Defer([save = itr->second]() { delete save; });
         m_instanceSaveById.erase(itr);
     }
     else

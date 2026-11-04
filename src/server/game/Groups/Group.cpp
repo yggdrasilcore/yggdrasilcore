@@ -107,7 +107,20 @@ namespace
         std::vector<std::function<void()>> work;
         work.swap(g_deferredSocialWork);
         for (std::function<void()>& action : work)
-            action();
+        {
+            try
+            {
+                action();
+            }
+            catch (std::exception const& e)
+            {
+                LOG_ERROR("server.worldserver", "Deferred social work failed: {}", e.what());
+            }
+            catch (...)
+            {
+                LOG_ERROR("server.worldserver", "Deferred social work failed with an unknown exception");
+            }
+        }
     }
 }
 

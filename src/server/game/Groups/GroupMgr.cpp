@@ -160,8 +160,9 @@ void GroupMgr::SweepGroupGraveyard()
     {
         if (now - itr->second >= GROUP_ZOMBIE_GRACE_MS)
         {
-            delete itr->first;
+            Group* group = itr->first;
             itr = _groupGraveyard.erase(itr);
+            GroupSocialLock::Defer([group]() { delete group; });
         }
         else
             ++itr;

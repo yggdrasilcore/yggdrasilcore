@@ -122,6 +122,8 @@ void BattlegroundMgr::Update(uint32 diff)
         if (!bg->ToBeDeleted())
             bg->Update(diff);
 
+    // Unlink under the lock, destroy after it: the destructor dispatches a hook.
+    std::vector<Battleground*> toDelete;
     {
         GroupSocialLock lock;
         // delete flagged battlegrounds
@@ -145,11 +147,14 @@ void BattlegroundMgr::Update(uint32 diff)
                     if (!clients.empty())
                         clients.erase(bg->GetClientInstanceID());
 
-                    delete bg;
+                    toDelete.push_back(bg);
                 }
             }
         }
     }
+
+    for (Battleground* bg : toDelete)
+        delete bg;
 
     // update events
     for (uint8 qtype = BATTLEGROUND_QUEUE_NONE; qtype < MAX_BATTLEGROUND_QUEUE_TYPES; ++qtype)
