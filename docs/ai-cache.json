@@ -12479,9 +12479,9 @@
   }
  },
  "Pet::InitPetCreateSpells@c2542871:qwen3-5-4b": {
-  "hash": "6a3f73f601a1",
-  "desc": "Initializes the pet's spell creation system by setting up charm info, clearing existing spells, learning passives, initializing level-up spells for the current level, and casting pet auras. Side effects: modifies internal state (clears m_spells, updates charm info, learns passives, initializes spells, casts auras)",
-  "raw": "{\"what\": \"Initializes the pet's spell creation system by setting up charm info, clearing existing spells, learning passives, initializing level-up spells for the current level, and casting pet auras.\", \"effects\": \"modifies internal state (clears m_spells, updates charm info, learns passives, initializes spells, casts auras)\"}",
+  "hash": "4abc93609883",
+  "desc": "Initializes the pet's spell creation system by clearing existing spells, learning passives, setting up level-up spells, enabling autocast for all available spells, and configuring the pet to start in a defensive state. Side effects: Clears the spell list, learns passives, sets up level-up spells, enables autocast on eligible spells, sets reactive state to DEFENSIVE, and casts pet auras.",
+  "raw": "{\n  \"what\": \"Initializes the pet's spell creation system by clearing existing spells, learning passives, setting up level-up spells, enabling autocast for all available spells, and configuring the pet to start in a defensive state.\",\n  \"effects\": \"Clears the spell list, learns passives, sets up level-up spells, enables autocast on eligible spells, sets reactive state to DEFENSIVE, and casts pet auras.\"\n}",
   "entry": {
    "class": "Pet",
    "name": "InitPetCreateSpells",
@@ -12491,10 +12491,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Pet/Pet.cpp",
-    "line": 2052
+    "line": 2056
    },
-   "hash": "6a3f73f601a1",
-   "desc": "Initializes the pet's spell creation system by setting up charm info, clearing existing spells, learning passives, initializing level-up spells for the current level, and casting pet auras. Side effects: modifies internal state (clears m_spells, updates charm info, learns passives, initializes spells, casts auras)",
+   "hash": "4abc93609883",
+   "desc": "Initializes the pet's spell creation system by clearing existing spells, learning passives, setting up level-up spells, enabling autocast for all available spells, and configuring the pet to start in a defensive state. Side effects: Clears the spell list, learns passives, sets up level-up spells, enables autocast on eligible spells, sets reactive state to DEFENSIVE, and casts pet auras.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
