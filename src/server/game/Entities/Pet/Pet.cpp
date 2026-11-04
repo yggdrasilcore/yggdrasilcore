@@ -2061,6 +2061,22 @@ void Pet::InitPetCreateSpells()
     LearnPetPassives();
     InitLevelupSpellsForLevel();
 
+    // New pets start defensive with every autocast ability enabled
+    SetReactState(REACT_DEFENSIVE);
+
+    for (auto const& [spellId, petSpell] : m_spells)
+    {
+        if (petSpell.state == PETSPELL_REMOVED)
+            continue;
+
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+        if (!spellInfo || !spellInfo->IsAutocastable())
+            continue;
+
+        ToggleAutocast(spellInfo, true);
+        m_charmInfo->SetSpellAutocast(spellInfo, true);
+    }
+
     CastPetAuras(false);
 }
 
