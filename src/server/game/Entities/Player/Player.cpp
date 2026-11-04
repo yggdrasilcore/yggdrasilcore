@@ -11714,13 +11714,13 @@ void Player::SetSelection(ObjectGuid guid)
 
 void Player::SetGroupInvite(Group* group)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_groupInvite = group;
 }
 
 void Player::SetGroup(Group* group, int8 subgroup)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!group)
         m_group.unlink();
     else
@@ -11736,7 +11736,7 @@ void Player::SetGroup(Group* group, int8 subgroup)
 
 ObjectGuid Player::GetGroupGUID() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Group const* group = m_group.getTarget();
     return group ? group->GetGUID() : ObjectGuid::Empty;
 }

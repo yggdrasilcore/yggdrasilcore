@@ -77,7 +77,7 @@ Arena::Arena()
 
 void Arena::AddPlayer(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Battleground::AddPlayer(player);
     PlayerScores.emplace(player->GetGUID().GetCounter(), new ArenaScore(player->GetGUID(), player->GetBgTeamId()));
 
@@ -143,7 +143,7 @@ void Arena::AddPlayer(Player* player)
 
 void Arena::RemovePlayer(Player* /*player*/)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() == STATUS_WAIT_LEAVE)
         return;
 
@@ -153,7 +153,7 @@ void Arena::RemovePlayer(Player* /*player*/)
 
 void Arena::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     packet.Worldstates.reserve(2);
     packet.Worldstates.emplace_back(WORLD_STATE_ARENA_ALIVE_PLAYERS_GREEN, GetAlivePlayersCountByTeam(TEAM_HORDE));
     packet.Worldstates.emplace_back(WORLD_STATE_ARENA_ALIVE_PLAYERS_GOLD, GetAlivePlayersCountByTeam(TEAM_ALLIANCE));
@@ -161,14 +161,14 @@ void Arena::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& pa
 
 void Arena::UpdateArenaWorldState()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     UpdateWorldState(WORLD_STATE_ARENA_ALIVE_PLAYERS_GREEN, GetAlivePlayersCountByTeam(TEAM_HORDE));
     UpdateWorldState(WORLD_STATE_ARENA_ALIVE_PLAYERS_GOLD, GetAlivePlayersCountByTeam(TEAM_ALLIANCE));
 }
 
 void Arena::HandleKillPlayer(Player* player, Player* killer)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
 
@@ -180,7 +180,7 @@ void Arena::HandleKillPlayer(Player* player, Player* killer)
 
 void Arena::RemovePlayerAtLeave(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (isRated() && GetStatus() == STATUS_IN_PROGRESS)
     {
         if (auto const& member = Ycore::Containers::MapGetValuePtr(m_Players, player->GetGUID()))
@@ -202,7 +202,7 @@ void Arena::RemovePlayerAtLeave(Player* player)
 
 void Arena::CheckWinConditions()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!sScriptMgr->OnBeforeArenaCheckWinConditions(this))
         return;
 
@@ -214,7 +214,7 @@ void Arena::CheckWinConditions()
 
 void Arena::EndBattleground(TeamId winnerTeamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (isRated())
     {
         uint32 startDelay = GetStartDelayTime();

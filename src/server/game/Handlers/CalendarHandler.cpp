@@ -40,6 +40,7 @@ Copied events should probably have a new owner
 #include "DisableMgr.h"
 #include "GameEventMgr.h"
 #include "GameTime.h"
+#include "GroupMgr.h"
 #include "GuildMgr.h"
 #include "InstanceSaveMgr.h"
 #include "Log.h"
@@ -818,7 +819,7 @@ void WorldSession::SendCalendarRaidLockout(InstanceSave const* save, bool add)
     data << uint32(save->GetDifficulty());
     data << uint32(save->GetResetTime() >= currTime ? save->GetResetTime() - currTime : 0);
     data << ObjectGuid::Create<HighGuid::Instance>(save->GetInstanceId());
-    SendPacket(&data);
+    GroupSocialLock::Send(GetPlayer()->GetGUID(), data);
 }
 
 void WorldSession::SendCalendarRaidLockoutUpdated(InstanceSave const* save, bool isExtended)

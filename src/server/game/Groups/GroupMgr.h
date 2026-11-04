@@ -20,9 +20,29 @@
 
 #include "Group.h"
 
+#include <functional>
 #include <mutex>
 #include <utility>
 #include <vector>
+
+// Holds GetSocialLock() and queues work that must run after it is released:
+// sends and script hooks dispatch into code that takes locks of its own.
+class GroupSocialLock
+{
+public:
+    GroupSocialLock();
+    ~GroupSocialLock();
+
+    GroupSocialLock(GroupSocialLock const&) = delete;
+    GroupSocialLock& operator=(GroupSocialLock const&) = delete;
+
+    static bool IsHeld();
+    static void Defer(std::function<void()>&& work);
+    static void Send(ObjectGuid const& receiver, WorldPacket const& packet);
+
+private:
+    std::unique_lock<std::recursive_mutex> _lock;
+};
 
 class GroupMgr
 {

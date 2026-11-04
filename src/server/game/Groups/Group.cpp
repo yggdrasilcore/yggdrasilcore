@@ -99,8 +99,6 @@ static void SendRollWonItemViaMail(Player* player, LootItem const* lootItem, uin
 
 namespace
 {
-    // Packet sends and script hooks are queued and run after the social lock is
-    // released; both dispatch into engines that take locks of their own.
     thread_local uint32 g_socialLockDepth = 0;
     thread_local std::vector<std::function<void()>> g_deferredSocialWork;
 
@@ -111,43 +109,41 @@ namespace
         for (std::function<void()>& action : work)
             action();
     }
+}
 
-    class GroupSocialLock
+GroupSocialLock::GroupSocialLock() : _lock(*sGroupMgr->GetSocialLock()) { ++g_socialLockDepth; }
+
+GroupSocialLock::~GroupSocialLock()
+{
+    _lock.unlock();
+    if (--g_socialLockDepth == 0)
+        RunDeferredSocialWork();
+}
+
+bool GroupSocialLock::IsHeld()
+{
+    return g_socialLockDepth != 0;
+}
+
+void GroupSocialLock::Defer(std::function<void()>&& work)
+{
+    if (!g_socialLockDepth)
     {
-    public:
-        GroupSocialLock() : _lock(*sGroupMgr->GetSocialLock()) { ++g_socialLockDepth; }
+        work();
+        return;
+    }
 
-        ~GroupSocialLock()
-        {
-            _lock.unlock();
-            if (--g_socialLockDepth == 0)
-                RunDeferredSocialWork();
-        }
+    g_deferredSocialWork.push_back(std::move(work));
+}
 
-        static void Defer(std::function<void()>&& work)
-        {
-            if (!g_socialLockDepth)
-            {
-                work();
-                return;
-            }
-
-            g_deferredSocialWork.push_back(std::move(work));
-        }
-
-        static void Send(ObjectGuid const& receiver, WorldPacket const& packet)
-        {
-            Defer([receiver, packet]()
-            {
-                if (Player* player = ObjectAccessor::FindConnectedPlayer(receiver))
-                    if (WorldSession* session = player->GetSession())
-                        session->SendPacket(&packet);
-            });
-        }
-
-    private:
-        std::unique_lock<std::recursive_mutex> _lock;
-    };
+void GroupSocialLock::Send(ObjectGuid const& receiver, WorldPacket const& packet)
+{
+    Defer([receiver, packet]()
+    {
+        if (Player* player = ObjectAccessor::FindConnectedPlayer(receiver))
+            if (WorldSession* session = player->GetSession())
+                session->SendPacket(&packet);
+    });
 }
 
 Group::Group() : m_leaderName(""), m_groupType(GROUPTYPE_NORMAL),

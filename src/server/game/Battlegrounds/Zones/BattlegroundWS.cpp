@@ -57,7 +57,7 @@ BattlegroundWS::~BattlegroundWS()
 
 void BattlegroundWS::PostUpdateImpl(uint32 diff)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() == STATUS_IN_PROGRESS)
     {
         _bgEvents.Update(diff);
@@ -113,7 +113,7 @@ void BattlegroundWS::PostUpdateImpl(uint32 diff)
 
 void BattlegroundWS::StartingEventCloseDoors()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (uint32 i = BG_WS_OBJECT_DOOR_A_1; i <= BG_WS_OBJECT_DOOR_H_4; ++i)
     {
         DoorClose(i);
@@ -125,7 +125,7 @@ void BattlegroundWS::StartingEventCloseDoors()
 
 void BattlegroundWS::StartingEventOpenDoors()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (uint32 i = BG_WS_OBJECT_DOOR_A_1; i <= BG_WS_OBJECT_DOOR_A_6; ++i)
         DoorOpen(i);
     for (uint32 i = BG_WS_OBJECT_DOOR_H_1; i <= BG_WS_OBJECT_DOOR_H_4; ++i)
@@ -148,14 +148,14 @@ void BattlegroundWS::StartingEventOpenDoors()
 
 void BattlegroundWS::AddPlayer(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Battleground::AddPlayer(player);
     PlayerScores.emplace(player->GetGUID().GetCounter(), new BattlegroundWGScore(player->GetGUID()));
 }
 
 void BattlegroundWS::RespawnFlagAfterDrop(TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS || GetFlagState(teamId) != BG_WS_FLAG_STATE_ON_GROUND)
         return;
 
@@ -177,7 +177,7 @@ void BattlegroundWS::RespawnFlagAfterDrop(TeamId teamId)
 
 void BattlegroundWS::CheckFlagKeeperInArea(TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS || GetFlagState(teamId) != BG_WS_FLAG_STATE_ON_PLAYER)
     {
         return;
@@ -196,7 +196,7 @@ void BattlegroundWS::CheckFlagKeeperInArea(TeamId teamId)
 
 void BattlegroundWS::EventPlayerCapturedFlag(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
 
@@ -245,7 +245,7 @@ void BattlegroundWS::EventPlayerCapturedFlag(Player* player)
 
 void BattlegroundWS::EventPlayerDroppedFlag(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetFlagPickerGUID(TEAM_HORDE) != player->GetGUID() && GetFlagPickerGUID(TEAM_ALLIANCE) != player->GetGUID())
         return;
 
@@ -276,7 +276,7 @@ void BattlegroundWS::EventPlayerDroppedFlag(Player* player)
 
 void BattlegroundWS::EventPlayerClickedOnFlag(Player* player, GameObject* gameObject)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
 
@@ -395,21 +395,21 @@ void BattlegroundWS::EventPlayerClickedOnFlag(Player* player, GameObject* gameOb
 
 void BattlegroundWS::RemovePlayer(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetFlagPickerGUID(TEAM_ALLIANCE) == player->GetGUID() || GetFlagPickerGUID(TEAM_HORDE) == player->GetGUID())
         EventPlayerDroppedFlag(player);
 }
 
 void BattlegroundWS::UpdateFlagState(TeamId teamId, uint32 value)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     _flagState[teamId] = value;
     UpdateWorldState(teamId == TEAM_ALLIANCE ? WORLD_STATE_BATTLEGROUND_WS_FLAG_STATE_HORDE : WORLD_STATE_BATTLEGROUND_WS_FLAG_STATE_ALLIANCE, value);
 }
 
 void BattlegroundWS::HandleAreaTrigger(Player* player, uint32 trigger)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS || !player->IsAlive())
         return;
 
@@ -439,7 +439,7 @@ void BattlegroundWS::HandleAreaTrigger(Player* player, uint32 trigger)
 
 bool BattlegroundWS::SetupBattleground()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     _wsReputationRate = sWorld->getRate(RATE_REPUTATION_GAIN_WSG);
 
     if (sBattlegroundMgr->IsBGWeekend(GetBgTypeID(true)))
@@ -503,7 +503,7 @@ bool BattlegroundWS::SetupBattleground()
 
 void BattlegroundWS::Init()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //call parent's class reset
     Battleground::Init();
 
@@ -524,7 +524,7 @@ void BattlegroundWS::Init()
 
 void BattlegroundWS::EndBattleground(TeamId winnerTeamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Win reward
     RewardHonorToTeam(GetBonusHonorFromKill(_honorWinKills), winnerTeamId);
 
@@ -537,7 +537,7 @@ void BattlegroundWS::EndBattleground(TeamId winnerTeamId)
 
 void BattlegroundWS::HandleKillPlayer(Player* player, Player* killer)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
 
@@ -547,7 +547,7 @@ void BattlegroundWS::HandleKillPlayer(Player* player, Player* killer)
 
 bool BattlegroundWS::UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!Battleground::UpdatePlayerScore(player, type, value, doAddHonor))
         return false;
 
@@ -566,7 +566,7 @@ bool BattlegroundWS::UpdatePlayerScore(Player* player, uint32 type, uint32 value
 
 GraveyardStruct const* BattlegroundWS::GetClosestGraveyard(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() == STATUS_IN_PROGRESS)
         return sGraveyard->GetGraveyard(player->GetTeamId() == TEAM_ALLIANCE ? WS_GRAVEYARD_MAIN_ALLIANCE : WS_GRAVEYARD_MAIN_HORDE);
     else
@@ -575,7 +575,7 @@ GraveyardStruct const* BattlegroundWS::GetClosestGraveyard(Player* player)
 
 void BattlegroundWS::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     packet.Worldstates.reserve(7);
     packet.Worldstates.emplace_back(WORLD_STATE_BATTLEGROUND_WS_FLAG_CAPTURES_ALLIANCE, GetTeamScore(TEAM_ALLIANCE));
     packet.Worldstates.emplace_back(WORLD_STATE_BATTLEGROUND_WS_FLAG_CAPTURES_HORDE, GetTeamScore(TEAM_HORDE));
@@ -590,7 +590,7 @@ void BattlegroundWS::FillInitialWorldStates(WorldPackets::WorldState::InitWorldS
 
 TeamId BattlegroundWS::GetPrematureWinner()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetTeamScore(TEAM_ALLIANCE) > GetTeamScore(TEAM_HORDE))
         return TEAM_ALLIANCE;
 
@@ -599,7 +599,7 @@ TeamId BattlegroundWS::GetPrematureWinner()
 
 uint32 BattlegroundWS::GetAssaultSpellId() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if ((!GetFlagPickerGUID(TEAM_ALLIANCE) && GetFlagState(TEAM_ALLIANCE) != BG_WS_FLAG_STATE_ON_GROUND) ||
             (!GetFlagPickerGUID(TEAM_HORDE) && GetFlagState(TEAM_HORDE) != BG_WS_FLAG_STATE_ON_GROUND) ||
             _bgEvents.HasTimeUntilEvent(BG_WS_EVENT_BOTH_FLAGS_KEPT10))
@@ -610,7 +610,7 @@ uint32 BattlegroundWS::GetAssaultSpellId() const
 
 void BattlegroundWS::RemoveAssaultAuras()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (Player* player = ObjectAccessor::GetPlayer(FindBgMap(), GetFlagPickerGUID(TEAM_ALLIANCE)))
     {
         player->RemoveAurasDueToSpell(BG_WS_SPELL_FOCUSED_ASSAULT);
