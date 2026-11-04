@@ -100,7 +100,7 @@ static void SendRollWonItemViaMail(Player* player, LootItem const* lootItem, uin
 namespace
 {
     // Sends are queued and flushed after the social lock is released: SendPacket
-    // runs the Lua packet hooks, which take the YLA world state lock.
+    // dispatches the packet script hooks, which may take locks of their own.
     thread_local uint32 g_socialLockDepth = 0;
     thread_local std::vector<std::function<void()>> g_deferredSocialWork;
 
