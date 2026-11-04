@@ -561,7 +561,7 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
         init.SetTransportEnter();
         init.Launch();
 
-        // Passenger was rooted before the spline; observers get the root only after the board.
+        // Observers get the root only after the board.
         if (unit->IsPlayer())
         {
             WorldPacket rootSpline(SMSG_SPLINE_MOVE_ROOT, unit->GetPackGUID().size());
