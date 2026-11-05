@@ -59,17 +59,20 @@ enum Koltira
 
     NPC_CRIMSON_ACOLYTE             = 29007,
     NPC_HIGH_INQUISITOR_VALROTH     = 29001,
+    GO_SCARLET_LOCKBOX              = 191087,
 
     //not sure about this id
     //NPC_DEATH_KNIGHT_MOUNT        = 29201,
     MODEL_DEATH_KNIGHT_MOUNT        = 25278,
 
-    POINT_STAND_UP                  = 0,
-    POINT_BOX                       = 1,
-    POINT_ANTI_MAGIC_ZONE           = 2,
-
+    // Waypoint path ids for the mounted escape (path 289130).
     POINT_MOUNT                     = 0,
-    POINT_DESPAWN                   = 1
+    POINT_DESPAWN                   = 2,
+
+    // Point movement ids used by the breakout event.
+    POINT_JUMP                      = 10,
+    POINT_BOX                       = 11,
+    POINT_ANTI_MAGIC_ZONE           = 12
 };
 
 class npc_koltira_deathweaver : public CreatureScript
@@ -85,6 +88,18 @@ public:
     struct npc_koltira_deathweaverAI : public ScriptedAI
     {
         npc_koltira_deathweaverAI(Creature* creature) : ScriptedAI(creature) { }
+
+        static constexpr float KOLTIRA_JUMP_X = 1653.5406f;
+        static constexpr float KOLTIRA_JUMP_Y = -6038.2725f;
+        static constexpr float KOLTIRA_JUMP_Z = 127.5849f;
+
+        static constexpr float KOLTIRA_BOX_X = 1653.8019f;
+        static constexpr float KOLTIRA_BOX_Y = -6034.5317f;
+        static constexpr float KOLTIRA_BOX_Z = 127.5849f;
+
+        static constexpr float KOLTIRA_BARRIER_X = 1651.89f;
+        static constexpr float KOLTIRA_BARRIER_Y = -6037.1f;
+        static constexpr float KOLTIRA_BARRIER_Z = 127.584f;
 
         void Reset() override
         {
@@ -105,8 +120,19 @@ public:
 
             Talk(SAY_BREAKOUT0);
 
-            me->m_Events.AddEventAtOffset([&] {
-                me->GetMotionMaster()->MovePath(me->GetEntry() * 10, false);
+            me->m_Events.AddEventAtOffset([this]
+            {
+                Talk(SAY_BREAKOUT1);
+
+                me->m_Events.AddEventAtOffset([this]
+                {
+                    me->SetStandState(UNIT_STAND_STATE_STAND);
+
+                    me->m_Events.AddEventAtOffset([this]
+                    {
+                        me->GetMotionMaster()->MoveJump(KOLTIRA_JUMP_X, KOLTIRA_JUMP_Y, KOLTIRA_JUMP_Z, 4.0f, 3.0f, POINT_JUMP);
+                    }, 3s);
+                }, 5s);
             }, 5s);
         }
 
@@ -127,6 +153,27 @@ public:
 
         void MovementInform(uint32 type, uint32 id) override
         {
+            if (type == EFFECT_MOTION_TYPE && id == POINT_JUMP)
+            {
+                // Defer this: starting a new movement directly from the jump's
+                // MovementInform can get it reset before the spline launches.
+                scheduler.Schedule(1s, [this](TaskContext)
+                {
+                    StartBreakout();
+                });
+                return;
+            }
+
+            if (type == POINT_MOTION_TYPE)
+            {
+                if (id == POINT_BOX)
+                    SearchLockbox();
+                else if (id == POINT_ANTI_MAGIC_ZONE)
+                    StartBarrier();
+
+                return;
+            }
+
             if (type != WAYPOINT_MOTION_TYPE)
                 return;
 
@@ -139,112 +186,126 @@ public:
                     me->Dismount();
                     me->DespawnOrUnsummon();
                 }
-
-                return;
             }
+        }
 
-            switch (id)
+        void StartBreakout()
+        {
+            me->SetWalk(true);
+            me->GetMotionMaster()->MovePoint(POINT_BOX, KOLTIRA_BOX_X, KOLTIRA_BOX_Y, KOLTIRA_BOX_Z);
+        }
+
+        void SearchLockbox()
+        {
+            if (GameObject* lockbox = me->FindNearestGameObject(GO_SCARLET_LOCKBOX, 10.0f))
+                me->SetFacingToObject(lockbox);
+
+            me->SetStandState(UNIT_STAND_STATE_KNEEL);
+            me->SetEmoteState(EMOTE_STATE_LOOT);
+
+            scheduler.Schedule(5s, [this](TaskContext)
             {
-                case POINT_STAND_UP:
-                    Talk(SAY_BREAKOUT1);
-                    break;
-                case POINT_BOX:
-                    me->SetStandState(UNIT_STAND_STATE_KNEEL);
+                me->ClearEmoteState();
+                me->SetStandState(UNIT_STAND_STATE_STAND);
 
-                    scheduler.Schedule(5s, [this](TaskContext context)
+                DoCastSelf(SPELL_KOLTIRA_TRANSFORM);
+                me->LoadEquipment();
+
+                scheduler.Schedule(1s, [this](TaskContext)
+                {
+                    me->GetMotionMaster()->MovePoint(POINT_ANTI_MAGIC_ZONE, KOLTIRA_BARRIER_X, KOLTIRA_BARRIER_Y, KOLTIRA_BARRIER_Z);
+                });
+            });
+        }
+
+        void StartBarrier()
+        {
+            me->SetWalk(false);
+            me->SetStandState(UNIT_STAND_STATE_KNEEL);
+            Talk(SAY_BREAKOUT2);
+            DoCastSelf(SPELL_ANTI_MAGIC_ZONE);
+
+            scheduler.Schedule(3s, [this](TaskContext context)
+            {
+                switch (context.GetRepeatCounter())
+                {
+                case 0:
+                    Talk(SAY_BREAKOUT3);
+
+                    // Shouldn't actually be spawned at this point, but no way to send his yells otherwise?
+                    if (Creature* valroth = me->SummonCreature(NPC_HIGH_INQUISITOR_VALROTH, 1640.8596f, -6030.834f, 134.82211f, 4.606426715850830078f, TEMPSUMMON_MANUAL_DESPAWN))
                     {
-                        switch (context.GetRepeatCounter())
-                        {
-                        case 0:
-                            Talk(SAY_BREAKOUT3);
+                        _valrothGUID = valroth->GetGUID();
+                        valroth->AI()->Talk(SAY_VALROTH_WAVE1);
+                        valroth->SetReactState(REACT_PASSIVE);
+                    }
 
-                            // Shouldn't actually be spawned at this point, but no way to send his yells otherwise?
-                            if (Creature* valroth = me->SummonCreature(NPC_HIGH_INQUISITOR_VALROTH, 1640.8596f, -6030.834f, 134.82211f, 4.606426715850830078f, TEMPSUMMON_MANUAL_DESPAWN))
-                            {
-                                _valrothGUID = valroth->GetGUID();
-                                valroth->AI()->Talk(SAY_VALROTH_WAVE1);
-                                valroth->SetReactState(REACT_PASSIVE);
-                            }
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.6724f, -6032.0527f, 134.82213f, 4.654973506927490234f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath(NPC_CRIMSON_ACOLYTE * 10, false);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.6724f, -6032.0527f, 134.82213f, 4.654973506927490234f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath(NPC_CRIMSON_ACOLYTE * 10, false);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1641.0055f, -6031.893f, 134.82211f, 0.401425719261169433f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 1) * 10, false);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1641.0055f, -6031.893f, 134.82211f, 0.401425719261169433f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 1) * 10, false);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1639.7053f, -6031.7373f, 134.82213f, 2.443460941314697265f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 2) * 10, false);
+                    break;
+                case 1:
+                    Talk(SAY_BREAKOUT4);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1639.7053f, -6031.7373f, 134.82213f, 2.443460941314697265f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 2) * 10, false);
-                            break;
-                        case 1:
-                            Talk(SAY_BREAKOUT4);
+                    if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
+                        valroth->AI()->Talk(SAY_VALROTH_WAVE2);
 
-                            if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
-                                valroth->AI()->Talk(SAY_VALROTH_WAVE2);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.7958f, -6030.307f, 134.82211f, 4.65355682373046875f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 3) * 10, false);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.7958f, -6030.307f, 134.82211f, 4.65355682373046875f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 3) * 10, false);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1641.7305f, -6030.751f, 134.82211f, 6.143558979034423828f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 4) * 10, false);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1641.7305f, -6030.751f, 134.82211f, 6.143558979034423828f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 4) * 10, false);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1639.4657f, -6030.404f, 134.82211f, 4.502949237823486328f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 5) * 10, false);
+                    break;
+                case 2:
+                    Talk(SAY_BREAKOUT5);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1639.4657f, -6030.404f, 134.82211f, 4.502949237823486328f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 5) * 10, false);
-                            break;
-                        case 2:
-                            Talk(SAY_BREAKOUT5);
+                    if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
+                        valroth->AI()->Talk(SAY_VALROTH_WAVE3);
 
-                            if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
-                                valroth->AI()->Talk(SAY_VALROTH_WAVE3);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1641.3405f, -6031.436f, 134.82211f, 4.612849712371826171f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 6) * 10, false);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1641.3405f, -6031.436f, 134.82211f, 4.612849712371826171f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 6) * 10, false);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1642.0404f, -6030.3843f, 134.82211f, 1.378810048103332519f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 7) * 10, false);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1642.0404f, -6030.3843f, 134.82211f, 1.378810048103332519f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 7) * 10, false);
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.1162f, -6029.7817f, 134.82211f, 5.707226753234863281f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 8) * 10, false);
 
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.1162f, -6029.7817f, 134.82211f, 5.707226753234863281f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 8) * 10, false);
-
-                            if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.9948f, -6029.8027f, 134.82211f, 1.605702877044677734f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
-                                acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 9) * 10, false);
-                            break;
-                        case 3:
-                            Talk(SAY_BREAKOUT6);
-                            me->m_Events.AddEventAtOffset([this]
-                            {
-                                Talk(EMOTE_KOLTIRA_COLLAPSES, me);
-                                me->KillSelf();
-
-                                if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
-                                    valroth->DespawnOrUnsummon();
-                            }, 2min);
-
-                            if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
-                            {
-                                valroth->AI()->Talk(SAY_VALROTH_AGGRO);
-                                valroth->SetReactState(REACT_AGGRESSIVE);
-                                valroth->GetMotionMaster()->MovePath(NPC_HIGH_INQUISITOR_VALROTH * 10, false);
-                            }
-                            return;
-                        default:
-                            break;
-                        }
-
-                        context.Repeat(20s);
-                    });
-
-                    scheduler.Schedule(3s, [this](TaskContext)
+                    if (Creature* acolyte = me->SummonCreature(NPC_CRIMSON_ACOLYTE, 1640.9948f, -6029.8027f, 134.82211f, 1.605702877044677734f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 15000))
+                        acolyte->GetMotionMaster()->MovePath((NPC_CRIMSON_ACOLYTE + 9) * 10, false);
+                    break;
+                case 3:
+                    Talk(SAY_BREAKOUT6);
+                    me->m_Events.AddEventAtOffset([this]
                     {
-                        DoCastSelf(SPELL_KOLTIRA_TRANSFORM);
-                        me->LoadEquipment();
-                    });
+                        Talk(EMOTE_KOLTIRA_COLLAPSES, me);
+                        me->KillSelf();
+
+                        if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
+                            valroth->DespawnOrUnsummon();
+                    }, 2min);
+
+                    if (Creature* valroth = ObjectAccessor::GetCreature(*me, _valrothGUID))
+                    {
+                        valroth->AI()->Talk(SAY_VALROTH_AGGRO);
+                        valroth->SetReactState(REACT_AGGRESSIVE);
+                        valroth->GetMotionMaster()->MovePath(NPC_HIGH_INQUISITOR_VALROTH * 10, false);
+                    }
+                    return;
+                default:
                     break;
-                case POINT_ANTI_MAGIC_ZONE:
-                    me->SetStandState(UNIT_STAND_STATE_KNEEL);
-                    Talk(SAY_BREAKOUT2);
-                    DoCastSelf(SPELL_ANTI_MAGIC_ZONE);
-                    break;
-            }
+                }
+
+                context.Repeat(20s);
+            });
         }
 
         void SummonedCreatureDies(Creature* summon, Unit*) override
