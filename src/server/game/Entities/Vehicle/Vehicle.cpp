@@ -16,22 +16,17 @@
  */
 
 #include "Vehicle.h"
-#include <algorithm>
 #include "AreaDefines.h"
 #include "BattlefieldWG.h"
-#include "GameTime.h"
 #include "Log.h"
 #include "MoveSplineInit.h"
-#include "ObjectAccessor.h"
 #include "ObjectMgr.h"
-#include "Opcodes.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "TemporarySummon.h"
-#include "Transport.h"
 #include "Unit.h"
 #include "Util.h"
-#include "WorldSession.h"
+#include <algorithm>
 
 Vehicle::Vehicle(Unit* unit, VehicleEntry const* vehInfo, uint32 creatureEntry) :
     _me(unit), _vehicleInfo(vehInfo), _usableSeatNum(0), _creatureEntry(creatureEntry), _status(STATUS_NONE)
@@ -242,9 +237,6 @@ Unit* Vehicle::GetPassenger(int8 seatId) const
 
 VehicleSeatAddon const* Vehicle::GetSeatAddonForSeatOfPassenger(Unit const* passenger) const
 {
-    if (!passenger)
-        return nullptr;
-
     for (SeatMap::const_iterator itr = Seats.begin(); itr != Seats.end(); itr++)
         if (!itr->second.IsEmpty() && itr->second.Passenger.Guid == passenger->GetGUID())
             return itr->second.SeatAddon;
@@ -324,77 +316,8 @@ void Vehicle::InstallAccessory(uint32 entry, int8 seatId, bool minion, uint8 typ
     }
 }
 
-// Salvaged siege engines (vehicle kit 336, e.g. creature 33060): while the driver
-// seat and the turret are both held by players, the dead auxiliary seats are
-// plugged with invisible stalkers so clients stop offering them. Either seat
-// emptying again removes the stalkers.
-Vehicle* SalvagedSiegeParentOf(Vehicle* kit)
-{
-    if (!kit || !kit->GetVehicleInfo())
-        return nullptr;
-
-    if (kit->GetVehicleInfo()->m_ID == 336)
-        return kit;
-
-    Unit* base = kit->GetBase();
-    if (!base)
-        return nullptr;
-
-    Vehicle* parent = base->GetVehicle();
-    if (!parent || !parent->GetVehicleInfo() || parent->GetVehicleInfo()->m_ID != 336)
-        return nullptr;
-
-    return parent;
-}
-
-void SyncSalvagedSiegeBlockers(Vehicle* kit)
-{
-    Vehicle* parent = SalvagedSiegeParentOf(kit);
-    if (!parent)
-        return;
-
-    Unit* driver = parent->GetPassenger(0);
-    bool driverAboard = driver && driver->IsPlayer();
-
-    Unit* turretBase = parent->GetPassenger(7);
-    bool gunnerAboard = false;
-    if (turretBase && turretBase->GetVehicleKit())
-    {
-        Vehicle* turretKit = turretBase->GetVehicleKit();
-        for (int seat = 0; seat < MAX_VEHICLE_SEATS; ++seat)
-        {
-            Unit* passenger = turretKit->GetPassenger(int8(seat));
-            if (passenger && passenger->IsPlayer())
-            {
-                gunnerAboard = true;
-                break;
-            }
-        }
-    }
-
-    if (driverAboard && gunnerAboard)
-    {
-        if (!parent->GetPassenger(1))
-            parent->InstallAccessory(15214, 1, true, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30000);
-        if (!parent->GetPassenger(2))
-            parent->InstallAccessory(15214, 2, true, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 30000);
-    }
-    else
-    {
-        for (int seat = 1; seat <= 2; ++seat)
-        {
-            Unit* blocker = parent->GetPassenger(int8(seat));
-            if (blocker && blocker->GetEntry() == 15214 && blocker->GetVehicle() == parent)
-                blocker->ExitVehicle();
-        }
-    }
-}
-
 bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
 {
-    if (!unit)
-        return false;
-
     /// @Prevent adding passengers when vehicle is uninstalling. (Bad script in OnUninstall/OnRemovePassenger/PassengerBoarded hook.)
     if (_status == STATUS_UNINSTALLING)
     {
@@ -422,12 +345,6 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
         if (seat == Seats.end())
             return false;
 
-        // Dead auxiliary seats on salvaged siege engines are not player seats.
-        // (Placed before the occupied-seat kick below so a denied entry can not
-        // eject the blocker stalkers.)
-        if (unit->IsPlayer() && GetVehicleInfo()->m_ID == 336 && (seatId == 1 || seatId == 2))
-            return false;
-
         if (!seat->second.IsEmpty())
         {
             if (Unit* passenger = ObjectAccessor::GetUnit(*GetBase(), seat->second.Passenger.Guid))
@@ -440,9 +357,6 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
     }
 
     if (!seat->second.SeatInfo)
-        return false;
-
-    if (!_me || !_me->IsInWorld() || _me->IsDuringRemoveFromWorld())
         return false;
 
     LOG_DEBUG("vehicles", "Unit {} enter vehicle entry {} id {} ({}) seat {}",
@@ -461,19 +375,8 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
             _me->SetNpcFlag(_me->IsPlayer() ?  UNIT_NPC_FLAG_PLAYER_VEHICLE : UNIT_NPC_FLAG_SPELLCLICK);
     }
 
-    // xinef: removed seat->first == 0 check...
-    if (_me->IsCreature()
-            && unit->IsPlayer()
-            && seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
-    {
-        if (!_me->SetCharmedBy(unit, CHARM_TYPE_VEHICLE))
-        {
-            seat->second.Passenger.Reset();
-            if (seat->second.SeatInfo->CanEnterOrExit() && ++_usableSeatNum)
-                _me->SetNpcFlag((_me->IsPlayer() ? UNIT_NPC_FLAG_PLAYER_VEHICLE : UNIT_NPC_FLAG_SPELLCLICK));
-            return false;
-        }
-    }
+    if (!_me || !_me->IsInWorld() || _me->IsDuringRemoveFromWorld())
+        return false;
 
     // Xinef: moved from unit.cpp, if aura passes seatId == -1 (choose automaticly) we wont get appropriate flags
     if (unit->IsPlayer() && !(seat->second.SeatInfo->m_flagsB & VEHICLE_SEAT_FLAG_B_KEEP_PET))
@@ -481,24 +384,6 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
 
     if (seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_PASSENGER_NOT_SELECTABLE)
         unit->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
-
-    // Keep same direct transport as base (same sub-map). Seat stays in
-    // movementInfo; direct membership is untouched by position updates since
-    // transports skip GetVehicle() units and RelocatePassengers drives them.
-    Transport* baseTransport = _me->GetTransport();
-    if (Transport* oldTransport = unit->GetTransport())
-    {
-        if (oldTransport != baseTransport)
-        {
-            oldTransport->RemovePassenger(unit);
-            unit->SetTransport(nullptr);
-        }
-    }
-    if (baseTransport && unit->GetTransport() != baseTransport)
-    {
-        unit->SetTransport(baseTransport);
-        baseTransport->AddPassenger(unit);
-    }
 
     unit->AddUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
     VehicleSeatEntry const* veSeat = seat->second.SeatInfo;
@@ -514,36 +399,35 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
     unit->m_movementInfo.transport.seat = seat->first;
     unit->m_movementInfo.transport.guid = _me->GetGUID();
 
-    // Sync absolute from seat offset immediately.
-    if (_me->IsInWorld() && unit->IsInWorld())
+    // xinef: removed seat->first == 0 check...
+    if (_me->IsCreature()
+            && unit->IsPlayer()
+            && seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
     {
-        float ax = x, ay = y, az = z, ao = o;
-        CalculatePassengerPosition(ax, ay, az, &ao);
-        unit->UpdatePosition(ax, ay, az, ao);
-        unit->m_movementInfo.pos.Relocate(ax, ay, az, ao);
+        // Removed try catch + ABORT() here, and make it as simple condition check.
+        if (!_me->SetCharmedBy(unit, CHARM_TYPE_VEHICLE))
+        {
+            // I assume SetCharmedBy should always be true.
+            // If not, let's log some debug info.
+            LOG_INFO("vehicles", "Crash recovered in Unit::SetCharmedBy(). not null: {}", _me ? 1 : 0);
+            if (!_me)
+                return false;
+            LOG_INFO("vehicles", "Crash recovered in Unit::SetCharmedBy(). Is: {}!", _me->IsInWorld());
+            LOG_INFO("vehicles", "Crash recovered in Unit::SetCharmedBy(). Is2: {}!", _me->IsDuringRemoveFromWorld());
+            LOG_INFO("vehicles", "Crash recovered in Unit::SetCharmedBy(). Unit {}!", _me->GetName());
+            LOG_INFO("vehicles", "Crash recovered in Unit::SetCharmedBy(). typeid: {}!", _me->GetTypeId());
+            LOG_INFO("vehicles", "Crash recovered in Unit::SetCharmedBy(). Unit {}, typeid: {}, in world: {}, duringremove: {} has wrong CharmType! Charmer {}, typeid: {}, in world: {}, duringremove: {}.", _me->GetName(), _me->GetTypeId(), _me->IsInWorld(), _me->IsDuringRemoveFromWorld(), unit->GetName(), unit->GetTypeId(), unit->IsInWorld(), unit->IsDuringRemoveFromWorld());
+            return false;
+        }
     }
-
-    float const boardX = x, boardY = y, boardZ = z, boardO = o;
 
     if (_me->IsInWorld())
     {
         unit->SendClearTarget();                                // SMSG_BREAK_TARGET
-        // Nested attach: self needs a fresh base anchor or it drops the spline.
-        // This covers transports and nested vehicles (turret accessories riding
-        // a parent vehicle), where the first-time board is otherwise lost.
-        if (Player* plr = unit->ToPlayer())
-        {
-            if ((_me->GetTransport() || _me->GetVehicle()) && plr->GetSession())
-            {
-                MovementInfo anchor = _me->m_movementInfo;
-                anchor.guid = _me->GetGUID();
-                anchor.time = getMSTime();
-                WorldPacket hb(MSG_MOVE_HEARTBEAT, 64);
-                plr->GetSession()->WriteMovementInfo(&hb, &anchor);
-                plr->GetSession()->SendPacket(&hb);
-            }
-        }
-        unit->SetControlled(true, UNIT_STATE_ROOT);              // SMSG_FORCE_ROOT
+        unit->SetControlled(true, UNIT_STATE_ROOT);             // SMSG_FORCE_ROOT - In some cases we send SMSG_SPLINE_MOVE_ROOT here (for creatures)
+        if (unit->IsPlayer())
+            unit->ToPlayer()->SetExpectingChangeTransport(true);
+        // also adds MOVEMENTFLAG_ROOT
         Movement::MoveSplineInit init(unit);
         init.DisableTransportPathTransformations();
         init.MoveTo(x, y, z, false, true);
@@ -561,34 +445,6 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
         init.SetTransportEnter();
         init.Launch();
 
-        // Observers get the root only after the board.
-        if (unit->IsPlayer())
-        {
-            WorldPacket rootSpline(SMSG_SPLINE_MOVE_ROOT, unit->GetPackGUID().size());
-            rootSpline << unit->GetPackGUID();
-            unit->SendMessageToSet(&rootSpline, true);
-        }
-
-        // Nested attach: self drops the board-tick spline, resend once settled.
-        // Needed for transports and for nested vehicles (turret accessories),
-        // where the first board is otherwise never fully acknowledged.
-        if (unit->IsPlayer() && (_me->GetTransport() || _me->GetVehicle()))
-            unit->m_Events.AddEvent([passengerGuid = unit->GetGUID(), vehicleGuid = _me->GetGUID(), seatId = seat->first, boardX, boardY, boardZ, boardO]()
-            {
-                Player* passenger = ObjectAccessor::FindConnectedPlayer(passengerGuid);
-                Unit* base = passenger ? passenger->GetVehicleBase() : nullptr;
-                if (!passenger || !base || base->GetGUID() != vehicleGuid || passenger->GetTransSeat() != seatId)
-                    return;
-                if (!passenger->IsInWorld() || passenger->IsDuringRemoveFromWorld())
-                    return;
-                Movement::MoveSplineInit resend(passenger);
-                resend.DisableTransportPathTransformations();
-                resend.MoveTo(boardX, boardY, boardZ, false, true);
-                resend.SetFacing(boardO);
-                resend.SetTransportEnter();
-                resend.Launch();
-            }, Milliseconds(1000));
-
         if (_me->IsCreature())
         {
             if (_me->ToCreature()->IsAIEnabled)
@@ -601,17 +457,11 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
 
     // Remove parachute on vehicle switch
     unit->RemoveAurasDueToSpell(VEHICLE_SPELL_PARACHUTE);
-
-    // Salvaged siege engines: keep blocker stalkers in sync with occupancy.
-    SyncSalvagedSiegeBlockers(this);
     return true;
 }
 
-void Vehicle::RemovePassenger(Unit* unit, bool correctPhase)
+void Vehicle::RemovePassenger(Unit* unit)
 {
-    if (!unit)
-        return;
-
     if (unit->GetVehicle() != this)
         return;
 
@@ -646,35 +496,11 @@ void Vehicle::RemovePassenger(Unit* unit, bool correctPhase)
     {
         if (!_me->GetTransport())
         {
-            // Drop any base transport membership left over from boarding the
-            // vehicle while it was on one. Otherwise the transport keeps
-            // relocating the unit using its now-reset seat offset.
-            if (Transport* oldTransport = unit->GetTransport())
-            {
-                oldTransport->RemovePassenger(unit);
-                unit->SetTransport(nullptr);
-            }
             unit->RemoveUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
             unit->m_movementInfo.transport.Reset();
         }
         else
-        {
             unit->m_movementInfo.transport = _me->m_movementInfo.transport;
-            // Rejoin base transport as direct passenger.
-            if (Transport* baseTransport = _me->GetTransport())
-            {
-                if (Transport* oldTransport = unit->GetTransport())
-                {
-                    if (oldTransport != baseTransport)
-                    {
-                        oldTransport->RemovePassenger(unit);
-                        unit->SetTransport(nullptr);
-                    }
-                }
-                unit->SetTransport(baseTransport);
-                baseTransport->AddPassenger(unit);
-            }
-        }
     }
 
     // only for flyable vehicles
@@ -686,12 +512,6 @@ void Vehicle::RemovePassenger(Unit* unit, bool correctPhase)
 
     if (_me->IsCreature() && _me->ToCreature()->IsAIEnabled)
         _me->ToCreature()->AI()->PassengerBoarded(unit, seat->first, false);
-
-    // Salvaged siege engines: keep blocker stalkers in sync with occupancy.
-    SyncSalvagedSiegeBlockers(this);
-
-    if (correctPhase)
-        unit->CorrectPhaseMask();
 }
 
 void Vehicle::RelocatePassengers()
@@ -716,14 +536,7 @@ void Vehicle::RelocatePassengers()
     }
 
     for (auto const& pair : seatRelocation)
-    {
-        Unit* passenger = pair.first;
-        Position const& pos = pair.second;
-        passenger->UpdatePosition(pos);
-        // Keep MovementInfo position in sync so broadcasts built from it (same-tick
-        // passenger updates in MovementHandler) use the fresh absolute position.
-        passenger->m_movementInfo.pos.Relocate(pos);
-    }
+        pair.first->UpdatePosition(pair.second);
 }
 
 void Vehicle::Dismiss()
