@@ -52,7 +52,34 @@ enum MageSpells
     SPELL_MAGE_SUMMON_WATER_ELEMENTAL_PERMANENT  = 70908,
     SPELL_MAGE_SUMMON_WATER_ELEMENTAL_TEMPORARY  = 70907,
     SPELL_MAGE_GLYPH_OF_BLAST_WAVE               = 62126,
+<<<<<<< HEAD
     SPELL_MAGE_FINGERS_OF_FROST                  = 44543
+=======
+    SPELL_MAGE_FINGERS_OF_FROST                  = 44543,
+    SPELL_MAGE_FINGERS_OF_FROST_AURASTATE_AURA   = 44544,
+    SPELL_MAGE_ARCANE_POTENCY_RANK_1             = 57529,
+    SPELL_MAGE_ARCANE_POTENCY_RANK_2             = 57531,
+    SPELL_MAGE_EMPOWERED_FIRE_PROC               = 67545,
+    SPELL_MAGE_T10_2P_BONUS                      = 70752,
+    SPELL_MAGE_T10_2P_BONUS_EFFECT               = 70753,
+    SPELL_MAGE_T8_4P_BONUS                       = 64869,
+    SPELL_MAGE_HOT_STREAK_PROC                   = 48108,
+    SPELL_MAGE_CHILLED_R1                        = 12484,
+    SPELL_MAGE_CHILLED_R2                        = 12485,
+    SPELL_MAGE_CHILLED_R3                        = 12486,
+    SPELL_MAGE_MANA_SURGE                        = 37445,
+    SPELL_MAGE_FROST_NOVA                        = 122,
+    SPELL_MAGE_LIVING_BOMB_R1                    = 44457,
+    SPELL_MAGE_MISSILE_BARRAGE_PROC              = 44401
+};
+
+enum MageSpellIcons
+{
+    MAGE_ICON_MAGIC_ABSORPTION                   = 459,
+    MAGE_ICON_CLEARCASTING                       = 212,
+    MAGE_ICON_PRESENCE_OF_MIND                   = 139,
+    MAGE_ICON_LIVING_BOMB                        = 3000
+>>>>>>> 1cbd6e061 (fix(Core/Scripts): Fix Missile Barrage and Clearcasting proc with Arcane Missiles (#24958))
 };
 
 class spell_mage_arcane_blast : public SpellScript
@@ -1039,7 +1066,125 @@ class spell_mage_fingers_of_frost_proc : public AuraScript
 
     bool CheckProc(ProcEventInfo& eventInfo)
     {
+<<<<<<< HEAD
         if (Aura* aura = GetCaster()->GetAuraOfRankedSpell(SPELL_MAGE_FINGERS_OF_FROST))
+=======
+        // Don't proc with Living Bomb explosion
+        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
+        if (spellInfo && spellInfo->SpellIconID == MAGE_ICON_LIVING_BOMB && spellInfo->SpellFamilyName == SPELLFAMILY_MAGE)
+            return false;
+
+        return true;
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_mage_dragon_breath::CheckProc);
+    }
+};
+
+// -44614 - Frostfire Bolt
+class spell_mage_frostfire_bolt : public AuraScript
+{
+    PrepareAuraScript(spell_mage_frostfire_bolt);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_PERMAFROST_AURA });
+    }
+
+    void ApplyPermafrost(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        if (Unit* caster = GetCaster())
+            caster->CastSpell(GetTarget(), SPELL_MAGE_PERMAFROST_AURA, true, nullptr, aurEff);
+    }
+
+    void RemovePermafrost(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        GetTarget()->RemoveAurasDueToSpell(SPELL_MAGE_PERMAFROST_AURA);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(spell_mage_frostfire_bolt::ApplyPermafrost, EFFECT_0, SPELL_AURA_MOD_DECREASE_SPEED, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_mage_frostfire_bolt::RemovePermafrost, EFFECT_0, SPELL_AURA_MOD_DECREASE_SPEED, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 45438 - Ice Block
+class spell_mage_ice_block : public SpellScript
+{
+    PrepareSpellScript(spell_mage_ice_block);
+
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return spellInfo->ExcludeCasterAuraSpell && ValidateSpellInfo({ static_cast<uint32>(spellInfo->ExcludeCasterAuraSpell) });
+    }
+
+    void TriggerHypothermia()
+    {
+        GetCaster()->CastSpell(GetCaster(), GetSpellInfo()->ExcludeCasterAuraSpell, true);
+    }
+
+    void Register() override
+    {
+        AfterHit += SpellHitFn(spell_mage_ice_block::TriggerHypothermia);
+    }
+};
+
+// 12536 - Clearcasting
+class spell_mage_clearcasting : public AuraScript
+{
+    PrepareAuraScript(spell_mage_clearcasting);
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
+        if (!spellInfo)
+            return true;
+
+        // Missile Barrage has priority over Clearcasting for Arcane Missiles
+        if (spellInfo->SpellFamilyName == SPELLFAMILY_MAGE && (spellInfo->SpellFamilyFlags[0] & 0x800))
+            if (GetTarget()->HasAura(SPELL_MAGE_MISSILE_BARRAGE_PROC))
+                return false;
+
+        return true;
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_mage_clearcasting::CheckProc);
+    }
+};
+
+// 44401 - Missile Barrage (proc buff)
+class spell_mage_missile_barrage_proc : public AuraScript
+{
+    PrepareAuraScript(spell_mage_missile_barrage_proc);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_MAGE_T10_2P_BONUS, SPELL_MAGE_T8_4P_BONUS, SPELL_MAGE_ARCANE_MISSILES_R1 });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        Unit* caster = eventInfo.GetActor();
+
+        // T8 4P bonus: chance to not consume the proc
+        if (AuraEffect const* aurEff = caster->GetAuraEffect(SPELL_MAGE_T8_4P_BONUS, EFFECT_0))
+            if (roll_chance_i(aurEff->GetAmount()))
+                return false;
+
+        return true;
+    }
+
+    void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+    {
+        Unit* caster = GetTarget();
+        // T10 2P bonus: signal Arcane Missiles to proc the bonus when it ends
+        if (caster->HasAura(SPELL_MAGE_T10_2P_BONUS))
+>>>>>>> 1cbd6e061 (fix(Core/Scripts): Fix Missile Barrage and Clearcasting proc with Arcane Missiles (#24958))
         {
             if (spell_mage_fingers_of_frost_proc_aura_script* script = dynamic_cast<spell_mage_fingers_of_frost_proc_aura_script*>(aura->GetScriptByName(FingersOfFrostScriptName)))
             {
@@ -1074,6 +1219,24 @@ void AddSC_mage_spell_scripts()
     RegisterSpellScript(spell_mage_brain_freeze);
     RegisterSpellScript(spell_mage_glyph_of_eternal_water);
     RegisterSpellScript(spell_mage_combustion_proc);
+<<<<<<< HEAD
+=======
+    RegisterSpellScript(spell_mage_dragon_breath);
+    RegisterSpellScript(spell_mage_empowered_fire);
+    RegisterSpellScript(spell_mage_gen_extra_effects);
+    RegisterSpellScript(spell_mage_frostfire_bolt);
+    RegisterSpellScript(spell_mage_glyph_of_ice_block);
+    RegisterSpellScript(spell_mage_glyph_of_icy_veins);
+    RegisterSpellScript(spell_mage_glyph_of_polymorph);
+    RegisterSpellScript(spell_mage_hot_streak);
+    RegisterSpellScript(spell_mage_ice_barrier);
+    RegisterSpellScript(spell_mage_ice_block);
+    RegisterSpellScript(spell_mage_imp_blizzard);
+    RegisterSpellScript(spell_mage_imp_mana_gems);
+    RegisterSpellScript(spell_mage_clearcasting);
+    RegisterSpellScript(spell_mage_missile_barrage);
+    RegisterSpellScript(spell_mage_missile_barrage_proc);
+>>>>>>> 1cbd6e061 (fix(Core/Scripts): Fix Missile Barrage and Clearcasting proc with Arcane Missiles (#24958))
     RegisterSpellScript(spell_mage_blast_wave);
     RegisterSpellScript(spell_mage_cold_snap);
     RegisterSpellScript(spell_mage_fire_frost_ward);
