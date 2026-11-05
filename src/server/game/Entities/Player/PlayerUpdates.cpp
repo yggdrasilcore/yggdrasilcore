@@ -1,14 +1,14 @@
 /*
- * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ * This file is part of the AzerothCore Project. See AUTHORS file for Copyright information
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Affero General Public License as published by the
- * Free Software Foundation; either version 3 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
  * You should have received a copy of the GNU General Public License along
@@ -20,7 +20,6 @@
 #include "CellImpl.h"
 #include "Channel.h"
 #include "ChannelMgr.h"
-#include "Creature.h"
 #include "Formulas.h"
 #include "GameTime.h"
 #include "GridNotifiers.h"
@@ -28,8 +27,6 @@
 #include "Guild.h"
 #include "InstanceScript.h"
 #include "Language.h"
-#include "ObjectAccessor.h"
-#include "Opcodes.h"
 #include "OutdoorPvPMgr.h"
 #include "Pet.h"
 #include "Player.h"
@@ -41,8 +38,6 @@
 #include "Vehicle.h"
 #include "Weather.h"
 #include "WeatherMgr.h"
-#include "WorldPacket.h"
-#include "WorldSession.h"
 #include "WorldState.h"
 #include "WorldStatePackets.h"
 
@@ -100,22 +95,6 @@ void Player::Update(uint32 p_time)
     CheckDuelDistance(now);
 
     UpdateAfkReport(now);
-
-    // Channel updates run on a 5s cadence per player instead of every zone
-    // change, so border crossings collapse into the latest zone. A fresh
-    // login is excluded: the client joins the built-in local channels itself
-    // once loading completes, and joining here first would turn that client
-    // request into a no-op, leaving the player out of the channel.
-    if (m_zoneUpdateId != uint32(-1) && m_lastLocalChannelUpdate)
-    {
-        uint32 nowMs = getMSTime();
-        if (nowMs - m_lastLocalChannelUpdate >= 5000 &&
-            (!GetSession()->PlayerLoading() || IsBeingTeleportedFar()))
-        {
-            UpdateLocalChannels(m_zoneUpdateId);
-            m_lastLocalChannelUpdate = nowMs;
-        }
-    }
 
     // Xinef: update charm AI only if we are controlled by creature or
     // non-posses player charm
@@ -225,9 +204,6 @@ void Player::Update(uint32 p_time)
                     // do attack
                     AttackerStateUpdate(victim, BASE_ATTACK);
                     resetAttackTimer(BASE_ATTACK);
-
-                    // Blizzlike: Reset ranged swing timer when performing melee attack
-                    resetAttackTimer(RANGED_ATTACK);
                 }
             }
 
@@ -247,9 +223,6 @@ void Player::Update(uint32 p_time)
                     // do attack
                     AttackerStateUpdate(victim, OFF_ATTACK);
                     resetAttackTimer(OFF_ATTACK);
-
-                    // Blizzlike: Reset ranged swing timer when performing melee attack
-                    resetAttackTimer(RANGED_ATTACK);
                 }
             }
 
@@ -451,7 +424,6 @@ void Player::Update(uint32 p_time)
         m_delayed_unit_relocation_timer = 0;
         RemoveFromNotify(NOTIFY_VISIBILITY_CHANGED);
     }
-    sScriptMgr->OnPlayerAfterUpdate(this, p_time);
 }
 
 void Player::UpdateMirrorTimers()
@@ -581,7 +553,7 @@ void Player::UpdateLocalChannels(uint32 newZone)
                     std::string currentNameExt;
 
                     if (channel->flags & CHANNEL_DBC_FLAG_CITY_ONLY)
-                        currentNameExt = sObjectMgr->GetYcoreStringForDBCLocale(LANG_CHANNEL_CITY);
+                        currentNameExt = sObjectMgr->GetAcoreStringForDBCLocale(LANG_CHANNEL_CITY);
                     else
                         currentNameExt = current_zone_name;
 
@@ -729,7 +701,7 @@ void Player::UpdateRating(CombatRating cr)
 
 void Player::UpdateAllRatings()
 {
-    for (int cr = 0; cr < MAX_COMBAT_RATING; ++cr)
+    for (uint8 cr = 0; cr < MAX_COMBAT_RATING; ++cr)
         UpdateRating(CombatRating(cr));
 }
 
@@ -766,12 +738,6 @@ bool Player::UpdateSkill(uint32 skill_id, uint32 step)
         UpdateSkillEnchantments(skill_id, value, new_value);
         UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_REACH_SKILL_LEVEL,
                                   skill_id);
-                                  
-        if (skill_id == SKILL_ENCHANTING)
-        {
-            if (Group* group = GetGroup())
-                group->ResetMaxEnchantingLevel();
-        }
 
         sScriptMgr->OnPlayerUpdateSkill(this, skill_id, value, max, step, new_value);
         return true;
@@ -1002,12 +968,6 @@ bool Player::UpdateSkillPro(uint16 SkillId, int32 Chance, uint32 step)
         LOG_DEBUG("entities.player.skills",
                   "Player::UpdateSkillPro Chance={:3.1f}% taken",
                   Chance / 10.0f);
-                  
-        if (SkillId == SKILL_ENCHANTING)
-        {
-            if (Group* group = GetGroup())
-                group->ResetMaxEnchantingLevel();
-        }
 
         sScriptMgr->OnPlayerUpdateSkill(this, SkillId, SkillValue, MaxValue, step, new_value);
         return true;
@@ -1076,7 +1036,7 @@ void Player::UpdateCombatSkills(Unit* victim, WeaponAttackType attType, bool def
         return;
     }
 
-    uint8 greylevel = Ycore::XP::GetGrayLevel(playerLevel);
+    uint8 greylevel = Acore::XP::GetGrayLevel(playerLevel);
     uint8 moblevel = defence ? victim->getLevelForTarget(this) : victim->GetLevel(); // if defense than victim == attacker
     /*if (moblevel < greylevel)
         return;*/
@@ -1214,8 +1174,6 @@ bool Player::UpdatePosition(float x, float y, float z, float orientation,
     if (GetTrader() && !IsWithinDistInMap(GetTrader(), INTERACTION_DISTANCE))
         GetSession()->SendCancelTrade(TRADE_STATUS_TRADE_CANCELED);
 
-    Creature::ClearInteractionStopsOutOfRange(this);
-
     CheckAreaExploreAndOutdoor();
 
     return true;
@@ -1312,41 +1270,6 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
                                       // just area change, works strange...
         if (Guild* guild = GetGuild())
             guild->UpdateMemberData(this, GUILD_MEMBER_DATA_ZONEID, newZone);
-
-        // Re-anchor vehicle passengers, self client derives position from base.
-        if (Vehicle* veh = GetVehicle())
-        {
-            if (Unit* base = veh->GetBase())
-            {
-                if (GetSession())
-                {
-                    MovementInfo mi = base->m_movementInfo;
-                    mi.guid = base->GetGUID();
-                    mi.time = getMSTime();
-                    WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
-                    GetSession()->WriteMovementInfo(&data, &mi);
-                    GetSession()->SendPacket(&data);
-                }
-            }
-        }
-        if (Vehicle* kit = GetVehicleKit())
-        {
-            for (auto const& seatPair : kit->Seats)
-            {
-                if (!seatPair.second.Passenger.Guid)
-                    continue;
-                Unit* passenger = ObjectAccessor::GetUnit(*this, seatPair.second.Passenger.Guid);
-                Player* plr = passenger ? passenger->ToPlayer() : nullptr;
-                if (!plr || !plr->GetSession())
-                    continue;
-                MovementInfo mi = m_movementInfo;
-                mi.guid = GetGUID();
-                mi.time = getMSTime();
-                WorldPacket data(MSG_MOVE_HEARTBEAT, 64);
-                plr->GetSession()->WriteMovementInfo(&data, &mi);
-                plr->GetSession()->SendPacket(&data);
-            }
-        }
     }
 
     GetMap()->UpdatePlayerZoneStats(m_zoneUpdateId, newZone);
@@ -1366,8 +1289,7 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
         return;
 
     if (sWorld->getBoolConfig(CONFIG_WEATHER))
-        if (!GetMap()->GetOrGenerateZoneDefaultWeather(newZone))
-            Weather::SendFineWeatherUpdateToPlayer(this);
+        GetMap()->GetOrGenerateZoneDefaultWeather(newZone);
 
     GetMap()->SendZoneDynamicInfo(newZone, this);
 
@@ -1423,17 +1345,9 @@ void Player::UpdateZone(uint32 newZone, uint32 newArea, bool force)
     // reset, for example)
     AutoUnequipOffhandIfNeed();
 
-    // Apply the first zone transition immediately; later crossings within the
-    // 5s window are collapsed into the latest zone by Player::Update.
-    if (!GetSession()->PlayerLoading() || IsBeingTeleportedFar())
-    {
-        uint32 nowMs = getMSTime();
-        if (!m_lastLocalChannelUpdate || nowMs - m_lastLocalChannelUpdate >= 5000)
-        {
-            UpdateLocalChannels(newZone);
-            m_lastLocalChannelUpdate = nowMs;
-        }
-    }
+    // recent client version not send leave/join channel packets for built-in
+    // local channels
+    UpdateLocalChannels(newZone);
 
     UpdateZoneDependentAuras(newZone);
 }
@@ -1487,7 +1401,7 @@ void Player::UpdateHomebindTime(uint32 time)
             WorldPacket data(SMSG_RAID_GROUP_ONLY, 4 + 4);
             data << uint32(0);
             data << uint32(0);
-            GetSession()->SendPacket(&data);
+            SendDirectMessage(&data);
         }
         // instance is valid, reset homebind timer
         m_HomebindTimer = 0;
@@ -1510,7 +1424,7 @@ void Player::UpdateHomebindTime(uint32 time)
         WorldPacket data(SMSG_RAID_GROUP_ONLY, 4 + 4);
         data << uint32(m_HomebindTimer);
         data << uint32(1);
-        GetSession()->SendPacket(&data);
+        SendDirectMessage(&data);
         LOG_DEBUG(
             "maps",
             "PLAYER: Player '{}' ({}) will be teleported to homebind in 60 "
@@ -1523,8 +1437,11 @@ void Player::UpdatePvPState()
 {
     UpdateFFAPvPState();
 
-    if (pvpInfo.IsHostile && !IsInFlight() && !m_taxi.empty()) // in hostile area, not on a taxi
+    if (pvpInfo.IsHostile) // in hostile area
     {
+        if (IsInFlight()) // on taxi
+            return;
+
         if (!IsPvP() || pvpInfo.EndTimer != 0)
             UpdatePvP(true, true);
     }
@@ -1678,7 +1595,7 @@ void Player::UpdateVisibilityForPlayer(bool mapChange)
     if (mapChange && m_seer != this)
         m_seer = this;
 
-    Ycore::VisibleNotifier notifier(*this, mapChange);
+    Acore::VisibleNotifier notifier(*this, mapChange);
     Cell::VisitObjects(m_seer, notifier, GetSightRange());
     Cell::VisitFarVisibleObjects(m_seer, notifier, VISIBILITY_DISTANCE_GIGANTIC);
     notifier.SendToSelf();
@@ -1857,7 +1774,7 @@ void Player::UpdateTriggerVisibility()
 
     WorldPacket packet;
     udata.BuildPacket(packet);
-    GetSession()->SendPacket(&packet);
+    SendDirectMessage(&packet);
 }
 
 void Player::UpdateForQuestWorldObjects()
@@ -1910,7 +1827,7 @@ void Player::UpdateForQuestWorldObjects()
 
     WorldPacket packet;
     udata.BuildPacket(packet);
-    GetSession()->SendPacket(&packet);
+    SendDirectMessage(&packet);
 }
 
 void Player::UpdateTitansGrip()
@@ -2054,10 +1971,7 @@ void Player::UpdateCharmedAI()
 
     Unit* target = GetVictim();
     if (target)
-    {
         SetInFront(target);
-        SendMovementFlagUpdate(true);
-    }
 
     if (HasUnitState(UNIT_STATE_CASTING))
         return;
@@ -2099,15 +2013,7 @@ void Player::UpdateCharmedAI()
 
     if (!target || !IsValidAttackTarget(target))
     {
-        float const targetSearchDistance = GetMap()->IsDungeon() ? 100.f : 30.f;
-
-        // NPC mind controls should turn a player against their group before
-        // considering unrelated nearby units.
-        if (charmer->IsCreature())
-            target = SelectCharmedAIGroupTarget(targetSearchDistance);
-
-        if (!target)
-            target = SelectNearbyTarget(nullptr, targetSearchDistance);
+        target = SelectNearbyTarget(nullptr, GetMap()->IsDungeon() ? 100.f : 30.f);
         if (!target)
         {
             if (!HasUnitState(UNIT_STATE_FOLLOW))
@@ -2244,32 +2150,6 @@ void Player::UpdateCharmedAI()
     }
 }
 
-Unit* Player::SelectCharmedAIGroupTarget(float distance) const
-{
-    Group const* group = GetGroup();
-    if (!group)
-        return nullptr;
-
-    Player* target = nullptr;
-    for (GroupReference const* itr = group->GetFirstMember(); itr; itr = itr->next())
-    {
-        Player* member = itr->GetSource();
-        if (!member || member == this || !member->IsInWorld())
-            continue;
-
-        if (!IsWithinDistInMap(member, distance) || !IsWithinLOSInMap(member))
-            continue;
-
-        if ((!IsHostileTo(member) && !member->IsHostileTo(this)) || !IsValidAttackTarget(member))
-            continue;
-
-        if (!target || GetDistanceOrder(member, target))
-            target = member;
-    }
-
-    return target;
-}
-
 void Player::UpdateLootAchievements(LootItem* item, Loot* loot)
 {
     UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_ITEM, item->itemid,
@@ -2361,8 +2241,6 @@ void Player::ProcessTerrainStatusUpdate()
 
     LiquidData const& liquidData = GetLiquidData();
 
-    bool wasUnderwater = (m_MirrorTimerFlags & UNDERWATER_INWATER) != 0;
-
     // player specific logic for mirror timers
     if (liquidData.Status != LIQUID_MAP_NO_WATER)
     {
@@ -2409,12 +2287,6 @@ void Player::ProcessTerrainStatusUpdate()
     }
     else
         m_MirrorTimerFlags &= ~(UNDERWATER_INWATER | UNDERWATER_INLAVA | UNDERWATER_INSLIME | UNDERWATER_INDARKWATER);
-
-    // Dismount flying mounts as soon as the player submerges deep enough to start breathing,
-    // even if a water breathing aura prevents the breath timer from actually running.
-    if (!wasUnderwater && (m_MirrorTimerFlags & UNDERWATER_INWATER) &&
-        IsMounted() && HasAuraType(SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED))
-        RemoveAurasByType(SPELL_AURA_MOUNTED);
 }
 
 uint32 Player::GetSpellQueueWindow() const
