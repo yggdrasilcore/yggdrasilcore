@@ -1109,7 +1109,7 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
             // Direct hostile actions (melee / shoot / direct spell hit) extend the
             // victim's leash by one stock bracket. Passive damage does not extend.
             if (damagetype != DOT && damage > 0 && !victim->GetOwnerGUID().IsPlayer()
-                && !IsReactiveProcDamage(spellProto, damageSpell))
+                && !IsReactiveProcDamage(spellProto, damageSpell ? damageSpell->GetTriggeredByAuraSpellInfo() : nullptr))
                 victim->ToCreature()->TryExtendLeashOnDirectHit(attacker);
 
             if (attacker && attacker != victim)
