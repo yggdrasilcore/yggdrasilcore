@@ -802,6 +802,7 @@ public:
     void LoadSpellInfoCustomAttributes();
     void LoadSpellInfoCorrections();
     void LoadSpellSpecificAndAuraState();
+    void LoadSpellJumpDistances();
 
 private:
     // Guards every map above. Recursive (getters/loads nest).
