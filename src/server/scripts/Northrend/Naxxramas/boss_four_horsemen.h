@@ -162,14 +162,16 @@ public:
             me->GetMotionMaster()->MovePoint(currentWaypoint, WaypointPositions[currentWaypoint]);
         }
 
-        bool IsInRoom()
+        void EnterEvadeMode(EvadeReason why) override
         {
-            if (me->GetExactDist(2535.1f, -2968.7f, 241.3f) > 100.0f)
+            if (why == EVADE_REASON_BOUNDARY)
             {
-                EnterEvadeMode();
-                return false;
+                instance->GetCreature(DATA_BARON_RIVENDARE_BOSS)->AI()->EnterEvadeMode(EVADE_REASON_OTHER);
+                instance->GetCreature(DATA_LADY_BLAUMEUX_BOSS)->AI()->EnterEvadeMode(EVADE_REASON_OTHER);
+                instance->GetCreature(DATA_SIR_ZELIEK_BOSS)->AI()->EnterEvadeMode(EVADE_REASON_OTHER);
+                instance->GetCreature(DATA_THANE_KORTHAZZ_BOSS)->AI()->EnterEvadeMode(EVADE_REASON_OTHER);
             }
-            return true;
+            BossAI::EnterEvadeMode();
         }
 
         void Reset() override
@@ -205,7 +207,7 @@ public:
                 me->SetInCombatWithZone();
                 if (!UpdateVictim())
                 {
-                    EnterEvadeMode();
+                    EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
                     return;
                 }
                 if (me->GetEntry() == NPC_LADY_BLAUMEUX || me->GetEntry() == NPC_SIR_ZELIEK)
@@ -274,9 +276,6 @@ public:
                 me->GetMotionMaster()->MovePoint(currentWaypoint, WaypointPositions[currentWaypoint]);
                 currentWaypoint = 0;
             }
-
-            if (!IsInRoom())
-                return;
 
             if (movementPhase < MOVE_PHASE_FINISHED || !UpdateVictim())
                 return;
