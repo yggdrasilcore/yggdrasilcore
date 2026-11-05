@@ -52,7 +52,7 @@ BattlegroundAB::~BattlegroundAB() = default;
 
 void BattlegroundAB::PostUpdateImpl(uint32 diff)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() == STATUS_IN_PROGRESS)
     {
         _bgEvents.Update(diff);
@@ -149,7 +149,7 @@ void BattlegroundAB::PostUpdateImpl(uint32 diff)
 
 void BattlegroundAB::StartingEventCloseDoors()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (uint32 obj = BG_AB_OBJECT_BANNER_NEUTRAL; obj < static_cast<uint8>(BG_AB_DYNAMIC_NODES_COUNT) * BG_AB_OBJECTS_PER_NODE; ++obj)
         SpawnBGObject(obj, RESPAWN_ONE_DAY);
     for (uint32 i = 0; i < BG_AB_DYNAMIC_NODES_COUNT * 3; ++i)
@@ -164,7 +164,7 @@ void BattlegroundAB::StartingEventCloseDoors()
 
 void BattlegroundAB::StartingEventOpenDoors()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (uint32 banner = BG_AB_OBJECT_BANNER_NEUTRAL, i = 0; i < BG_AB_DYNAMIC_NODES_COUNT; banner += BG_AB_OBJECTS_PER_NODE, ++i)
         SpawnBGObject(banner, RESPAWN_IMMEDIATELY);
 
@@ -180,20 +180,20 @@ void BattlegroundAB::StartingEventOpenDoors()
 
 void BattlegroundAB::AddPlayer(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Battleground::AddPlayer(player);
     PlayerScores.emplace(player->GetGUID().GetCounter(), new BattlegroundABScore(player->GetGUID()));
 }
 
 void BattlegroundAB::RemovePlayer(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     player->SetPhaseMask(1, false);
 }
 
 void BattlegroundAB::HandleAreaTrigger(Player* player, uint32 trigger)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
 
@@ -226,7 +226,7 @@ void BattlegroundAB::HandleAreaTrigger(Player* player, uint32 trigger)
 
 void BattlegroundAB::CreateBanner(uint8 node, bool delay)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Just put it into the queue
     if (delay)
     {
@@ -240,14 +240,14 @@ void BattlegroundAB::CreateBanner(uint8 node, bool delay)
 
 void BattlegroundAB::DeleteBanner(uint8 node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     SpawnBGObject(node * BG_AB_OBJECTS_PER_NODE + _capturePointInfo[node]._state, RESPAWN_ONE_DAY);
     SpawnBGObject(node * BG_AB_OBJECTS_PER_NODE + BG_AB_OBJECT_AURA_ALLY + _capturePointInfo[node]._ownerTeamId, RESPAWN_ONE_DAY);
 }
 
 void BattlegroundAB::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     packet.Worldstates.reserve(BG_AB_DYNAMIC_NODES_COUNT+7);
     for (auto& node : _capturePointInfo)
     {
@@ -269,7 +269,7 @@ void BattlegroundAB::FillInitialWorldStates(WorldPackets::WorldState::InitWorldS
 
 void BattlegroundAB::SendNodeUpdate(uint8 node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     UpdateWorldState(_capturePointInfo[node]._iconNone, 0);
     for (uint8 i = BG_AB_NODE_STATE_ALLY_OCCUPIED; i <= BG_AB_NODE_STATE_HORDE_CONTESTED; ++i)
         UpdateWorldState(_capturePointInfo[node]._iconCapture + i - 1, _capturePointInfo[node]._state == i);
@@ -280,7 +280,7 @@ void BattlegroundAB::SendNodeUpdate(uint8 node)
 
 void BattlegroundAB::NodeOccupied(uint8 node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ApplyPhaseMask();
     AddSpiritGuide(node, BG_AB_SpiritGuidePos[node][0], BG_AB_SpiritGuidePos[node][1], BG_AB_SpiritGuidePos[node][2], BG_AB_SpiritGuidePos[node][3], _capturePointInfo[node]._ownerTeamId);
 
@@ -303,7 +303,7 @@ void BattlegroundAB::NodeOccupied(uint8 node)
 
 void BattlegroundAB::NodeDeoccupied(uint8 node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     --_controlledPoints[_capturePointInfo[node]._ownerTeamId];
 
     _capturePointInfo[node]._ownerTeamId = TEAM_NEUTRAL;
@@ -319,7 +319,7 @@ void BattlegroundAB::NodeDeoccupied(uint8 node)
 
 void BattlegroundAB::EventPlayerClickedOnFlag(Player* player, GameObject* gameObject)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS || !player->IsWithinDistInMap(gameObject, 10.0f))
         return;
 
@@ -426,7 +426,7 @@ void BattlegroundAB::EventPlayerClickedOnFlag(Player* player, GameObject* gameOb
 
 TeamId BattlegroundAB::GetPrematureWinner()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (_controlledPoints[TEAM_ALLIANCE] > _controlledPoints[TEAM_HORDE])
         return TEAM_ALLIANCE;
     return _controlledPoints[TEAM_HORDE] > _controlledPoints[TEAM_ALLIANCE] ? TEAM_HORDE : Battleground::GetPrematureWinner();
@@ -434,7 +434,7 @@ TeamId BattlegroundAB::GetPrematureWinner()
 
 bool BattlegroundAB::SetupBattleground()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     _honorTics = BattlegroundMgr::IsBGWeekend(GetBgTypeID(true)) ? BG_AB_HONOR_TICK_WEEKEND : BG_AB_HONOR_TICK_NORMAL;
     _reputationTics = BattlegroundMgr::IsBGWeekend(GetBgTypeID(true)) ? BG_AB_REP_TICK_WEEKEND : BG_AB_REP_TICK_NORMAL;
     _abReputationRate = sWorld->getRate(RATE_REPUTATION_GAIN_AB);
@@ -483,7 +483,7 @@ bool BattlegroundAB::SetupBattleground()
 
 void BattlegroundAB::Init()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //call parent's class reset
     Battleground::Init();
 
@@ -508,7 +508,7 @@ void BattlegroundAB::Init()
 
 void BattlegroundAB::EndBattleground(TeamId winnerTeamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     RewardHonorToTeam(GetBonusHonorFromKill(1), winnerTeamId);
     RewardHonorToTeam(GetBonusHonorFromKill(1), TEAM_HORDE);
     RewardHonorToTeam(GetBonusHonorFromKill(1), TEAM_ALLIANCE);
@@ -518,7 +518,7 @@ void BattlegroundAB::EndBattleground(TeamId winnerTeamId)
 
 GraveyardStruct const* BattlegroundAB::GetClosestGraveyard(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     GraveyardStruct const* entry = sGraveyard->GetGraveyard(BG_AB_GraveyardIds[static_cast<uint8>(BG_AB_SPIRIT_ALIANCE) + player->GetTeamId()]);
     GraveyardStruct const* nearestEntry = entry;
 
@@ -544,7 +544,7 @@ GraveyardStruct const* BattlegroundAB::GetClosestGraveyard(Player* player)
 
 bool BattlegroundAB::UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!Battleground::UpdatePlayerScore(player, type, value, doAddHonor))
         return false;
 
@@ -565,13 +565,13 @@ bool BattlegroundAB::UpdatePlayerScore(Player* player, uint32 type, uint32 value
 
 bool BattlegroundAB::AllNodesConrolledByTeam(TeamId teamId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return _controlledPoints[teamId] == BG_AB_DYNAMIC_NODES_COUNT;
 }
 
 void BattlegroundAB::ApplyPhaseMask()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint32 phaseMask = 1;
     for (uint32 i = BG_AB_NODE_STABLES; i < BG_AB_DYNAMIC_NODES_COUNT; ++i)
         if (_capturePointInfo[i]._ownerTeamId != TEAM_NEUTRAL)

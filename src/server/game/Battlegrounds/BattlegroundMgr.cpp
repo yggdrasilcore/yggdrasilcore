@@ -85,7 +85,7 @@ BattlegroundMgr* BattlegroundMgr::instance()
 
 void BattlegroundMgr::DeleteAllBattlegrounds()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (auto& [_, data] : bgDataStore)
     {
         while (!data._Battlegrounds.empty())
@@ -107,7 +107,7 @@ void BattlegroundMgr::Update(uint32 diff)
     // erase/delete flagged instances (deletion happens only here).
     std::vector<Battleground*> tickList;
     {
-        std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+        GroupSocialLock lock;
         for (auto& [_, bgData] : bgDataStore)
         {
             auto& bgList = bgData._Battlegrounds;
@@ -122,8 +122,10 @@ void BattlegroundMgr::Update(uint32 diff)
         if (!bg->ToBeDeleted())
             bg->Update(diff);
 
+    // Unlink under the lock, destroy after it: the destructor dispatches a hook.
+    std::vector<Battleground*> toDelete;
     {
-        std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+        GroupSocialLock lock;
         // delete flagged battlegrounds
         for (auto& [_, bgData] : bgDataStore)
         {
@@ -145,11 +147,14 @@ void BattlegroundMgr::Update(uint32 diff)
                     if (!clients.empty())
                         clients.erase(bg->GetClientInstanceID());
 
-                    delete bg;
+                    toDelete.push_back(bg);
                 }
             }
         }
     }
+
+    for (Battleground* bg : toDelete)
+        delete bg;
 
     // update events
     for (uint8 qtype = BATTLEGROUND_QUEUE_NONE; qtype < MAX_BATTLEGROUND_QUEUE_TYPES; ++qtype)
@@ -220,7 +225,7 @@ void BattlegroundMgr::Update(uint32 diff)
 
 void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, uint8 QueueSlot, uint8 StatusID, uint32 Time1, uint32 Time2, uint8 arenatype, TeamId teamId, bool isRated, BattlegroundTypeId forceBgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // pussywizard:
     //ASSERT(QueueSlot < PLAYER_MAX_BATTLEGROUND_QUEUES);
 
@@ -273,7 +278,7 @@ void BattlegroundMgr::BuildBattlegroundStatusPacket(WorldPacket* data, Battlegro
 
 void BattlegroundMgr::BuildGroupJoinedBattlegroundPacket(WorldPacket* data, GroupJoinBattlegroundResult result)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     data->Initialize(SMSG_GROUP_JOINED_BATTLEGROUND, 4);
     *data << int32(result);
     if (result == ERR_BATTLEGROUND_JOIN_TIMED_OUT || result == ERR_BATTLEGROUND_JOIN_FAILED)
@@ -282,21 +287,21 @@ void BattlegroundMgr::BuildGroupJoinedBattlegroundPacket(WorldPacket* data, Grou
 
 void BattlegroundMgr::BuildPlayerLeftBattlegroundPacket(WorldPacket* data, ObjectGuid guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     data->Initialize(SMSG_BATTLEGROUND_PLAYER_LEFT, 8);
     *data << guid;
 }
 
 void BattlegroundMgr::BuildPlayerJoinedBattlegroundPacket(WorldPacket* data, Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     data->Initialize(SMSG_BATTLEGROUND_PLAYER_JOINED, 8);
     *data << player->GetGUID();
 }
 
 Battleground* BattlegroundMgr::GetBattlegroundThroughClientInstance(uint32 instanceId, BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //cause at HandleBattlegroundJoinOpcode the clients sends the instanceid he gets from
     //SMSG_BATTLEFIELD_LIST we need to find the battleground with this clientinstance-id
     Battleground* bg = GetBattlegroundTemplate(bgTypeId);
@@ -321,7 +326,7 @@ Battleground* BattlegroundMgr::GetBattlegroundThroughClientInstance(uint32 insta
 
 Battleground* BattlegroundMgr::GetBattleground(uint32 instanceId, BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!instanceId)
         return nullptr;
 
@@ -357,7 +362,7 @@ Battleground* BattlegroundMgr::GetBattleground(uint32 instanceId, BattlegroundTy
 
 Battleground* BattlegroundMgr::GetBattlegroundTemplate(BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     BattlegroundDataContainer::const_iterator itr = bgDataStore.find(bgTypeId);
     if (itr == bgDataStore.end())
         return nullptr;
@@ -370,7 +375,7 @@ Battleground* BattlegroundMgr::GetBattlegroundTemplate(BattlegroundTypeId bgType
 
 std::vector<Battleground const*> BattlegroundMgr::GetActiveBattlegrounds()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     std::vector<Battleground const*> result;
 
     for (auto const& [bgType, bgData] : bgDataStore)
@@ -383,7 +388,7 @@ std::vector<Battleground const*> BattlegroundMgr::GetActiveBattlegrounds()
 
 uint32 BattlegroundMgr::CreateClientVisibleInstanceId(BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (IsArenaType(bgTypeId))
         return 0; // arenas don't have client-instanceids
 
@@ -412,7 +417,7 @@ uint32 BattlegroundMgr::CreateClientVisibleInstanceId(BattlegroundTypeId bgTypeI
 // create a new battleground that will really be used to play
 Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundTypeId originalBgTypeId, PvPDifficultyEntry const* bracketEntry, uint8 arenaType, bool isRated)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     BattlegroundTypeId bgTypeId = GetRandomBG(originalBgTypeId, bracketEntry->minLevel);
 
     if (originalBgTypeId == BATTLEGROUND_AA)
@@ -453,7 +458,7 @@ Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundTypeId original
     if (bg->isArena())
     {
         uint32 maxPlayersPerTeam = ArenaTeam::GetReqPlayersForType(arenaType) / 2;
-        sScriptMgr->OnSetArenaMaxPlayersPerTeam(arenaType, maxPlayersPerTeam);
+        GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnSetArenaMaxPlayersPerTeam(arenaType, maxPlayersPerTeam); });
         bg->SetMaxPlayersPerTeam(maxPlayersPerTeam);
     }
 
@@ -463,7 +468,7 @@ Battleground* BattlegroundMgr::CreateNewBattleground(BattlegroundTypeId original
 // used to create the BG templates
 bool BattlegroundMgr::CreateBattleground(BattlegroundTemplate const* bgTemplate)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Create the BG
     Battleground* bg = GetBattlegroundTemplate(bgTemplate->Id);
 
@@ -497,7 +502,7 @@ bool BattlegroundMgr::CreateBattleground(BattlegroundTemplate const* bgTemplate)
 
 void BattlegroundMgr::LoadBattlegroundTemplates()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint32 oldMSTime = getMSTime();
 
     _battlegroundMapTemplates.clear();
@@ -597,7 +602,7 @@ void BattlegroundMgr::LoadBattlegroundTemplates()
 
 void BattlegroundMgr::InitAutomaticArenaPointDistribution()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!sWorld->getBoolConfig(CONFIG_ARENA_AUTO_DISTRIBUTE_POINTS))
         return;
 
@@ -621,7 +626,7 @@ void BattlegroundMgr::InitAutomaticArenaPointDistribution()
 
 void BattlegroundMgr::BuildBattlegroundListPacket(WorldPacket* data, ObjectGuid guid, Player* player, BattlegroundTypeId bgTypeId, uint8 fromWhere)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!player)
         return;
 
@@ -688,7 +693,7 @@ void BattlegroundMgr::BuildBattlegroundListPacket(WorldPacket* data, ObjectGuid 
 
 void BattlegroundMgr::SendToBattleground(Player* player, uint32 instanceId, BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (Battleground* bg = GetBattleground(instanceId, bgTypeId))
     {
         uint32 mapid = bg->GetMapId();
@@ -705,18 +710,18 @@ void BattlegroundMgr::SendToBattleground(Player* player, uint32 instanceId, Batt
 
 void BattlegroundMgr::SendAreaSpiritHealerQueryOpcode(Player* player, Battleground* bg, ObjectGuid guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_AREA_SPIRIT_HEALER_TIME, 12);
     uint32 time_ = RESURRECTION_INTERVAL - bg->GetLastResurrectTime();      // resurrect every X seconds
     if (time_ == uint32(-1))
         time_ = 0;
     data << guid << time_;
-    player->GetSession()->SendPacket(&data);
+    GroupSocialLock::Send(player->GetGUID(), data);
 }
 
 bool BattlegroundMgr::IsArenaType(BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return bgTypeId == BATTLEGROUND_AA
            || bgTypeId == BATTLEGROUND_BE
            || bgTypeId == BATTLEGROUND_NA
@@ -727,7 +732,7 @@ bool BattlegroundMgr::IsArenaType(BattlegroundTypeId bgTypeId)
 
 BattlegroundQueueTypeId BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId bgTypeId, uint8 arenaType)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint32 queueTypeID = BATTLEGROUND_QUEUE_NONE;
 
     if (arenaType)
@@ -737,7 +742,7 @@ BattlegroundQueueTypeId BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId bgType
             queueTypeID = BattlegroundMgr::ArenaTypeToQueue.at(arenaType);
         }
 
-        sScriptMgr->OnArenaTypeIDToQueueID(bgTypeId, arenaType, queueTypeID);
+        GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnArenaTypeIDToQueueID(bgTypeId, arenaType, queueTypeID); });
 
         return static_cast<BattlegroundQueueTypeId>(queueTypeID);
     }
@@ -752,7 +757,7 @@ BattlegroundQueueTypeId BattlegroundMgr::BGQueueTypeId(BattlegroundTypeId bgType
 
 BattlegroundTypeId BattlegroundMgr::BGTemplateId(BattlegroundQueueTypeId bgQueueTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (BattlegroundMgr::queueToBg.find(bgQueueTypeId) == BattlegroundMgr::queueToBg.end())
     {
         return BattlegroundTypeId(0);
@@ -763,7 +768,7 @@ BattlegroundTypeId BattlegroundMgr::BGTemplateId(BattlegroundQueueTypeId bgQueue
 
 uint8 BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId bgQueueTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint8 arenaType = 0;
 
     if (BattlegroundMgr::QueueToArenaType.find(bgQueueTypeId) != BattlegroundMgr::QueueToArenaType.end())
@@ -771,14 +776,14 @@ uint8 BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId bgQueueTypeId)
         arenaType = BattlegroundMgr::QueueToArenaType.at(bgQueueTypeId);
     }
 
-    sScriptMgr->OnArenaQueueIdToArenaType(bgQueueTypeId, arenaType);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnArenaQueueIdToArenaType(bgQueueTypeId, arenaType); });
 
     return arenaType;
 }
 
 void BattlegroundMgr::ToggleTesting()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (sWorld->getBoolConfig(CONFIG_DEBUG_BATTLEGROUND))
     {
         m_Testing = true;
@@ -793,7 +798,7 @@ void BattlegroundMgr::ToggleTesting()
 
 void BattlegroundMgr::ToggleArenaTesting()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (sWorld->getBoolConfig(CONFIG_DEBUG_ARENA))
     {
         m_ArenaTesting = true;
@@ -808,7 +813,7 @@ void BattlegroundMgr::ToggleArenaTesting()
 
 void BattlegroundMgr::SetHolidayWeekends(uint32 mask)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (uint32 bgtype = 1; bgtype < MAX_BATTLEGROUND_TYPE_ID; ++bgtype)
     {
         if (bgtype == BATTLEGROUND_RB)
@@ -820,7 +825,7 @@ void BattlegroundMgr::SetHolidayWeekends(uint32 mask)
 
 void BattlegroundMgr::ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 arenaType, BattlegroundQueueTypeId bgQueueTypeId, BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //This method must be atomic, @todo add mutex
     //we will use only 1 number created of bgTypeId and bracket_id
     uint64 const scheduleId = ((uint64)arenaMatchmakerRating << 32) | ((uint64)arenaType << 24) | ((uint64)bgQueueTypeId << 16) | ((uint64)bgTypeId << 8) | (uint64)bracket_id;
@@ -830,7 +835,7 @@ void BattlegroundMgr::ScheduleQueueUpdate(uint32 arenaMatchmakerRating, uint8 ar
 
 uint32 BattlegroundMgr::GetMaxRatingDifference() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint32 diff = sWorld->getIntConfig(CONFIG_ARENA_MAX_RATING_DIFFERENCE);
 
     if (diff == 0)
@@ -843,19 +848,19 @@ uint32 BattlegroundMgr::GetMaxRatingDifference() const
 
 uint32 BattlegroundMgr::GetRatingDiscardTimer() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return sWorld->getIntConfig(CONFIG_ARENA_RATING_DISCARD_TIMER);
 }
 
 uint32 BattlegroundMgr::GetPrematureFinishTime() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return sWorld->getIntConfig(CONFIG_BATTLEGROUND_PREMATURE_FINISH_TIMER);
 }
 
 void BattlegroundMgr::LoadBattleMastersEntry()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint32 oldMSTime = getMSTime();
 
     mBattleMastersMap.clear();                                  // need for reload case
@@ -907,7 +912,7 @@ void BattlegroundMgr::LoadBattleMastersEntry()
 
 void BattlegroundMgr::CheckBattleMasters()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     sObjectMgr->ForEachCreatureTemplate([&](uint32 /*entry*/, CreatureTemplate const& t)
     {
         if ((t.npcflag & UNIT_NPC_FLAG_BATTLEMASTER) && mBattleMastersMap.find(t.Entry) == mBattleMastersMap.end())
@@ -920,7 +925,7 @@ void BattlegroundMgr::CheckBattleMasters()
 
 HolidayIds BattlegroundMgr::BGTypeToWeekendHolidayId(BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     switch (bgTypeId)
     {
         case BATTLEGROUND_AV:
@@ -942,7 +947,7 @@ HolidayIds BattlegroundMgr::BGTypeToWeekendHolidayId(BattlegroundTypeId bgTypeId
 
 BattlegroundTypeId BattlegroundMgr::WeekendHolidayIdToBGType(HolidayIds holiday)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     switch (holiday)
     {
         case HOLIDAY_CALL_TO_ARMS_AV:
@@ -964,13 +969,13 @@ BattlegroundTypeId BattlegroundMgr::WeekendHolidayIdToBGType(HolidayIds holiday)
 
 bool BattlegroundMgr::IsBGWeekend(BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return IsHolidayActive(BGTypeToWeekendHolidayId(bgTypeId));
 }
 
 BattlegroundTypeId BattlegroundMgr::GetRandomBG(BattlegroundTypeId bgTypeId, uint32 minLevel)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (BattlegroundTemplate const* bgTemplate = GetBattlegroundTemplateByTypeId(bgTypeId))
     {
         std::vector<BattlegroundTypeId> ids;
@@ -1001,19 +1006,19 @@ BattlegroundTypeId BattlegroundMgr::GetRandomBG(BattlegroundTypeId bgTypeId, uin
 
 BGFreeSlotQueueContainer& BattlegroundMgr::GetBGFreeSlotQueueStore(BattlegroundTypeId bgTypeId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return bgDataStore[bgTypeId].BGFreeSlotQueue;
 }
 
 void BattlegroundMgr::AddToBGFreeSlotQueue(BattlegroundTypeId bgTypeId, Battleground* bg)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     bgDataStore[bgTypeId].BGFreeSlotQueue.push_front(bg);
 }
 
 void BattlegroundMgr::RemoveFromBGFreeSlotQueue(BattlegroundTypeId bgTypeId, uint32 instanceId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     BGFreeSlotQueueContainer& queues = bgDataStore[bgTypeId].BGFreeSlotQueue;
     for (BGFreeSlotQueueContainer::iterator itr = queues.begin(); itr != queues.end(); ++itr)
         if ((*itr)->GetInstanceID() == instanceId)
@@ -1025,16 +1030,16 @@ void BattlegroundMgr::RemoveFromBGFreeSlotQueue(BattlegroundTypeId bgTypeId, uin
 
 void BattlegroundMgr::AddBattleground(Battleground* bg)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (bg)
         bgDataStore[bg->GetBgTypeID()]._Battlegrounds[bg->GetInstanceID()] = bg;
 
-    sScriptMgr->OnBattlegroundCreate(bg);
+    GroupSocialLock::Defer([bg]() { sScriptMgr->OnBattlegroundCreate(bg); });
 }
 
 void BattlegroundMgr::RemoveBattleground(BattlegroundTypeId bgTypeId, uint32 instanceId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     bgDataStore[bgTypeId]._Battlegrounds.erase(instanceId);
 }
 

@@ -76,7 +76,7 @@ BattlegroundAV::BattlegroundAV()
 
 void BattlegroundAV::HandleKillPlayer(Player* player, Player* killer)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
 
@@ -86,7 +86,7 @@ void BattlegroundAV::HandleKillPlayer(Player* player, Player* killer)
 
 void BattlegroundAV::HandleKillUnit(Creature* unit, Player* killer)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     LOG_DEBUG("bg.battleground", "bg_av HandleKillUnit {}", unit->GetEntry());
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
@@ -170,7 +170,7 @@ void BattlegroundAV::HandleKillUnit(Creature* unit, Player* killer)
 
 void BattlegroundAV::HandleQuestComplete(uint32 questid, Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;//maybe we should log this, cause this must be a cheater or a big bug
     TeamId teamId = player->GetTeamId();
@@ -279,7 +279,7 @@ void BattlegroundAV::HandleQuestComplete(uint32 questid, Player* player)
 
 void BattlegroundAV::UpdateScore(TeamId teamId, int16 points)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (BG_AV_SCORE_INITIAL_POINTS == 0)
         return; // don't update teamscores if reinforcements are disabled
 
@@ -313,7 +313,7 @@ void BattlegroundAV::UpdateScore(TeamId teamId, int16 points)
 
 Creature* BattlegroundAV::AddAVCreature(uint16 cinfoid, uint16 type)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     bool isStatic = false;
     Creature* creature = nullptr;
     ASSERT(type <= static_cast<uint16>(AV_CPLACE_MAX) + AV_STATICCPLACE_MAX);
@@ -405,7 +405,7 @@ Creature* BattlegroundAV::AddAVCreature(uint16 cinfoid, uint16 type)
 
 void BattlegroundAV::PostUpdateImpl(uint32 diff)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() == STATUS_IN_PROGRESS)
     {
         for (uint8 i = 0; i <= 1; i++) //0=alliance, 1=horde
@@ -477,7 +477,7 @@ void BattlegroundAV::PostUpdateImpl(uint32 diff)
 
 void BattlegroundAV::StartingEventCloseDoors()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     SpawnBGObject(BG_AV_OBJECT_DOOR_A, RESPAWN_IMMEDIATELY);
     SpawnBGObject(BG_AV_OBJECT_DOOR_H, RESPAWN_IMMEDIATELY);
 
@@ -487,7 +487,7 @@ void BattlegroundAV::StartingEventCloseDoors()
 
 void BattlegroundAV::StartingEventOpenDoors()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     LOG_DEBUG("bg.battleground", "BG_AV: start spawning mine stuff");
     for (uint16 i = BG_AV_OBJECT_MINE_SUPPLY_N_MIN; i <= BG_AV_OBJECT_MINE_SUPPLY_N_MAX; i++)
         SpawnBGObject(i, RESPAWN_IMMEDIATELY, 5 * MINUTE);
@@ -511,14 +511,14 @@ void BattlegroundAV::StartingEventOpenDoors()
 
 void BattlegroundAV::AddPlayer(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Battleground::AddPlayer(player);
     PlayerScores.emplace(player->GetGUID().GetCounter(), new BattlegroundAVScore(player->GetGUID()));
 }
 
 void BattlegroundAV::EndBattleground(TeamId winnerTeamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //calculate bonuskills for both teams:
     //first towers:
     uint8 kills[2] = {0, 0}; // 0 = Alliance 1 = Horde
@@ -579,7 +579,7 @@ void BattlegroundAV::EndBattleground(TeamId winnerTeamId)
 
 void BattlegroundAV::RemovePlayer(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //TODO search more buffs
     player->RemoveAurasDueToSpell(AV_BUFF_ARMOR);
     player->RemoveAurasDueToSpell(AV_BUFF_A_CAPTAIN);
@@ -588,7 +588,7 @@ void BattlegroundAV::RemovePlayer(Player* player)
 
 void BattlegroundAV::HandleAreaTrigger(Player* player, uint32 trigger)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // this is wrong way to implement these things. On official it done by gameobject spell cast.
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
@@ -623,7 +623,7 @@ void BattlegroundAV::HandleAreaTrigger(Player* player, uint32 trigger)
 
 bool BattlegroundAV::UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!Battleground::UpdatePlayerScore(player, type, value, doAddHonor))
         return false;
 
@@ -650,7 +650,7 @@ bool BattlegroundAV::UpdatePlayerScore(Player* player, uint32 type, uint32 value
 
 void BattlegroundAV::EventPlayerDestroyedPoint(BG_AV_Nodes node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint32 object = GetObjectThroughNode(node);
     LOG_DEBUG("bg.battleground", "bg_av: player destroyed point node {} object {}", node, object);
 
@@ -704,7 +704,7 @@ void BattlegroundAV::EventPlayerDestroyedPoint(BG_AV_Nodes node)
 
 void BattlegroundAV::ChangeMineOwner(uint8 mine, TeamId teamId, bool initial)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // mine=0 northmine mine=1 southmin
     // changing the owner results in setting respawntim to infinite for current creatures,
     // spawning new mine owners creatures and changing the chest-objects so that the current owning team can use them
@@ -790,7 +790,7 @@ void BattlegroundAV::ChangeMineOwner(uint8 mine, TeamId teamId, bool initial)
 
 bool BattlegroundAV::PlayerCanDoMineQuest(int32 GOId, TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GOId == BG_AV_OBJECTID_MINE_N)
         return (m_Mine_Owner[AV_NORTH_MINE] == teamId);
     if (GOId == BG_AV_OBJECTID_MINE_S)
@@ -800,7 +800,7 @@ bool BattlegroundAV::PlayerCanDoMineQuest(int32 GOId, TeamId teamId)
 
 void BattlegroundAV::PopulateNode(BG_AV_Nodes node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     TeamId ownerId = m_Nodes[node].OwnerId;
 
     uint32 c_place = AV_CPLACE_DEFENSE_STORM_AID + (4 * node);
@@ -855,7 +855,7 @@ void BattlegroundAV::PopulateNode(BG_AV_Nodes node)
 }
 void BattlegroundAV::DePopulateNode(BG_AV_Nodes node, bool ignoreSpiritGuide)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint32 c_place = AV_CPLACE_DEFENSE_STORM_AID + (4 * node);
     for (uint8 i = 0; i < 4; i++)
     {
@@ -878,7 +878,7 @@ void BattlegroundAV::DePopulateNode(BG_AV_Nodes node, bool ignoreSpiritGuide)
 
 BG_AV_Nodes BattlegroundAV::GetNodeThroughObject(uint32 object)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     LOG_DEBUG("bg.battleground", "bg_AV getnodethroughobject {}", object);
     if (object <= BG_AV_OBJECT_FLAG_A_STONEHEART_BUNKER)
         return BG_AV_Nodes(object);
@@ -901,7 +901,7 @@ BG_AV_Nodes BattlegroundAV::GetNodeThroughObject(uint32 object)
 
 uint32 BattlegroundAV::GetObjectThroughNode(BG_AV_Nodes node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //this function is the counterpart to GetNodeThroughObject()
     LOG_DEBUG("bg.battleground", "bg_AV GetObjectThroughNode {}", node);
     if (m_Nodes[node].OwnerId == TEAM_ALLIANCE)
@@ -943,7 +943,7 @@ uint32 BattlegroundAV::GetObjectThroughNode(BG_AV_Nodes node)
 
 void BattlegroundAV::EventPlayerClickedOnFlag(Player* source, GameObject* gameObject)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetStatus() != STATUS_IN_PROGRESS)
         return;
     int32 object = GetObjectType(gameObject->GetGUID());
@@ -971,7 +971,7 @@ void BattlegroundAV::EventPlayerClickedOnFlag(Player* source, GameObject* gameOb
 
 void BattlegroundAV::EventPlayerDefendsPoint(Player* player, uint32 object)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ASSERT(GetStatus() == STATUS_IN_PROGRESS);
     BG_AV_Nodes node = GetNodeThroughObject(object);
 
@@ -1038,7 +1038,7 @@ void BattlegroundAV::EventPlayerDefendsPoint(Player* player, uint32 object)
 
 void BattlegroundAV::EventPlayerAssaultsPoint(Player* player, uint32 object)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ASSERT(GetStatus() == STATUS_IN_PROGRESS);
 
     BG_AV_Nodes node = GetNodeThroughObject(object);
@@ -1146,7 +1146,7 @@ void BattlegroundAV::EventPlayerAssaultsPoint(Player* player, uint32 object)
 
 void BattlegroundAV::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     bool stateok;
     packet.Worldstates.reserve(7*2*2 + 8*2*2 + 5);
     //graveyards
@@ -1187,7 +1187,7 @@ void BattlegroundAV::FillInitialWorldStates(WorldPackets::WorldState::InitWorldS
 
 uint8 BattlegroundAV::GetWorldStateType(uint8 state, TeamId teamId) //this is used for node worldstates and returns values which fit good into the worldstatesarray
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     //neutral stuff cant get handled (currently its only snowfall)
     ASSERT(teamId != TEAM_NEUTRAL);
     //a_c a_a h_c h_a the positions in worldstate-array
@@ -1211,7 +1211,7 @@ uint8 BattlegroundAV::GetWorldStateType(uint8 state, TeamId teamId) //this is us
 
 void BattlegroundAV::UpdateNodeWorldState(BG_AV_Nodes node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     UpdateWorldState(BG_AV_NodeWorldStates[node][GetWorldStateType(m_Nodes[node].State, m_Nodes[node].OwnerId)], 1);
     if (m_Nodes[node].PrevOwnerId == TEAM_NEUTRAL) //currently only snowfall is supported as neutral node (i don't want to make an extra row (neutral states) in worldstatesarray just for one node
         UpdateWorldState(WORLD_STATE_BATTLEGROUND_AV_SNOWFALL_N, 0);
@@ -1221,7 +1221,7 @@ void BattlegroundAV::UpdateNodeWorldState(BG_AV_Nodes node)
 
 void BattlegroundAV::SendMineWorldStates(uint32 mine)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ASSERT(mine == AV_NORTH_MINE || mine == AV_SOUTH_MINE);
 
     uint8 owner = 1;
@@ -1239,7 +1239,7 @@ void BattlegroundAV::SendMineWorldStates(uint32 mine)
 
 GraveyardStruct const* BattlegroundAV::GetClosestGraveyard(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     GraveyardStruct const* entry = nullptr;
     float dist = 0;
     float minDist = 0;
@@ -1269,7 +1269,7 @@ GraveyardStruct const* BattlegroundAV::GetClosestGraveyard(Player* player)
 
 bool BattlegroundAV::SetupBattleground()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     _avReputationRate = sWorld->getRate(RATE_REPUTATION_GAIN_AV);
 
     if (sBattlegroundMgr->IsBGWeekend(GetBgTypeID(true)))
@@ -1561,7 +1561,7 @@ bool BattlegroundAV::SetupBattleground()
 
 uint8 BattlegroundAV::GetAttackString(BG_AV_Nodes node, TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint8 strId = 0;
     switch (node)
     {
@@ -1661,7 +1661,7 @@ uint8 BattlegroundAV::GetAttackString(BG_AV_Nodes node, TeamId teamId)
 
 uint8 BattlegroundAV::GetDefendString(BG_AV_Nodes node, TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint8 strId = 0;
     switch (node)
     {
@@ -1761,7 +1761,7 @@ uint8 BattlegroundAV::GetDefendString(BG_AV_Nodes node, TeamId teamId)
 
 uint8 BattlegroundAV::GetMineString(uint8 mineId, TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     uint8 strId = 0;
     switch (mineId)
     {
@@ -1786,7 +1786,7 @@ uint8 BattlegroundAV::GetMineString(uint8 mineId, TeamId teamId)
 
 void BattlegroundAV::AssaultNode(BG_AV_Nodes node, TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_Nodes[node].TotalOwnerId == teamId)
     {
         LOG_FATAL("bg.battleground", "Assaulting team is TotalOwner of node");
@@ -1817,7 +1817,7 @@ void BattlegroundAV::AssaultNode(BG_AV_Nodes node, TeamId teamId)
 
 void BattlegroundAV::DestroyNode(BG_AV_Nodes node)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ASSERT(m_Nodes[node].State == POINT_ASSAULTED);
 
     m_Nodes[node].TotalOwnerId = m_Nodes[node].OwnerId;
@@ -1829,7 +1829,7 @@ void BattlegroundAV::DestroyNode(BG_AV_Nodes node)
 
 void BattlegroundAV::InitNode(BG_AV_Nodes node, TeamId teamId, bool tower)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_Nodes[node].TotalOwnerId = teamId;
     m_Nodes[node].OwnerId      = teamId;
     m_Nodes[node].PrevOwnerId  = TEAM_NEUTRAL;
@@ -1841,7 +1841,7 @@ void BattlegroundAV::InitNode(BG_AV_Nodes node, TeamId teamId, bool tower)
 
 void BattlegroundAV::DefendNode(BG_AV_Nodes node, TeamId teamId)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ASSERT(m_Nodes[node].TotalOwnerId == teamId);
     ASSERT(m_Nodes[node].OwnerId != teamId);
     ASSERT(m_Nodes[node].State != POINT_CONTROLLED && m_Nodes[node].State != POINT_DESTROYED);
@@ -1854,7 +1854,7 @@ void BattlegroundAV::DefendNode(BG_AV_Nodes node, TeamId teamId)
 
 void BattlegroundAV::ResetBGSubclass()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (uint8 i = 0; i < 2; i++) //forloop for both teams (it just make 0 == alliance and 1 == horde also for both mines 0=north 1=south
     {
         for (uint8 j = 0; j < 9; j++)
@@ -1883,7 +1883,7 @@ void BattlegroundAV::ResetBGSubclass()
 
 bool BattlegroundAV::IsBothMinesControlledByTeam(TeamId teamId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (auto& mine : m_Mine_Owner)
         if (mine != teamId)
             return false;
@@ -1893,7 +1893,7 @@ bool BattlegroundAV::IsBothMinesControlledByTeam(TeamId teamId) const
 
 bool BattlegroundAV::IsAllTowersControlledAndCaptainAlive(TeamId teamId) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (teamId == TEAM_ALLIANCE)
     {
         for (BG_AV_Nodes i = BG_AV_NODES_DUNBALDAR_SOUTH; i <= BG_AV_NODES_STONEHEART_BUNKER; ++i) // alliance towers controlled
@@ -1938,7 +1938,7 @@ bool BattlegroundAV::IsAllTowersControlledAndCaptainAlive(TeamId teamId) const
 
 TeamId BattlegroundAV::GetPrematureWinner()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (GetTeamScore(TEAM_ALLIANCE) > GetTeamScore(TEAM_HORDE))
         return TEAM_ALLIANCE;
 

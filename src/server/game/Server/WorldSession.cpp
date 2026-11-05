@@ -28,6 +28,7 @@
 #include "DatabaseEnv.h"
 #include "GameTime.h"
 #include "Group.h"
+#include "GroupMgr.h"
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Hyperlinks.h"
@@ -256,6 +257,14 @@ ObjectGuid::LowType WorldSession::GetGuidLow() const
 /// Send a packet to the client
 void WorldSession::SendPacket(WorldPacket const* packet)
 {
+    // Session sends under the social lock are queued until it is released.
+    if (GroupSocialLock::IsHeld())
+        if (Player* player = GetPlayer())
+        {
+            GroupSocialLock::Send(player->GetGUID(), *packet);
+            return;
+        }
+
     if (packet->GetOpcode() == NULL_OPCODE)
     {
         LOG_ERROR("network.opcode", "{} send NULL_OPCODE", GetPlayerInfo());

@@ -97,13 +97,104 @@ static void SendRollWonItemViaMail(Player* player, LootItem const* lootItem, uin
     player->SendItemRetrievalMail(mailItem);
 }
 
+namespace
+{
+    thread_local uint32 g_socialLockDepth = 0;
+    thread_local uint32 g_socialLockHeld = 0;
+    thread_local std::vector<std::function<void()>> g_deferredSocialWork;
+
+    void RunDeferredSocialWork()
+    {
+        std::vector<std::function<void()>> work;
+        work.swap(g_deferredSocialWork);
+        for (std::function<void()>& action : work)
+        {
+            try
+            {
+                action();
+            }
+            catch (std::exception const& e)
+            {
+                LOG_ERROR("server.worldserver", "Deferred social work failed: {}", e.what());
+            }
+            catch (...)
+            {
+                LOG_ERROR("server.worldserver", "Deferred social work failed with an unknown exception");
+            }
+        }
+    }
+}
+
+GroupSocialLock::GroupSocialLock() : _lock(*sGroupMgr->GetSocialLock())
+{
+    ++g_socialLockDepth;
+    ++g_socialLockHeld;
+}
+
+GroupSocialLock::~GroupSocialLock()
+{
+    _lock.unlock();
+    --g_socialLockHeld;
+    if (--g_socialLockDepth == 0)
+        RunDeferredSocialWork();
+}
+
+bool GroupSocialLock::IsHeld()
+{
+    return g_socialLockDepth != 0;
+}
+
+uint32 GroupSocialLock::ReleaseForCallback()
+{
+    uint32 held = g_socialLockHeld;
+    if (!held)
+        return 0;
+
+    std::recursive_mutex* lock = sGroupMgr->GetSocialLock();
+    for (uint32 i = 0; i < held; ++i)
+        lock->unlock();
+
+    g_socialLockHeld = 0;
+    return held;
+}
+
+void GroupSocialLock::ReacquireAfterCallback(uint32 held)
+{
+    std::recursive_mutex* lock = sGroupMgr->GetSocialLock();
+    for (uint32 i = 0; i < held; ++i)
+        lock->lock();
+
+    g_socialLockHeld = held;
+}
+
+void GroupSocialLock::Defer(std::function<void()>&& work)
+{
+    if (!g_socialLockDepth)
+    {
+        work();
+        return;
+    }
+
+    g_deferredSocialWork.push_back(std::move(work));
+}
+
+void GroupSocialLock::Send(ObjectGuid const& receiver, WorldPacket const& packet)
+{
+    Defer([receiver, packet]()
+    {
+        if (Player* player = ObjectAccessor::FindConnectedPlayer(receiver))
+            if (WorldSession* session = player->GetSession())
+                session->SendPacket(&packet);
+    });
+}
+
 Group::Group() : m_leaderName(""), m_groupType(GROUPTYPE_NORMAL),
     m_dungeonDifficulty(DUNGEON_DIFFICULTY_NORMAL), m_raidDifficulty(RAID_DIFFICULTY_10MAN_NORMAL),
     m_bfGroup(nullptr), m_bgGroup(nullptr), m_lootMethod(FREE_FOR_ALL), m_lootThreshold(ITEM_QUALITY_UNCOMMON),
     m_subGroupsCounts(nullptr), m_counter(0), m_maxEnchantingLevel(0), _difficultyChangePreventionTime(0),
     _difficultyChangePreventionType(DIFFICULTY_PREVENTION_CHANGE_NONE)
 {
-    sScriptMgr->OnConstructGroup(this);
+    GroupSocialLock::Defer([this]() { sScriptMgr->OnConstructGroup(this); });
 }
 
 Group::~Group()
@@ -141,7 +232,7 @@ Group::~Group()
 
 bool Group::Create(Player* leader)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ObjectGuid leaderGuid = leader->GetGUID();
     ObjectGuid::LowType lowguid = sGroupMgr->GenerateGroupId();
 
@@ -198,7 +289,11 @@ bool Group::Create(Player* leader)
 
         ASSERT(AddMember(leader)); // If the leader can't be added to a new group because it appears full, something is clearly wrong.
 
-        sScriptMgr->OnCreate(this, leader);
+        GroupSocialLock::Defer([this, guid = leader->GetGUID()]()
+        {
+            if (Player* player = ObjectAccessor::FindConnectedPlayer(guid))
+                sScriptMgr->OnCreate(this, player);
+        });
     }
     else if (!AddMember(leader))
         return false;
@@ -208,7 +303,7 @@ bool Group::Create(Player* leader)
 
 bool Group::LoadGroupFromDB(Field* fields)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ObjectGuid::LowType groupLowGuid = fields[16].Get<uint32>();
     m_guid = ObjectGuid::Create<HighGuid::Group>(groupLowGuid);
 
@@ -264,7 +359,7 @@ bool Group::LoadGroupFromDB(Field* fields)
 
 void Group::LoadMemberFromDB(ObjectGuid::LowType guidLow, uint8 memberFlags, uint8 subgroup, uint8 roles)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     MemberSlot member;
     member.guid = ObjectGuid::Create<HighGuid::Player>(guidLow);
 
@@ -296,7 +391,7 @@ void Group::LoadMemberFromDB(ObjectGuid::LowType guidLow, uint8 memberFlags, uin
 
 void Group::ConvertToLFG(bool restricted /*= true*/)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_groupType = GroupType(m_groupType | GROUPTYPE_LFG);
     if (restricted)
     {
@@ -319,7 +414,7 @@ void Group::ConvertToLFG(bool restricted /*= true*/)
 
 bool Group::CheckLevelForRaid()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
         if (Player* player = ObjectAccessor::FindPlayer(citr->guid))
             if (player->GetLevel() < sConfigMgr->GetOption<int32>("Group.Raid.LevelRestriction", 10))
@@ -330,7 +425,7 @@ bool Group::CheckLevelForRaid()
 
 void Group::ConvertToRaid()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_groupType = GroupType(m_groupType | GROUPTYPE_RAID);
 
     _initRaidSubGroupsCounter();
@@ -359,7 +454,7 @@ void Group::ConvertToRaid()
 
 bool Group::AddInvite(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return false;
     if (!player || player->GetGroupInvite())
@@ -376,14 +471,14 @@ bool Group::AddInvite(Player* player)
 
     player->SetGroupInvite(this);
 
-    sScriptMgr->OnGroupInviteMember(this, player->GetGUID());
+    GroupSocialLock::Defer([this, guid = player->GetGUID()]() { sScriptMgr->OnGroupInviteMember(this, guid); });
 
     return true;
 }
 
 bool Group::AddLeaderInvite(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!AddInvite(player))
         return false;
 
@@ -394,7 +489,7 @@ bool Group::AddLeaderInvite(Player* player)
 
 void Group::RemoveInvite(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     if (player)
@@ -407,7 +502,7 @@ void Group::RemoveInvite(Player* player)
 
 void Group::RemoveAllInvites()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     for (InvitesList::iterator itr = m_invitees.begin(); itr != m_invitees.end(); ++itr)
@@ -419,7 +514,7 @@ void Group::RemoveAllInvites()
 
 Player* Group::GetInvited(ObjectGuid guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (InvitesList::const_iterator itr = m_invitees.begin(); itr != m_invitees.end(); ++itr)
     {
         if ((*itr) && (*itr)->GetGUID() == guid)
@@ -430,7 +525,7 @@ Player* Group::GetInvited(ObjectGuid guid) const
 
 Player* Group::GetInvited(const std::string& name) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (InvitesList::const_iterator itr = m_invitees.begin(); itr != m_invitees.end(); ++itr)
     {
         if ((*itr) && (*itr)->GetName() == name)
@@ -441,7 +536,7 @@ Player* Group::GetInvited(const std::string& name) const
 
 bool Group::AddMember(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return false;
     if (!player)
@@ -515,7 +610,7 @@ bool Group::AddMember(Player* player)
 
     if (player)
     {
-        sScriptMgr->OnGroupAddMember(this, player->GetGUID());
+        GroupSocialLock::Defer([this, guid = player->GetGUID()]() { sScriptMgr->OnGroupAddMember(this, guid); });
 
         if (!IsLeader(player->GetGUID()) && !isBGGroup() && !isBFGroup())
         {
@@ -524,12 +619,12 @@ bool Group::AddMember(Player* player)
             if (player->GetDungeonDifficulty() != GetDungeonDifficulty())
             {
                 player->SetDungeonDifficulty(GetDungeonDifficulty());
-                player->SendDungeonDifficulty(true);
+                GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendDungeonDifficulty(true); });
             }
             if (player->GetRaidDifficulty() != GetRaidDifficulty())
             {
                 player->SetRaidDifficulty(GetRaidDifficulty());
-                player->SendRaidDifficulty(true);
+                GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendRaidDifficulty(true); });
             }
         }
         else if (IsLeader(player->GetGUID()) && isLFGGroup()) // pussywizard
@@ -576,7 +671,7 @@ bool Group::AddMember(Player* player)
                         if (newData.HasData())
                         {
                             newData.BuildPacket(newDataPacket);
-                            itrMember->SendDirectMessage(&newDataPacket);
+                            GroupSocialLock::Send(itrMember->GetGUID(), newDataPacket);
                         }
                     }
                 }
@@ -585,7 +680,7 @@ bool Group::AddMember(Player* player)
             if (groupData.HasData())
             {
                 groupData.BuildPacket(groupDataPacket);
-                player->SendDirectMessage(&groupDataPacket);
+                GroupSocialLock::Send(player->GetGUID(), groupDataPacket);
             }
 
             player->RemoveFieldNotifyFlag(UF_FLAG_PARTY_MEMBER);
@@ -600,7 +695,7 @@ bool Group::AddMember(Player* player)
 
 bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_REMOVEMETHOD_DEFAULT*/, ObjectGuid kicker /*= ObjectGuid::Empty*/, const char* reason /*= nullptr*/)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return false;
 
@@ -645,7 +740,7 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
             {
                 data.Initialize(SMSG_GROUP_UNINVITE, 0);
                 if (player->GetSession())
-                    player->GetSession()->SendPacket(&data);
+                    GroupSocialLock::Send(player->GetGUID(), data);
             }
 
             // Do we really need to send this opcode?
@@ -653,7 +748,7 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
             data << uint8(0x10) << uint8(0) << uint8(0) << uint8(0);
             data << m_guid << uint32(m_counter) << uint32(0) << uint64(0);
             if (player->GetSession())
-                player->GetSession()->SendPacket(&data);
+                GroupSocialLock::Send(player->GetGUID(), data);
         }
 
         // Remove player from group in DB
@@ -735,7 +830,7 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
         if (!isBGGroup() && !isBFGroup())
             Player::ResetInstances(guid, INSTANCE_RESET_GROUP_LEAVE, false);
 
-        sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason);
+        GroupSocialLock::Defer([this, guid, method, kicker, reason = std::string(reason ? reason : "")]() { sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason.c_str()); });
 
         // Crash-proof: script may have disbanded/destroyed us (zombie).
         if (m_disbanded)
@@ -773,7 +868,7 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
     // If group size before player removal <= 2 then disband it
     else
     {
-        sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason);
+        GroupSocialLock::Defer([this, guid, method, kicker, reason = std::string(reason ? reason : "")]() { sScriptMgr->OnGroupRemoveMember(this, guid, method, kicker, reason.c_str()); });
         // Crash-proof: script may already have disbanded us; Disband is a no-op then.
         if (m_disbanded)
             return false;
@@ -784,7 +879,7 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
 
 void Group::ChangeLeader(ObjectGuid newLeaderGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     member_witerator slot = _getMemberWSlot(newLeaderGuid);
@@ -823,12 +918,12 @@ void Group::ChangeLeader(ObjectGuid newLeaderGuid)
     data << slot->name;
     BroadcastPacket(&data, true);
 
-    sScriptMgr->OnGroupChangeLeader(this, newLeaderGuid, m_leaderGuid); // This hook should be executed at the end - Not used anywhere in the original core
+    GroupSocialLock::Defer([this, newLeaderGuid, oldLeaderGuid = m_leaderGuid]() { sScriptMgr->OnGroupChangeLeader(this, newLeaderGuid, oldLeaderGuid); });
 }
 
 void Group::Disband(bool hideDestroy /* = false */)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Crash-proof: never double-disband. Zombie or foreign registration => no-op.
     // Fresh never-registered groups still disband normally.
     ObjectGuid::LowType groupId = m_guid.GetCounter();
@@ -839,7 +934,7 @@ void Group::Disband(bool hideDestroy /* = false */)
             return;
     MarkDisbanded();
 
-    sScriptMgr->OnGroupDisband(this);
+    GroupSocialLock::Defer([this]() { sScriptMgr->OnGroupDisband(this); });
 
     // Crash-proof: bail only on foreign registration; unregistered means an
     // external destroy already ran, but our memory is alive (zombie) so cleanup
@@ -897,7 +992,7 @@ void Group::Disband(bool hideDestroy /* = false */)
         {
             data.Initialize(SMSG_GROUP_DESTROYED, 0);
             if (player->GetSession())
-                player->GetSession()->SendPacket(&data);
+                GroupSocialLock::Send(player->GetGUID(), data);
         }
 
         //we already removed player from group and in player->GetGroup() is his original group, send update
@@ -912,7 +1007,7 @@ void Group::Disband(bool hideDestroy /* = false */)
             data << uint8(0x10) << uint8(0) << uint8(0) << uint8(0);
             data << m_guid << uint32(m_counter) << uint32(0) << uint64(0);
             if (player->GetSession())
-                player->GetSession()->SendPacket(&data);
+                GroupSocialLock::Send(player->GetGUID(), data);
         }
     }
     RollId.clear();
@@ -958,7 +1053,7 @@ void Group::Disband(bool hideDestroy /* = false */)
 
 void Group::SendLootStartRoll(uint32 CountDown, uint32 mapid, const Roll& r)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_LOOT_START_ROLL, (8 + 4 + 4 + 4 + 4 + 4 + 4 + 1));
     data << r.itemGUID;                                     // guid of rolled item
     data << uint32(mapid);                                  // 3.3.3 mapid
@@ -977,7 +1072,7 @@ void Group::SendLootStartRoll(uint32 CountDown, uint32 mapid, const Roll& r)
             continue;
 
         if (itr->second == NOT_EMITED_YET)
-            p->GetSession()->SendPacket(&data);
+            GroupSocialLock::Send(p->GetGUID(), data);
     }
 }
 
@@ -1027,7 +1122,7 @@ void Group::SendPendingRollsToPlayer(Player* player, Map* map)
 
 void Group::SendLootStartRollToPlayer(uint32 countDown, uint32 mapId, Player* p, bool canNeed, Roll const& r)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!p)
         return;
 
@@ -1045,12 +1140,12 @@ void Group::SendLootStartRollToPlayer(uint32 countDown, uint32 mapId, Player* p,
         voteMask &= ~ROLL_FLAG_TYPE_NEED;
     data << uint8(voteMask);                                // roll type mask
 
-    p->GetSession()->SendPacket(&data);
+    GroupSocialLock::Send(p->GetGUID(), data);
 }
 
 void Group::SendLootRoll(ObjectGuid sourceGuid, ObjectGuid targetGuid, uint8 rollNumber, uint8 rollType, Roll const& roll, bool autoPass)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_LOOT_ROLL, (8 + 4 + 8 + 4 + 4 + 4 + 1 + 1 + 1));
     data << sourceGuid;                                     // guid of the item rolled
     data << uint32(roll.itemSlot);                          // slot
@@ -1069,13 +1164,13 @@ void Group::SendLootRoll(ObjectGuid sourceGuid, ObjectGuid targetGuid, uint8 rol
             continue;
 
         if (itr->second != NOT_VALID)
-            p->GetSession()->SendPacket(&data);
+            GroupSocialLock::Send(p->GetGUID(), data);
     }
 }
 
 void Group::SendLootRollWon(ObjectGuid sourceGuid, ObjectGuid targetGuid, uint8 rollNumber, uint8 rollType, Roll const& roll)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_LOOT_ROLL_WON, (8 + 4 + 4 + 4 + 4 + 8 + 1 + 1));
     data << sourceGuid;                                     // guid of the item rolled
     data << uint32(roll.itemSlot);                          // slot
@@ -1093,13 +1188,13 @@ void Group::SendLootRollWon(ObjectGuid sourceGuid, ObjectGuid targetGuid, uint8 
             continue;
 
         if (itr->second != NOT_VALID)
-            p->GetSession()->SendPacket(&data);
+            GroupSocialLock::Send(p->GetGUID(), data);
     }
 }
 
 void Group::SendLootAllPassed(Roll const& roll)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_LOOT_ALL_PASSED, (8 + 4 + 4 + 4 + 4));
     data << roll.itemGUID;                                     // Guid of the item rolled
     data << uint32(roll.itemSlot);                             // Item loot slot
@@ -1114,14 +1209,14 @@ void Group::SendLootAllPassed(Roll const& roll)
             continue;
 
         if (itr->second != NOT_VALID)
-            player->GetSession()->SendPacket(&data);
+            GroupSocialLock::Send(player->GetGUID(), data);
     }
 }
 
 // notify group members which player is the allowed looter for the given creature
 void Group::SendLooter(Creature* creature, Player* groupLooter)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ASSERT(creature);
 
     WorldPacket data(SMSG_LOOT_LIST, (8 + 8));
@@ -1159,7 +1254,7 @@ bool CanRollOnItem(LootItem const& item, Player const* player, Loot* loot)
 
 void Group::GroupLoot(Loot* loot, WorldObject* pLootedObject)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded || !loot || !pLootedObject)
         return;
     std::vector<LootItem>::iterator i;
@@ -1327,7 +1422,7 @@ void Group::GroupLoot(Loot* loot, WorldObject* pLootedObject)
 
 void Group::NeedBeforeGreed(Loot* loot, WorldObject* lootedObject)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded || !loot || !lootedObject)
         return;
     ItemTemplate const* item;
@@ -1485,7 +1580,7 @@ void Group::NeedBeforeGreed(Loot* loot, WorldObject* lootedObject)
 
 void Group::MasterLoot(Loot* loot, WorldObject* pLootedObject)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded || !loot || !pLootedObject)
         return;
     LOG_DEBUG("network", "Group::MasterLoot (SMSG_LOOT_MASTER_LIST, 330)");
@@ -1536,13 +1631,13 @@ void Group::MasterLoot(Loot* loot, WorldObject* pLootedObject)
 
     for (Player* looter : looters)
     {
-        looter->GetSession()->SendPacket(&data);
+        GroupSocialLock::Send(looter->GetGUID(), data);
     }
 }
 
 bool Group::CountRollVote(ObjectGuid playerGUID, ObjectGuid Guid, uint8 Choice)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return false;
     Rolls::iterator rollI = RollId.end();
@@ -1603,7 +1698,7 @@ bool Group::CountRollVote(ObjectGuid playerGUID, ObjectGuid Guid, uint8 Choice)
 //called when roll timer expires
 void Group::EndRoll(Loot* pLoot, Map* allowedMap)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     for (Rolls::iterator itr = RollId.begin(); itr != RollId.end();)
@@ -1631,7 +1726,7 @@ void Group::EndRoll(Loot* pLoot, Map* allowedMap)
 
 void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     Roll* roll = *rollI;
@@ -1692,19 +1787,24 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                         AllowedLooterSet looters = item->GetAllowedLooters();
                         Item* _item = player->StoreNewItem(dest, roll->itemid, true, item->randomPropertyId, looters);
                         if (_item)
-                            sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, item->count, NEED, roll);
+                            GroupSocialLock::Defer([roll, playerGuid = player->GetGUID(), itemGuid = _item->GetGUID(), count = item->count]()
+                            {
+                                if (Player* receiver = ObjectAccessor::FindConnectedPlayer(playerGuid))
+                                    if (Item* reward = receiver->GetItemByGuid(itemGuid))
+                                        sScriptMgr->OnPlayerGroupRollRewardItem(receiver, reward, count, NEED, roll);
+                            });
                         player->UpdateLootAchievements(item, roll->getLoot());
                     }
                     else
                     {
                         item->is_blocked = false;
                         item->rollWinnerGUID = player->GetGUID();
-                        player->SendEquipError(msg, nullptr, nullptr, roll->itemid);
+                        GroupSocialLock::Defer([guid = player->GetGUID(), msg, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendEquipError(msg, nullptr, nullptr, itemId); });
                         if (msg == EQUIP_ERR_INVENTORY_FULL)
                         {
                             // Only mail when bags are genuinely full. Unique/max-count failures must
                             // leave the item on the corpse so it can be re-rolled or freely looted.
-                            SendRollWonItemViaMail(player, item, roll->itemid);
+                            GroupSocialLock::Defer([guid = player->GetGUID(), lootItem = *item, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) SendRollWonItemViaMail(receiver, &lootItem, itemId); });
                         }
                     }
                 }
@@ -1768,19 +1868,24 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                             AllowedLooterSet looters = item->GetAllowedLooters();
                             Item* _item = player->StoreNewItem(dest, roll->itemid, true, item->randomPropertyId, looters);
                             if (_item)
-                                sScriptMgr->OnPlayerGroupRollRewardItem(player, _item, item->count, GREED, roll);
+                                GroupSocialLock::Defer([roll, playerGuid = player->GetGUID(), itemGuid = _item->GetGUID(), count = item->count]()
+                                {
+                                    if (Player* receiver = ObjectAccessor::FindConnectedPlayer(playerGuid))
+                                        if (Item* reward = receiver->GetItemByGuid(itemGuid))
+                                            sScriptMgr->OnPlayerGroupRollRewardItem(receiver, reward, count, GREED, roll);
+                                });
                             player->UpdateLootAchievements(item, roll->getLoot());
                         }
                         else
                         {
                             item->is_blocked = false;
                             item->rollWinnerGUID = player->GetGUID();
-                            player->SendEquipError(msg, nullptr, nullptr, roll->itemid);
+                            GroupSocialLock::Defer([guid = player->GetGUID(), msg, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendEquipError(msg, nullptr, nullptr, itemId); });
                             if (msg == EQUIP_ERR_INVENTORY_FULL)
                             {
                                 // Only mail when bags are genuinely full. Unique/max-count failures must
                                 // leave the item on the corpse so it can be re-rolled or freely looted.
-                                SendRollWonItemViaMail(player, item, roll->itemid);
+                                GroupSocialLock::Defer([guid = player->GetGUID(), lootItem = *item, itemId = roll->itemid]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) SendRollWonItemViaMail(receiver, &lootItem, itemId); });
                             }
                         }
                     }
@@ -1808,8 +1913,16 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
                             for(uint32 i = 0; i < max_slot; i++)
                             {
                                 LootItem* lootItem = loot.LootItemInSlot(i, player);
-                                player->SendEquipError(msg, nullptr, nullptr, lootItem->itemid);
-                                player->SendItemRetrievalMail(lootItem->itemid, lootItem->count);
+                                uint32 lootItemId = lootItem->itemid;
+                                uint32 lootItemCount = lootItem->count;
+                                GroupSocialLock::Defer([guid = player->GetGUID(), msg, lootItemId, lootItemCount]()
+                                {
+                                    if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid))
+                                    {
+                                        receiver->SendEquipError(msg, nullptr, nullptr, lootItemId);
+                                        receiver->SendItemRetrievalMail(lootItemId, lootItemCount);
+                                    }
+                                });
                             }
                         }
                     }
@@ -1840,12 +1953,13 @@ void Group::CountTheRoll(Rolls::iterator rollI, Map* allowedMap)
     }
 
     RollId.erase(rollI);
-    delete roll;
+    // Queued after any roll reward hook, so the roll outlives the notification.
+    GroupSocialLock::Defer([roll]() { delete roll; });
 }
 
 void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (id >= TARGETICONCOUNT)
         return;
 
@@ -1867,7 +1981,7 @@ void Group::SetTargetIcon(uint8 id, ObjectGuid whoGuid, ObjectGuid targetGuid)
 
 void Group::SendTargetIconList(WorldSession* session)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!session)
         return;
 
@@ -1883,12 +1997,13 @@ void Group::SendTargetIconList(WorldSession* session)
         data << m_targetIcons[i];
     }
 
-    session->SendPacket(&data);
+    if (Player* player = session->GetPlayer())
+        GroupSocialLock::Send(player->GetGUID(), data);
 }
 
 void Group::SendUpdate()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     // Crash-proof: snapshot guids; SendUpdateToPlayer hooks can mutate slots.
@@ -1907,7 +2022,7 @@ void Group::SendUpdate()
 
 void Group::SendUpdateToPlayer(ObjectGuid playerGUID, MemberSlot* slot)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     Player* player = ObjectAccessor::FindConnectedPlayer(playerGUID);
@@ -1976,12 +2091,12 @@ void Group::SendUpdateToPlayer(ObjectGuid playerGUID, MemberSlot* slot)
     }
 
     if (player->GetSession())
-        player->GetSession()->SendPacket(&data);
+        GroupSocialLock::Send(player->GetGUID(), data);
 }
 
 void Group::UpdatePlayerOutOfRange(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     if (!player || !player->IsInWorld() || !player->GetSession())
@@ -2002,13 +2117,13 @@ void Group::UpdatePlayerOutOfRange(Player* player)
         if (!member || !member->GetSession())
             continue;
         if ((!member->IsInMap(player) || !member->IsWithinDist(player, member->GetSightRange(player), false)))
-            member->GetSession()->SendPacket(&data);
+            GroupSocialLock::Send(member->GetGUID(), data);
     }
 }
 
 void Group::BroadcastPacket(WorldPacket const* packet, bool ignorePlayersInBGRaid, int group, ObjectGuid ignore)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded || !packet)
         return;
 
@@ -2029,13 +2144,13 @@ void Group::BroadcastPacket(WorldPacket const* packet, bool ignorePlayersInBGRai
             continue;
 
         if (group == -1 || target.subGroup == group)
-            player->GetSession()->SendPacket(packet);
+            GroupSocialLock::Send(player->GetGUID(), *packet);
     }
 }
 
 void Group::BroadcastReadyCheck(WorldPacket const* packet)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded || !packet)
         return;
 
@@ -2050,13 +2165,13 @@ void Group::BroadcastReadyCheck(WorldPacket const* packet)
         if (!player || !player->GetSession())
             continue;
         if (IsLeader(player->GetGUID()) || IsAssistant(player->GetGUID()))
-            player->GetSession()->SendPacket(packet);
+            GroupSocialLock::Send(player->GetGUID(), *packet);
     }
 }
 
 void Group::OfflineReadyCheck()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded)
         return;
     // Crash-proof: snapshot guids; BroadcastReadyCheck sends can mutate the group.
@@ -2079,7 +2194,7 @@ void Group::OfflineReadyCheck()
 
 bool Group::SameSubGroup(Player const* member1, Player const* member2) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!member1 || !member2)
         return false;
 
@@ -2092,7 +2207,7 @@ bool Group::SameSubGroup(Player const* member1, Player const* member2) const
 // Allows setting sub groups both for online or offline members
 void Group::ChangeMembersGroup(ObjectGuid guid, uint8 group)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Only raid groups have sub groups
     if (!isRaidGroup())
         return;
@@ -2153,7 +2268,7 @@ void Group::ChangeMembersGroup(ObjectGuid guid, uint8 group)
 //      if not, he loses his turn.
 void Group::UpdateLooterGuid(WorldObject* pLootedObject, bool ifneed)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // round robin style looting applies for all low
     // quality items in each loot method except free for all
     if (GetLootMethod() == FREE_FOR_ALL)
@@ -2216,9 +2331,25 @@ void Group::UpdateLooterGuid(WorldObject* pLootedObject, bool ifneed)
 
 GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* bgTemplate, BattlegroundQueueTypeId bgQueueTypeId, uint32 MinPlayerCount, uint32 /*MaxPlayerCount*/, bool isRated, uint32 arenaSlot)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    // Snapshot the members; the per-member hook runs unlocked.
+    std::vector<ObjectGuid> memberGuids;
+    uint32 groupSize = 0;
+    bool lfgGroup = false;
+    {
+        GroupSocialLock lock;
+        lfgGroup = isLFGGroup();
+        groupSize = GetMembersCount();
+        for (GroupReference* itr = GetFirstMember(); itr != nullptr; itr = itr->next())
+        {
+            Player* member = itr->GetSource();
+            if (!member)
+                return ERR_BATTLEGROUND_JOIN_FAILED;
+            memberGuids.push_back(member->GetGUID());
+        }
+    }
+
     // check if this group is LFG group
-    if (isLFGGroup())
+    if (lfgGroup)
         return ERR_LFG_CANT_USE_BATTLEGROUND;
 
     BattlemasterListEntry const* bgEntry = sBattlemasterListStore.LookupEntry(bgTemplate->GetBgTypeID());
@@ -2226,12 +2357,11 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
         return ERR_GROUP_JOIN_BATTLEGROUND_FAIL;
 
     // too many players in the group
-    if (GetMembersCount() > bgEntry->maxGroupSize)
+    if (groupSize > bgEntry->maxGroupSize)
         return ERR_BATTLEGROUND_NONE;
 
     // get a player as reference, to compare other players' stats to (arena team id, level bracket, etc.)
-    GroupReference* first = GetFirstMember();
-    Player* reference = first ? first->GetSource() : nullptr;
+    Player* reference = memberGuids.empty() ? nullptr : ObjectAccessor::FindPlayer(memberGuids.front());
     if (!reference)
         return ERR_BATTLEGROUND_JOIN_FAILED;
 
@@ -2246,15 +2376,18 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
 
     // check every member of the group to be able to join
     uint32 memberscount = 0;
-    for (GroupReference* itr = GetFirstMember(); itr != nullptr; itr = itr->next(), ++memberscount)
+    for (ObjectGuid const& memberGuid : memberGuids)
     {
-        Player* member = itr->GetSource();
+        Player* member = ObjectAccessor::FindPlayer(memberGuid);
+        ++memberscount;
 
         // don't let join with offline members
         if (!member)
             return ERR_BATTLEGROUND_JOIN_FAILED;
 
-        if (!sScriptMgr->CanGroupJoinBattlegroundQueue(this, member, bgTemplate, MinPlayerCount, isRated, arenaSlot))
+        bool canJoin = true;
+        GroupSocialLock::InvokeUnlocked([&]() { canJoin = sScriptMgr->CanGroupJoinBattlegroundQueue(this, member, bgTemplate, MinPlayerCount, isRated, arenaSlot); });
+        if (!canJoin)
             return ERR_BATTLEGROUND_JOIN_FAILED;
 
         // don't allow cross-faction groups to join queue
@@ -2320,6 +2453,7 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
     //check against other arena team members
     if (isRated)
     {
+        GroupSocialLock lock;
         ArenaTeam* arenaTeam = sArenaTeamMgr->GetArenaTeamById(arenaTeamId);
         for (auto const& itr : arenaTeam->GetMembers())
         {
@@ -2351,7 +2485,7 @@ GroupJoinBattlegroundResult Group::CanJoinBattlegroundQueue(Battleground const* 
 
 void Group::DoMinimapPing(ObjectGuid sourceGuid, float mapX, float mapY)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPackets::Misc::MinimapPing minimapPing;
     minimapPing.SourceGuid = sourceGuid;
     minimapPing.MapX = mapX;
@@ -2372,7 +2506,7 @@ void Roll::targetObjectBuildLink()
 
 void Group::SetDungeonDifficulty(Difficulty difficulty)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_dungeonDifficulty = difficulty;
     if (!isBGGroup() && !isBFGroup())
     {
@@ -2388,13 +2522,13 @@ void Group::SetDungeonDifficulty(Difficulty difficulty)
     {
         Player* player = itr->GetSource();
         player->SetDungeonDifficulty(difficulty);
-        player->SendDungeonDifficulty(true);
+        GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendDungeonDifficulty(true); });
     }
 }
 
 void Group::SetRaidDifficulty(Difficulty difficulty)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_raidDifficulty = difficulty;
     if (!isBGGroup() && !isBFGroup())
     {
@@ -2410,13 +2544,13 @@ void Group::SetRaidDifficulty(Difficulty difficulty)
     {
         Player* player = itr->GetSource();
         player->SetRaidDifficulty(difficulty);
-        player->SendRaidDifficulty(true);
+        GroupSocialLock::Defer([guid = player->GetGUID()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendRaidDifficulty(true); });
     }
 }
 
 void Group::ResetInstances(uint8 method, bool isRaid, Player* leader)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (isBGGroup() || isBFGroup() || isLFGGroup())
         return;
 
@@ -2438,12 +2572,12 @@ void Group::ResetInstances(uint8 method, bool isRaid, Player* leader)
                     Map* map = sMapMgr->FindMap(instanceSave->GetMapId(), instanceSave->GetInstanceId());
                     if (!map || map->ToInstanceMap()->Reset(method))
                     {
-                        leader->SendResetInstanceSuccess(instanceSave->GetMapId());
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceSuccess(mapId); });
                         toUnbind.push_back(instanceSave);
                     }
                     else
                     {
-                        leader->SendResetInstanceFailed(0, instanceSave->GetMapId());
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceFailed(0, mapId); });
                     }
 
                     sInstanceSaveMgr->DeleteInstanceSavedData(instanceSave->GetInstanceId());
@@ -2466,12 +2600,12 @@ void Group::ResetInstances(uint8 method, bool isRaid, Player* leader)
                     Map* map = sMapMgr->FindMap(instanceSave->GetMapId(), instanceSave->GetInstanceId());
                     if (!map || map->ToInstanceMap()->Reset(method))
                     {
-                        leader->SendResetInstanceSuccess(instanceSave->GetMapId());
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceSuccess(mapId); });
                         toUnbind.push_back(instanceSave);
                     }
                     else
                     {
-                        leader->SendResetInstanceFailed(0, instanceSave->GetMapId());
+                        GroupSocialLock::Defer([guid = leader->GetGUID(), mapId = instanceSave->GetMapId()]() { if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid)) receiver->SendResetInstanceFailed(0, mapId); });
                     }
 
                     sInstanceSaveMgr->DeleteInstanceSavedData(instanceSave->GetInstanceId());
@@ -2485,14 +2619,14 @@ void Group::ResetInstances(uint8 method, bool isRaid, Player* leader)
 
 void Group::_homebindIfInstance(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (player && !player->IsGameMaster() && player->FindMap() && sMapStore.LookupEntry(player->GetMapId())->IsDungeon())
         player->m_InstanceValid = false;
 }
 
 void Group::_cancelHomebindIfInstance(Player* player)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // if player is reinvited to group and in the instance - cancel homebind timer
     if (!player->FindMap() || !player->FindMap()->IsDungeon())
         return;
@@ -2503,7 +2637,7 @@ void Group::_cancelHomebindIfInstance(Player* player)
 
 void Group::BroadcastGroupUpdate(void)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // FG: HACK: force flags update on group leave - for values update hack
     // -- not very efficient but safe
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
@@ -2520,7 +2654,7 @@ void Group::BroadcastGroupUpdate(void)
 
 void Group::ResetMaxEnchantingLevel()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_maxEnchantingLevel = 0;
     Player* pMember = nullptr;
     for (member_citerator citr = m_memberSlots.begin(); citr != m_memberSlots.end(); ++citr)
@@ -2535,31 +2669,31 @@ void Group::ResetMaxEnchantingLevel()
 
 void Group::SetLootMethod(LootMethod method)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_lootMethod = method;
 }
 
 void Group::SetLooterGuid(ObjectGuid guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_looterGuid = guid;
 }
 
 void Group::SetMasterLooterGuid(ObjectGuid guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_masterLooterGuid = guid;
 }
 
 void Group::SetLootThreshold(ItemQualities threshold)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_lootThreshold = threshold;
 }
 
 void Group::SetLfgRoles(ObjectGuid guid, const uint8 roles)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     member_witerator slot = _getMemberWSlot(guid);
     if (slot == m_memberSlots.end())
         return;
@@ -2570,62 +2704,62 @@ void Group::SetLfgRoles(ObjectGuid guid, const uint8 roles)
 
 bool Group::IsFull() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return isRaidGroup() ? (m_memberSlots.size() >= MAXRAIDSIZE) : (m_memberSlots.size() >= MAXGROUPSIZE);
 }
 
 bool Group::isLFGGroup(bool restricted /*= false*/) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     bool isLFG = m_groupType & GROUPTYPE_LFG;
     return isLFG && (!restricted || (m_groupType & GROUPTYPE_LFG_RESTRICTED) != 0);
 }
 
 bool Group::isRaidGroup() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_groupType & GROUPTYPE_RAID;
 }
 
 bool Group::isBGGroup() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_bgGroup != nullptr;
 }
 
 bool Group::isBFGroup() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_bfGroup != nullptr;
 }
 
 bool Group::IsCreated() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return GetMembersCount() > 0;
 }
 
 GroupType Group::GetGroupType() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_groupType;
 }
 
 ObjectGuid Group::GetLeaderGUID() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_leaderGuid;
 }
 
 Group::MemberSlotList Group::GetMemberSlots() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_memberSlots;
 }
 
 std::vector<ObjectGuid> Group::GetMemberGUIDs() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     std::vector<ObjectGuid> guids;
     guids.reserve(m_memberSlots.size());
     for (MemberSlot const& slot : m_memberSlots)
@@ -2635,85 +2769,85 @@ std::vector<ObjectGuid> Group::GetMemberGUIDs() const
 
 uint32 Group::GetMembersCount() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_memberSlots.size();
 }
 
 uint32 Group::GetInviteeCount() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_invitees.size();
 }
 
 bool Group::IsDisbanded() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_disbanded;
 }
 
 ObjectGuid const Group::GetTargetIcon(uint8 id) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_targetIcons[id];
 }
 
 Player* Group::GetLeader()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return ObjectAccessor::FindConnectedPlayer(m_leaderGuid);
 }
 
 ObjectGuid Group::GetGUID() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_guid;
 }
 
 std::string Group::GetLeaderName() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_leaderName;
 }
 
 LootMethod Group::GetLootMethod() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_lootMethod;
 }
 
 ObjectGuid Group::GetLooterGuid() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_looterGuid;
 }
 
 ObjectGuid Group::GetMasterLooterGuid() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_masterLooterGuid;
 }
 
 ItemQualities Group::GetLootThreshold() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_lootThreshold;
 }
 
 bool Group::IsMember(ObjectGuid guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return _getMemberCSlot(guid) != m_memberSlots.end();
 }
 
 bool Group::IsLeader(ObjectGuid guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return (GetLeaderGUID() == guid);
 }
 
 ObjectGuid Group::GetMemberGUID(const std::string& name)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (member_citerator itr = m_memberSlots.begin(); itr != m_memberSlots.end(); ++itr)
         if (itr->name == name)
             return itr->guid;
@@ -2723,7 +2857,7 @@ ObjectGuid Group::GetMemberGUID(const std::string& name)
 
 bool Group::IsAssistant(ObjectGuid guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     member_citerator mslot = _getMemberCSlot(guid);
     if (mslot == m_memberSlots.end())
         return false;
@@ -2732,7 +2866,7 @@ bool Group::IsAssistant(ObjectGuid guid) const
 
 bool Group::SameSubGroup(ObjectGuid guid1, ObjectGuid guid2) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     member_citerator mslot2 = _getMemberCSlot(guid2);
     if (mslot2 == m_memberSlots.end())
         return false;
@@ -2741,7 +2875,7 @@ bool Group::SameSubGroup(ObjectGuid guid1, ObjectGuid guid2) const
 
 bool Group::SameSubGroup(ObjectGuid guid1, MemberSlot const* slot2) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     member_citerator mslot1 = _getMemberCSlot(guid1);
     if (mslot1 == m_memberSlots.end() || !slot2)
         return false;
@@ -2750,13 +2884,13 @@ bool Group::SameSubGroup(ObjectGuid guid1, MemberSlot const* slot2) const
 
 bool Group::HasFreeSlotSubGroup(uint8 subgroup) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return (m_subGroupsCounts && m_subGroupsCounts[subgroup] < MAXGROUPSIZE);
 }
 
 uint8 Group::GetMemberGroup(ObjectGuid guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     member_citerator mslot = _getMemberCSlot(guid);
     if (mslot == m_memberSlots.end())
         return (MAX_RAID_SUBGROUPS + 1);
@@ -2765,19 +2899,19 @@ uint8 Group::GetMemberGroup(ObjectGuid guid) const
 
 void Group::SetBattlegroundGroup(Battleground* bg)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_bgGroup = bg;
 }
 
 void Group::SetBattlefieldGroup(Battlefield* bg)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_bfGroup = bg;
 }
 
 void Group::SetGroupMemberFlag(ObjectGuid guid, bool apply, GroupMemberFlags flag)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Assistants, main assistants and main tanks are only available in raid groups
     if (!isRaidGroup())
         return;
@@ -2819,31 +2953,31 @@ void Group::SetGroupMemberFlag(ObjectGuid guid, bool apply, GroupMemberFlags fla
 
 Difficulty Group::GetDifficulty(bool isRaid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return isRaid ? m_raidDifficulty : m_dungeonDifficulty;
 }
 
 Difficulty Group::GetDungeonDifficulty() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_dungeonDifficulty;
 }
 
 Difficulty Group::GetRaidDifficulty() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return m_raidDifficulty;
 }
 
 bool Group::isRollLootActive() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return !RollId.empty();
 }
 
 Optional<Roll> Group::GetRollCopy(ObjectGuid guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (Roll* roll : RollId)
         if (roll->itemGUID == guid && roll->isValid())
             return Optional<Roll>(*roll);
@@ -2852,13 +2986,13 @@ Optional<Roll> Group::GetRollCopy(ObjectGuid guid) const
 
 void Group::LinkMember(GroupReference* pRef)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     m_memberMgr.insertFirst(pRef);
 }
 
 void Group::_initRaidSubGroupsCounter()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Sub group counters initialization
     if (!m_subGroupsCounts)
         m_subGroupsCounts = new uint8[MAX_RAID_SUBGROUPS];
@@ -2871,7 +3005,7 @@ void Group::_initRaidSubGroupsCounter()
 
 Group::member_citerator Group::_getMemberCSlot(ObjectGuid Guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (member_citerator itr = m_memberSlots.begin(); itr != m_memberSlots.end(); ++itr)
         if (itr->guid == Guid)
             return itr;
@@ -2880,7 +3014,7 @@ Group::member_citerator Group::_getMemberCSlot(ObjectGuid Guid) const
 
 Group::member_witerator Group::_getMemberWSlot(ObjectGuid Guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (member_witerator itr = m_memberSlots.begin(); itr != m_memberSlots.end(); ++itr)
         if (itr->guid == Guid)
             return itr;
@@ -2889,21 +3023,21 @@ Group::member_witerator Group::_getMemberWSlot(ObjectGuid Guid)
 
 void Group::SubGroupCounterIncrease(uint8 subgroup)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_subGroupsCounts)
         ++m_subGroupsCounts[subgroup];
 }
 
 void Group::SubGroupCounterDecrease(uint8 subgroup)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_subGroupsCounts)
         --m_subGroupsCounts[subgroup];
 }
 
 void Group::RemoveUniqueGroupMemberFlag(GroupMemberFlags flag)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (member_witerator itr = m_memberSlots.begin(); itr != m_memberSlots.end(); ++itr)
         if (itr->flags & flag)
             itr->flags &= ~flag;
@@ -2911,7 +3045,7 @@ void Group::RemoveUniqueGroupMemberFlag(GroupMemberFlags flag)
 
 void Group::ToggleGroupMemberFlag(member_witerator slot, uint8 flag, bool apply)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (apply)
         slot->flags |= flag;
     else
@@ -2920,20 +3054,20 @@ void Group::ToggleGroupMemberFlag(member_witerator slot, uint8 flag, bool apply)
 
 uint32 Group::GetDifficultyChangePreventionTime() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return _difficultyChangePreventionTime > GameTime::GetGameTime().count() ? _difficultyChangePreventionTime - GameTime::GetGameTime().count() : 0;
 }
 
 void Group::SetDifficultyChangePrevention(DifficultyPreventionChangeType type)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     _difficultyChangePreventionTime = GameTime::GetGameTime().count() + MINUTE;
     _difficultyChangePreventionType = type;
 }
 
 void Group::DoForAllMembers(std::function<void(Player*)> const& worker)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (m_disbanded || !worker)
         return;
 

@@ -20,9 +20,57 @@
 
 #include "Group.h"
 
+#include <functional>
 #include <mutex>
 #include <utility>
 #include <vector>
+
+// Holds GetSocialLock() and queues work that must run after it is released:
+// sends and script hooks dispatch into code that takes locks of its own.
+class GroupSocialLock
+{
+public:
+    GroupSocialLock();
+    ~GroupSocialLock();
+
+    GroupSocialLock(GroupSocialLock const&) = delete;
+    GroupSocialLock& operator=(GroupSocialLock const&) = delete;
+
+    static bool IsHeld();
+    static void Defer(std::function<void()>&& work);
+    static void Send(ObjectGuid const& receiver, WorldPacket const& packet);
+
+    // Runs the callback with the social lock released on this thread, so a
+    // synchronous hook cannot invert the lock order. The guard stays held.
+    template <typename Callback>
+    static void InvokeUnlocked(Callback&& callback)
+    {
+        uint32 held = ReleaseForCallback();
+        if (!held)
+        {
+            callback();
+            return;
+        }
+
+        try
+        {
+            callback();
+        }
+        catch (...)
+        {
+            ReacquireAfterCallback(held);
+            throw;
+        }
+
+        ReacquireAfterCallback(held);
+    }
+
+private:
+    static uint32 ReleaseForCallback();
+    static void ReacquireAfterCallback(uint32 held);
+
+    std::unique_lock<std::recursive_mutex> _lock;
+};
 
 class GroupMgr
 {
@@ -30,8 +78,7 @@ private:
     GroupMgr();
     ~GroupMgr();
 
-public:
-    static GroupMgr* instance();
+    friend class GroupSocialLock;
 
     // Lock order, outer -> inner: world/session > social (this) > guild/channel/socialmgr > map > leaf stores.
     // Snapshot-then-act; never hold across I/O.
@@ -40,6 +87,9 @@ public:
         static std::recursive_mutex lock;
         return &lock;
     }
+
+public:
+    static GroupMgr* instance();
 
     typedef std::map<uint32, Group*> GroupContainer;
 

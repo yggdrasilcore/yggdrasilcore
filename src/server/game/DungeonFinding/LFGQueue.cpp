@@ -37,7 +37,7 @@ namespace lfg
 
     void LFGQueue::AddToQueue(ObjectGuid guid, bool failedProposal)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "ADD AddToQueue: {}, failed proposal: {}", guid.ToString(), failedProposal ? 1 : 0);
         LfgQueueDataContainer::iterator itQueue = QueueDataStore.find(guid);
         if (itQueue == QueueDataStore.end())
@@ -51,7 +51,7 @@ namespace lfg
 
     void LFGQueue::RemoveFromQueue(ObjectGuid guid, bool partial)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "REMOVE RemoveFromQueue: {}, partial: {}", guid.ToString(), partial ? 1 : 0);
         RemoveFromNewQueue(guid);
         RemoveFromCompatibles(guid);
@@ -87,7 +87,7 @@ namespace lfg
 
     void LFGQueue::AddToNewQueue(ObjectGuid guid, bool front)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         if (front)
         {
             LOG_DEBUG("lfg", "ADD AddToNewQueue at FRONT: {}", guid.ToString());
@@ -103,7 +103,7 @@ namespace lfg
 
     void LFGQueue::RemoveFromNewQueue(ObjectGuid guid)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "REMOVE RemoveFromNewQueue: {}", guid.ToString());
         newToQueueStore.remove(guid);
         restoredAfterProposal.remove(guid);
@@ -111,7 +111,7 @@ namespace lfg
 
     void LFGQueue::AddQueueData(ObjectGuid guid, time_t joinTime, LfgDungeonSet const& dungeons, LfgRolesMap const& rolesMap)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "JOINED AddQueueData: {}", guid.ToString());
         QueueDataStore[guid] = LfgQueueData(joinTime, dungeons, rolesMap);
         AddToQueue(guid);
@@ -119,7 +119,7 @@ namespace lfg
 
     void LFGQueue::RemoveQueueData(ObjectGuid guid)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "LEFT RemoveQueueData: {}", guid.ToString());
         LfgQueueDataContainer::iterator it = QueueDataStore.find(guid);
         if (it != QueueDataStore.end())
@@ -128,7 +128,7 @@ namespace lfg
 
     void LFGQueue::UpdateWaitTimeAvg(int32 waitTime, uint32 dungeonId)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LfgWaitTime& wt = waitTimesAvgStore[dungeonId];
         uint32 old_number = wt.number++;
         wt.time = int32((wt.time * old_number + waitTime) / wt.number);
@@ -136,7 +136,7 @@ namespace lfg
 
     void LFGQueue::UpdateWaitTimeTank(int32 waitTime, uint32 dungeonId)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LfgWaitTime& wt = waitTimesTankStore[dungeonId];
         uint32 old_number = wt.number++;
         wt.time = int32((wt.time * old_number + waitTime) / wt.number);
@@ -144,7 +144,7 @@ namespace lfg
 
     void LFGQueue::UpdateWaitTimeHealer(int32 waitTime, uint32 dungeonId)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LfgWaitTime& wt = waitTimesHealerStore[dungeonId];
         uint32 old_number = wt.number++;
         wt.time = int32((wt.time * old_number + waitTime) / wt.number);
@@ -152,7 +152,7 @@ namespace lfg
 
     void LFGQueue::UpdateWaitTimeDps(int32 waitTime, uint32 dungeonId)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LfgWaitTime& wt = waitTimesDpsStore[dungeonId];
         uint32 old_number = wt.number++;
         wt.time = int32((wt.time * old_number + waitTime) / wt.number);
@@ -160,7 +160,7 @@ namespace lfg
 
     void LFGQueue::RemoveFromCompatibles(ObjectGuid guid)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "COMPATIBLES REMOVE for: {}", guid.ToString());
         for (LfgCompatibleContainer::iterator it = CompatibleList.begin(); it != CompatibleList.end(); ++it)
             if (it->hasGuid(guid))
@@ -181,14 +181,14 @@ namespace lfg
 
     void LFGQueue::AddToCompatibles(Lfg5Guids const& key)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "COMPATIBLES ADD: {}", key.toString());
         CompatibleTempList.push_back(key);
     }
 
     uint8 LFGQueue::FindGroups()
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "FIND GROUPS!");
         uint8 newGroupsProcessed = 0;
         if (!newToQueueStore.empty())
@@ -211,7 +211,7 @@ namespace lfg
 
     LfgCompatibility LFGQueue::FindNewGroups(const ObjectGuid& newGuid)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         // each combination of dps+heal+tank (tank*8 + heal+4 + dps) has a value assigned 0..15
         // first 16 bits of the mask are for marking if such combination was found once, second 16 bits for marking second occurence of that combination, etc
         uint64 foundMask = 0;
@@ -261,7 +261,7 @@ namespace lfg
 
     LfgCompatibility LFGQueue::CheckCompatibility(Lfg5Guids const& checkWith, const ObjectGuid& newGuid, uint64& foundMask, uint32& foundCount, const std::set<Lfg5Guids>& currentCompatibles)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "CHECK CheckCompatibility: {}, new guid: {}", checkWith.toString(), newGuid.ToString());
         Lfg5Guids check(checkWith, false); // here newGuid is at front
         Lfg5Guids strGuids(checkWith, false); // here guids are sorted
@@ -428,10 +428,10 @@ namespace lfg
         if (!sLFGMgr->AllQueued(check)) // can't create proposal
             return LFG_COMPATIBILITY_PENDING;
 
-        if (!sScriptMgr->OnShadowCheckLFGQueue(proposal.queues))
-        {
+        bool noIgnores = true;
+        GroupSocialLock::InvokeUnlocked([&]() { noIgnores = sScriptMgr->OnShadowCheckLFGQueue(proposal.queues); });
+        if (!noIgnores)
             return LFG_INCOMPATIBLES_HAS_IGNORES;
-        }
 
         // Create a new proposal
         proposal.cancelTime = GameTime::GetGameTime().count() + LFG_TIME_PROPOSAL;
@@ -490,7 +490,7 @@ namespace lfg
 
     void LFGQueue::UpdateQueueTimers(uint32 diff)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         time_t currTime = GameTime::GetGameTime().count();
         bool sendQueueStatus = false;
 
@@ -591,13 +591,13 @@ namespace lfg
 
     time_t LFGQueue::GetJoinTime(ObjectGuid guid)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         return QueueDataStore[guid].joinTime;
     }
 
     uint32 LFGQueue::FindBestCompatibleInQueue(LfgQueueDataContainer::iterator itrQueue)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         uint32 numOfCompatibles = 0;
         for (LfgCompatibleContainer::const_iterator itr = CompatibleList.begin(); itr != CompatibleList.end(); ++itr)
             if (itr->hasGuid(itrQueue->first))
@@ -610,7 +610,7 @@ namespace lfg
 
     void LFGQueue::UpdateBestCompatibleInQueue(LfgQueueDataContainer::iterator itrQueue, Lfg5Guids const& key)
     {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
         LOG_DEBUG("lfg", "UpdateBestCompatibleInQueue: {}", key.toString());
         LfgQueueData& queueData = itrQueue->second;
 

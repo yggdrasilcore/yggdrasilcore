@@ -50,7 +50,7 @@ ArenaTeam::~ArenaTeam()
 
 bool ArenaTeam::Create(ObjectGuid captainGuid, uint8 type, std::string const& teamName, uint32 backgroundColor, uint8 emblemStyle, uint32 emblemColor, uint8 borderStyle, uint32 borderColor)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Check if captain is present
     if (!ObjectAccessor::FindConnectedPlayer(captainGuid))
         return false;
@@ -93,7 +93,7 @@ bool ArenaTeam::Create(ObjectGuid captainGuid, uint8 type, std::string const& te
 
 bool ArenaTeam::AddMember(ObjectGuid playerGuid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     std::string playerName;
     uint8 playerClass;
 
@@ -120,7 +120,9 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
         playerClass = playerData->Class;
     }
 
-    if (!sScriptMgr->CanAddMember(this, playerGuid))
+    bool canAdd = true;
+    GroupSocialLock::InvokeUnlocked([&]() { canAdd = sScriptMgr->CanAddMember(this, playerGuid); });
+    if (!canAdd)
         return false;
 
     // Check if player is already in a similar arena team
@@ -176,6 +178,10 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
     newMember.MatchMakerRating = matchMakerRating;
     newMember.MaxMMR           = maxMMR;
 
+    // Membership may have changed while the hook ran unlocked.
+    if (GetMembersSize() >= GetType() * 2)
+        return false;
+
     Members.push_back(newMember);
     sCharacterCache->UpdateCharacterArenaTeamId(playerGuid, GetSlot(), GetId());
 
@@ -201,7 +207,7 @@ bool ArenaTeam::AddMember(ObjectGuid playerGuid)
 
 bool ArenaTeam::LoadArenaTeamFromDB(QueryResult result)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!result)
         return false;
 
@@ -228,7 +234,7 @@ bool ArenaTeam::LoadArenaTeamFromDB(QueryResult result)
 
 bool ArenaTeam::LoadMembersFromDB(QueryResult result)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!result)
         return false;
 
@@ -289,7 +295,7 @@ bool ArenaTeam::LoadMembersFromDB(QueryResult result)
 
 bool ArenaTeam::SetName(std::string const& name)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (TeamName == name || name.empty() || name.length() > 24 || !ObjectMgr::IsValidCharterName(name))
         return false;
 
@@ -303,7 +309,7 @@ bool ArenaTeam::SetName(std::string const& name)
 
 void ArenaTeam::SetCaptain(ObjectGuid guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Disable remove/promote buttons
     Player* oldCaptain = ObjectAccessor::FindConnectedPlayer(GetCaptain());
     if (oldCaptain)
@@ -333,7 +339,7 @@ void ArenaTeam::SetCaptain(ObjectGuid guid)
 
 void ArenaTeam::DelMember(ObjectGuid guid, bool cleanDb)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Player* player = ObjectAccessor::FindConnectedPlayer(guid);
     Group* group = (player && player->GetGroup()) ? player->GetGroup() : nullptr;
 
@@ -357,7 +363,7 @@ void ArenaTeam::DelMember(ObjectGuid guid, bool cleanDb)
                             playerMember->RemoveBattlegroundQueueId(bgQueue);
                             sBattlegroundMgr->BuildBattlegroundStatusPacket(&data, nullptr, playerMember->GetBattlegroundQueueIndex(bgQueue), STATUS_NONE, 0, 0, 0, TEAM_NEUTRAL);
                             queue.RemovePlayer(playerMember->GetGUID(), true);
-                            playerMember->GetSession()->SendPacket(&data);
+                            GroupSocialLock::Send(playerMember->GetGUID(), data);
                         }
                     }
                 }
@@ -375,7 +381,11 @@ void ArenaTeam::DelMember(ObjectGuid guid, bool cleanDb)
     // Inform player and remove arena team info from player data
     if (player)
     {
-        player->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_QUIT_S, GetName(), "", 0);
+        GroupSocialLock::Defer([guid, name = GetName()]()
+        {
+            if (Player* receiver = ObjectAccessor::FindConnectedPlayer(guid))
+                receiver->GetSession()->SendArenaTeamCommandResult(ERR_ARENA_TEAM_QUIT_S, name, "", 0);
+        });
         // delete all info regarding this team
         for (uint32 i = 0; i < ARENA_TEAM_END; ++i)
             player->SetArenaTeamInfoField(GetSlot(), ArenaTeamInfoType(i), 0);
@@ -393,7 +403,7 @@ void ArenaTeam::DelMember(ObjectGuid guid, bool cleanDb)
 
 void ArenaTeam::Disband(WorldSession* session)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Remove all members from arena team
     while (!Members.empty())
         DelMember(Members.front().Guid, false);
@@ -423,7 +433,7 @@ void ArenaTeam::Disband(WorldSession* session)
 
 void ArenaTeam::Disband()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Remove all members from arena team
     while (!Members.empty())
         DelMember(Members.front().Guid, false);
@@ -447,7 +457,7 @@ void ArenaTeam::Disband()
 
 void ArenaTeam::Roster(WorldSession* session)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Player* player = nullptr;
 
     uint8 unk308 = 0;
@@ -483,13 +493,13 @@ void ArenaTeam::Roster(WorldSession* session)
         }
     }
 
-    session->SendPacket(&data);
+    GroupSocialLock::Send(session->GetPlayer()->GetGUID(), data);
     LOG_DEBUG("network", "WORLD: Sent SMSG_ARENA_TEAM_ROSTER");
 }
 
 void ArenaTeam::Query(WorldSession* session)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_ARENA_TEAM_QUERY_RESPONSE, 4 * 7 + GetName().size() + 1);
     data << uint32(GetId());                                // team id
     data << GetName();                                      // team name
@@ -499,13 +509,13 @@ void ArenaTeam::Query(WorldSession* session)
     data << uint32(EmblemColor);                            // emblem color
     data << uint32(BorderStyle);                            // border style
     data << uint32(BorderColor);                            // border color
-    session->SendPacket(&data);
+    GroupSocialLock::Send(session->GetPlayer()->GetGUID(), data);
     LOG_DEBUG("network", "WORLD: Sent SMSG_ARENA_TEAM_QUERY_RESPONSE");
 }
 
 void ArenaTeam::SendStats(WorldSession* session)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_ARENA_TEAM_STATS, 4 * 7);
     data << uint32(GetId());                                // team id
     data << uint32(Stats.Rating);                           // rating
@@ -514,12 +524,12 @@ void ArenaTeam::SendStats(WorldSession* session)
     data << uint32(Stats.SeasonGames);                      // played this season
     data << uint32(Stats.SeasonWins);                       // wins this season
     data << uint32(Stats.Rank);                             // rank
-    session->SendPacket(&data);
+    GroupSocialLock::Send(session->GetPlayer()->GetGUID(), data);
 }
 
 void ArenaTeam::NotifyStatsChanged()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // This is called after a rated match ended
     // Updates arena team stats for every member of the team (not only the ones who participated!)
     for (MemberList::const_iterator itr = Members.begin(); itr != Members.end(); ++itr)
@@ -529,7 +539,7 @@ void ArenaTeam::NotifyStatsChanged()
 
 void ArenaTeam::Inspect(WorldSession* session, ObjectGuid guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     ArenaTeamMember* member = GetMember(guid);
     if (!member || GetSlot() >= MAX_ARENA_SLOT)
         return;
@@ -543,7 +553,7 @@ void ArenaTeam::Inspect(WorldSession* session, ObjectGuid guid)
     data << uint32(Stats.SeasonWins);                       // season wins
     data << uint32(member->SeasonGames);                    // played (count of all games, that the inspected member participated...)
     data << uint32(member->PersonalRating);                 // personal rating
-    session->SendPacket(&data);
+    GroupSocialLock::Send(session->GetPlayer()->GetGUID(), data);
 }
 
 void ArenaTeamMember::ModifyPersonalRating(Player* player, int32 mod, uint32 type)
@@ -580,15 +590,14 @@ void ArenaTeamMember::ModifyMatchmakerRating(int32 mod, uint32 /*slot*/)
 
 void ArenaTeam::BroadcastPacket(WorldPacket* packet)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (MemberList::const_iterator itr = Members.begin(); itr != Members.end(); ++itr)
-        if (Player* player = ObjectAccessor::FindConnectedPlayer(itr->Guid))
-            player->GetSession()->SendPacket(packet);
+        GroupSocialLock::Send(itr->Guid, *packet);
 }
 
 void ArenaTeam::BroadcastEvent(ArenaTeamEvents event, ObjectGuid guid, uint8 strCount, std::string const& str1, std::string const& str2, std::string const& str3)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_ARENA_TEAM_EVENT, 1 + 1 + 1);
     data << uint8(event);
     data << uint8(strCount);
@@ -620,7 +629,7 @@ void ArenaTeam::BroadcastEvent(ArenaTeamEvents event, ObjectGuid guid, uint8 str
 
 void ArenaTeam::MassInviteToEvent(WorldSession* session)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     WorldPacket data(SMSG_CALENDAR_ARENA_TEAM, (Members.size() - 1) * (4 + 8 + 1));
     data << uint32(Members.size() - 1);
 
@@ -633,12 +642,11 @@ void ArenaTeam::MassInviteToEvent(WorldSession* session)
         }
     }
 
-    session->SendPacket(&data);
+    GroupSocialLock::Send(session->GetPlayer()->GetGUID(), data);
 }
 
 uint8 ArenaTeam::GetSlotByType(uint32 type)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
     uint8 slot = 0xFF;
 
     auto const& itr = ArenaSlotByType.find(type);
@@ -651,7 +659,7 @@ uint8 ArenaTeam::GetSlotByType(uint32 type)
     slot = ArenaSlotByType.at(type);
 
     // Get the changed slot type
-    sScriptMgr->OnGetSlotByType(type, slot);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnGetSlotByType(type, slot); });
 
     if (slot != 0xFF)
     {
@@ -664,7 +672,7 @@ uint8 ArenaTeam::GetSlotByType(uint32 type)
 
 bool ArenaTeam::IsMember(ObjectGuid guid) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (MemberList::const_iterator itr = Members.begin(); itr != Members.end(); ++itr)
         if (itr->Guid == guid)
             return true;
@@ -674,7 +682,7 @@ bool ArenaTeam::IsMember(ObjectGuid guid) const
 
 uint32 ArenaTeam::GetPoints(uint32 memberRating)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Returns how many points would be awarded with this team type with this rating
     float points;
 
@@ -696,7 +704,7 @@ uint32 ArenaTeam::GetPoints(uint32 memberRating)
     else if (Type == ARENA_TEAM_3v3)
         points *= 0.88f;
 
-    sScriptMgr->OnGetArenaPoints(this, points);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnGetArenaPoints(this, points); });
 
     points *= sWorld->getRate(RATE_ARENA_POINTS);
 
@@ -705,7 +713,7 @@ uint32 ArenaTeam::GetPoints(uint32 memberRating)
 
 uint32 ArenaTeam::GetAverageMMR(Group* group) const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     if (!group)
         return 0;
 
@@ -736,7 +744,7 @@ uint32 ArenaTeam::GetAverageMMR(Group* group) const
 
 float ArenaTeam::GetChanceAgainst(uint32 ownRating, uint32 opponentRating)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Returns the chance to win against a team with the given rating, used in the rating adjustment calculation
     // ELO system
     return 1.0f / (1.0f + (std::exp(std::log(10.0f) * (float)((float)opponentRating - (float)ownRating) / 650.0f)));
@@ -744,7 +752,7 @@ float ArenaTeam::GetChanceAgainst(uint32 ownRating, uint32 opponentRating)
 
 int32 ArenaTeam::GetMatchmakerRatingMod(uint32 ownRating, uint32 opponentRating, bool won /*, float& confidence_factor*/)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // 'Chance' calculation - to beat the opponent
     // This is a simulation. Not much info on how it really works
     float chance = GetChanceAgainst(ownRating, opponentRating);
@@ -771,7 +779,7 @@ int32 ArenaTeam::GetMatchmakerRatingMod(uint32 ownRating, uint32 opponentRating,
 
 int32 ArenaTeam::GetRatingMod(uint32 ownRating, uint32 opponentRating, bool won /*, float confidence_factor*/)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // 'Chance' calculation - to beat the opponent
     // This is a simulation. Not much info on how it really works
     float chance = GetChanceAgainst(ownRating, opponentRating);
@@ -802,7 +810,7 @@ int32 ArenaTeam::GetRatingMod(uint32 ownRating, uint32 opponentRating, bool won 
 
 void ArenaTeam::FinishGame(int32 mod, const Map* bgMap)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Rating can only drop to 0
     if (int32(Stats.Rating) + mod < 0)
         Stats.Rating = 0;
@@ -833,7 +841,7 @@ void ArenaTeam::FinishGame(int32 mod, const Map* bgMap)
 
 int32 ArenaTeam::WonAgainst(uint32 Own_MMRating, uint32 Opponent_MMRating, int32& rating_change, const Map* bgMap)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Called when the team has won
     // Change in Matchmaker rating
     int32 mod = GetMatchmakerRatingMod(Own_MMRating, Opponent_MMRating, true);
@@ -854,7 +862,7 @@ int32 ArenaTeam::WonAgainst(uint32 Own_MMRating, uint32 Opponent_MMRating, int32
 
 int32 ArenaTeam::LostAgainst(uint32 Own_MMRating, uint32 Opponent_MMRating, int32& rating_change, const Map* bgMap)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Called when the team has lost
     // Change in Matchmaker Rating
     int32 mod = GetMatchmakerRatingMod(Own_MMRating, Opponent_MMRating, false);
@@ -871,7 +879,7 @@ int32 ArenaTeam::LostAgainst(uint32 Own_MMRating, uint32 Opponent_MMRating, int3
 
 void ArenaTeam::MemberLost(Player* player, uint32 againstMatchmakerRating, int32 MatchmakerRatingChange)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Called for each participant of a match after losing
     for (MemberList::iterator itr = Members.begin(); itr != Members.end(); ++itr)
     {
@@ -898,41 +906,49 @@ void ArenaTeam::MemberLost(Player* player, uint32 againstMatchmakerRating, int32
 
 void ArenaTeam::MemberWon(Player* player, uint32 againstMatchmakerRating, int32 MatchmakerRatingChange)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // called for each participant after winning a match
-    for (MemberList::iterator itr = Members.begin(); itr != Members.end(); ++itr)
+    ObjectGuid playerGuid = player->GetGUID();
+    uint32 teamType = GetType();
+    ArenaTeamMember* member = GetMember(playerGuid);
+    if (!member)
+        return;
+
+    // update personal rating
+    int32 mod = GetRatingMod(member->PersonalRating, againstMatchmakerRating, true);
+    GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnBeforeUpdatingPersonalRating(mod, teamType); });
+
+    // The hook runs unlocked, so the member may have left meanwhile.
+    member = GetMember(playerGuid);
+    if (!member)
+        return;
+    member->ModifyPersonalRating(player, mod, teamType);
+
+    // update matchmaker rating (pussywizard: but don't allow it to go over team rating)
+    if (member->MatchMakerRating < Stats.Rating)
     {
-        if (itr->Guid == player->GetGUID())
-        {
-            // update personal rating
-            int32 mod = GetRatingMod(itr->PersonalRating, againstMatchmakerRating, true);
-            sScriptMgr->OnBeforeUpdatingPersonalRating(mod, GetType());
-            itr->ModifyPersonalRating(player, mod, GetType());
+        mod = std::min(MatchmakerRatingChange, Stats.Rating - member->MatchMakerRating);
+        GroupSocialLock::InvokeUnlocked([&]() { sScriptMgr->OnBeforeUpdatingPersonalRating(mod, teamType); });
 
-            // update matchmaker rating (pussywizard: but don't allow it to go over team rating)
-            if (itr->MatchMakerRating < Stats.Rating)
-            {
-                mod = std::min(MatchmakerRatingChange, Stats.Rating - itr->MatchMakerRating);
-                sScriptMgr->OnBeforeUpdatingPersonalRating(mod, GetType());
-                itr->ModifyMatchmakerRating(mod, GetSlot());
-            }
-
-            // update personal stats
-            itr->WeekGames += 1;
-            itr->SeasonGames += 1;
-            itr->SeasonWins += 1;
-            itr->WeekWins += 1;
-            // update unit fields
-            player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_WEEK, itr->WeekGames);
-            player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_SEASON, itr->SeasonGames);
+        member = GetMember(playerGuid);
+        if (!member)
             return;
-        }
+        member->ModifyMatchmakerRating(mod, GetSlot());
     }
+
+    // update personal stats
+    member->WeekGames += 1;
+    member->SeasonGames += 1;
+    member->SeasonWins += 1;
+    member->WeekWins += 1;
+    // update unit fields
+    player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_WEEK, member->WeekGames);
+    player->SetArenaTeamInfoField(GetSlot(), ARENA_TEAM_GAMES_SEASON, member->SeasonGames);
 }
 
 void ArenaTeam::UpdateArenaPointsHelper(std::map<ObjectGuid, uint32>& playerPoints)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // Called after a match has ended and the stats are already modified
     // Helper function for arena point distribution (this way, when distributing, no actual calculation is required, just a few comparisons)
     // 10 played games per week is a minimum
@@ -942,30 +958,35 @@ void ArenaTeam::UpdateArenaPointsHelper(std::map<ObjectGuid, uint32>& playerPoin
     // To get points, a player has to participate in at least 30% of the matches
     uint32 requiredGames = (uint32)ceil(Stats.WeekGames * 0.3f);
 
-    for (MemberList::const_iterator itr = Members.begin(); itr != Members.end(); ++itr)
+    // Iterate a snapshot; the points hook runs unlocked.
+    MemberList members = Members;
+    for (ArenaTeamMember const& member : members)
     {
         // The player participated in enough games, update his points
         uint32 pointsToAdd = 0;
-        if (itr->WeekGames >= requiredGames)
-            pointsToAdd = GetPoints(itr->PersonalRating);
+        if (member.WeekGames >= requiredGames)
+            pointsToAdd = GetPoints(member.PersonalRating);
 
-        std::map<ObjectGuid, uint32>::iterator plr_itr = playerPoints.find(itr->Guid);
+        std::map<ObjectGuid, uint32>::iterator plr_itr = playerPoints.find(member.Guid);
         if (plr_itr != playerPoints.end())
         {
             // Check if there is already more points
             if (plr_itr->second < pointsToAdd)
-                playerPoints[itr->Guid] = pointsToAdd;
+                playerPoints[member.Guid] = pointsToAdd;
         }
         else
-            playerPoints[itr->Guid] = pointsToAdd;
+            playerPoints[member.Guid] = pointsToAdd;
     }
 }
 
 void ArenaTeam::SaveToDB(bool forceMemberSave)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
-    if (!sScriptMgr->CanSaveToDB(this))
+    bool canSave = true;
+    GroupSocialLock::InvokeUnlocked([&]() { canSave = sScriptMgr->CanSaveToDB(this); });
+    if (!canSave)
         return;
+
+    GroupSocialLock lock;
 
     // Save team and member stats to db
     // Called after a match has ended or when calculating arena_points
@@ -1011,7 +1032,7 @@ void ArenaTeam::SaveToDB(bool forceMemberSave)
 
 bool ArenaTeam::FinishWeek()
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     // No need to go further than this
     if (Stats.WeekGames == 0)
         return false;
@@ -1032,7 +1053,7 @@ bool ArenaTeam::FinishWeek()
 
 bool ArenaTeam::IsFighting() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (MemberList::const_iterator itr = Members.begin(); itr != Members.end(); ++itr)
         if (Player* player = ObjectAccessor::FindPlayer(itr->Guid))
             if (player->GetMap()->IsBattleArena())
@@ -1043,13 +1064,13 @@ bool ArenaTeam::IsFighting() const
 
 ArenaTeamMember* ArenaTeam::GetMember(const std::string& name)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return GetMember(sCharacterCache->GetCharacterGuidByName(name));
 }
 
 ArenaTeamMember* ArenaTeam::GetMember(ObjectGuid guid)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     for (MemberList::iterator itr = Members.begin(); itr != Members.end(); ++itr)
         if (itr->Guid == guid)
             return &(*itr);
@@ -1059,13 +1080,13 @@ ArenaTeamMember* ArenaTeam::GetMember(ObjectGuid guid)
 
 ArenaTeam::MemberList ArenaTeam::GetMembersSnapshot() const
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     return Members;
 }
 
 uint8 ArenaTeam::GetReqPlayersForType(uint32 type)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     auto const& itr = ArenaReqPlayersForType.find(type);
     if (itr == ArenaReqPlayersForType.end())
     {
@@ -1078,7 +1099,7 @@ uint8 ArenaTeam::GetReqPlayersForType(uint32 type)
 
 void ArenaTeam::CreateTempArenaTeam(std::vector<Player*> playerList, uint8 type, std::string const& teamName)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     auto playerCountInTeam = static_cast<uint32>(playerList.size());
 
     const auto standardArenaType = { ARENA_TYPE_2v2, ARENA_TYPE_3v3, ARENA_TYPE_5v5 };
@@ -1150,7 +1171,7 @@ std::unordered_map<uint8, uint8> ArenaTeam::ArenaReqPlayersForType =
 
 void ArenaTeam::SetEmblem(uint32 backgroundColor, uint8 emblemStyle, uint32 emblemColor, uint8 borderStyle, uint32 borderColor)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     BackgroundColor = backgroundColor;
     EmblemStyle = emblemStyle;
     EmblemColor = emblemColor;
@@ -1160,7 +1181,7 @@ void ArenaTeam::SetEmblem(uint32 backgroundColor, uint8 emblemStyle, uint32 embl
 
 void ArenaTeam::SetRatingForAll(uint32 rating)
 {
-    std::lock_guard<std::recursive_mutex> lock(*sGroupMgr->GetSocialLock());
+    GroupSocialLock lock;
     Stats.Rating = rating;
 
     for (MemberList::iterator itr = Members.begin(); itr != Members.end(); ++itr)
