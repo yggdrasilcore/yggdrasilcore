@@ -7320,9 +7320,9 @@
   }
  },
  "Item::CheckSoulboundTradeExpire@8e0fa028:qwen3-5-4b": {
-  "hash": "adaabe2febea",
-  "desc": "Checks if the item's soulbound trade expiration time has passed by comparing its creation played time plus a two-hour duration against the owner's total played time. Side effects: If the condition is met, it clears the item from the soulbound tradeable list and returns true; otherwise, it returns false.",
-  "raw": "{\n  \"what\": \"Checks if the item's soulbound trade expiration time has passed by comparing its creation played time plus a two-hour duration against the owner's total played time.\",\n  \"effects\": \"If the condition is met, it clears the item from the soulbound tradeable list and returns true; otherwise, it returns false.\"\n}",
+  "hash": "ef403e2c33cd",
+  "desc": "Checks if a soulbound item's trade expiration has occurred by comparing the item's creation time plus a 2-hour grace period against the owner's total playtime, and clears the soulbound status if expired. Side effects: Clears the soulbound tradeable status on the item if it has expired.",
+  "raw": "{\"what\": \"Checks if a soulbound item's trade expiration has occurred by comparing the item's creation time plus a 2-hour grace period against the owner's total playtime, and clears the soulbound status if expired.\", \"effects\": \"Clears the soulbound tradeable status on the item if it has expired.\"}",
   "entry": {
    "class": "Item",
    "name": "CheckSoulboundTradeExpire",
@@ -7330,8 +7330,12 @@
    "file": "src/server/game/Entities/Item/Item.h",
    "line": 358,
    "access": "public",
-   "hash": "adaabe2febea",
-   "desc": "Checks if the item's soulbound trade expiration time has passed by comparing its creation played time plus a two-hour duration against the owner's total played time. Side effects: If the condition is met, it clears the item from the soulbound tradeable list and returns true; otherwise, it returns false.",
+   "impl": {
+    "file": "src/server/game/Entities/Item/Item.cpp",
+    "line": 1284
+   },
+   "hash": "ef403e2c33cd",
+   "desc": "Checks if a soulbound item's trade expiration has occurred by comparing the item's creation time plus a 2-hour grace period against the owner's total playtime, and clears the soulbound status if expired. Side effects: Clears the soulbound tradeable status on the item if it has expired.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -25047,22 +25051,22 @@
   }
  },
  "Player::RewardHonor@1f673b45:qwen3-5-4b": {
-  "hash": "0855f7ab7a73",
-  "desc": "Checks conditions to determine if a player should receive honor points from defeating another unit, including arena restrictions and aura checks, then updates internal honor fields.",
-  "raw": "{\"what\": \"Checks conditions to determine if a player should receive honor points from defeating another unit, including arena restrictions and aura checks, then updates internal honor fields.\", \"effects\": \"none\"}",
+  "hash": "6d21a9cbece3",
+  "desc": "Checks conditions to determine if a player should receive honor points from defeating another unit, including arena restrictions and aura checks.",
+  "raw": "{\"what\": \"Checks conditions to determine if a player should receive honor points from defeating another unit, including arena restrictions and aura checks.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Player",
    "name": "RewardHonor",
    "sig": "bool RewardHonor(Unit* victim, uint32 groupsize, int32 honor = -1, bool awardXP = true)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2143,
+   "line": 2146,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 6118
+    "line": 6194
    },
-   "hash": "0855f7ab7a73",
-   "desc": "Checks conditions to determine if a player should receive honor points from defeating another unit, including arena restrictions and aura checks, then updates internal honor fields.",
+   "hash": "6d21a9cbece3",
+   "desc": "Checks conditions to determine if a player should receive honor points from defeating another unit, including arena restrictions and aura checks.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -31956,9 +31960,9 @@
   }
  },
  "Unit::CleanupBeforeRemoveFromMap@62ac11c3:qwen3-5-4b": {
-  "hash": "1842852617ab",
-  "desc": "Performs pre-removal cleanup for a unit by interrupting spells, removing the unit from the world if necessary, clearing all auras and game objects, stopping combat, clearing combo points and threat lists, deleting hostile references, and clearing motion master generators. Side effects: Removes the unit from the world (if applicable), clears all associated data structures (auras, game objects, threats, combos), stops combat interactions, and marks cleanup as done if requested.",
-  "raw": "{\n  \"what\": \"Performs pre-removal cleanup for a unit by interrupting spells, removing the unit from the world if necessary, clearing all auras and game objects, stopping combat, clearing combo points and threat lists, deleting hostile references, and clearing motion master generators.\",\n  \"effects\": \"Removes the unit from the world (if applicable), clears all associated data structures (auras, game objects, threats, combos), stops combat interactions, and marks cleanup as done if requested.\"\n}",
+  "hash": "d49d86c78e61",
+  "desc": "Performs comprehensive cleanup of a unit's state before removal from the game world, including interrupting spells, removing pending events, detaching auras and game objects, clearing threats and references, and stopping combat. Side effects: Removes the unit from the world (if applicable), clears all associated spell events, auras, and game object references, removes threat data, deletes hostile reference managers, clears motion master generators, and marks cleanup as done if requested.",
+  "raw": "{\n  \"what\": \"Performs comprehensive cleanup of a unit's state before removal from the game world, including interrupting spells, removing pending events, detaching auras and game objects, clearing threats and references, and stopping combat.\",\n  \"effects\": \"Removes the unit from the world (if applicable), clears all associated spell events, auras, and game object references, removes threat data, deletes hostile reference managers, clears motion master generators, and marks cleanup as done if requested.\"\n}",
   "entry": {
    "class": "Unit",
    "name": "CleanupBeforeRemoveFromMap",
@@ -31968,10 +31972,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 15774
+    "line": 15803
    },
-   "hash": "1842852617ab",
-   "desc": "Performs pre-removal cleanup for a unit by interrupting spells, removing the unit from the world if necessary, clearing all auras and game objects, stopping combat, clearing combo points and threat lists, deleting hostile references, and clearing motion master generators. Side effects: Removes the unit from the world (if applicable), clears all associated data structures (auras, game objects, threats, combos), stops combat interactions, and marks cleanup as done if requested.",
+   "hash": "d49d86c78e61",
+   "desc": "Performs comprehensive cleanup of a unit's state before removal from the game world, including interrupting spells, removing pending events, detaching auras and game objects, clearing threats and references, and stopping combat. Side effects: Removes the unit from the world (if applicable), clears all associated spell events, auras, and game object references, removes threat data, deletes hostile reference managers, clears motion master generators, and marks cleanup as done if requested.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -35988,9 +35992,9 @@
   }
  },
  "Unit::SetCharmedBy@c84b4c1a:qwen3-5-4b": {
-  "hash": "f7787c8b1da4",
-  "desc": "Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmers on mounts/vehicles, prevents self-charming, and checks for invalid charm types or illegal states (like a player on a transport trying to charm). Side effects: May remove SPELL_AURA_MOUNTED from the unit or the charmer if they are mounted; may throw an exception if attempting to charm a vehicle with an incompatible kit; logs debug/fatal messages for specific conditions.",
-  "raw": "{\n  \"what\": \"Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmers on mounts/vehicles, prevents self-charming, and checks for invalid charm types or illegal states (like a player on a transport trying to charm).\",\n  \"effects\": \"May remove SPELL_AURA_MOUNTED from the unit or the charmer if they are mounted; may throw an exception if attempting to charm a vehicle with an incompatible kit; logs debug/fatal messages for specific conditions.\"\n}",
+  "hash": "4379915c1b14",
+  "desc": "Sets the charm status of a unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or possessed units based on charm type, prevents self-charming, checks for invalid vehicle charms, and logs debug information. Side effects: Removes mounted auras from the unit and potentially the charmer; may throw an exception if attempting to charm a non-controllable vehicle; returns false if inputs are invalid or logic fails.",
+  "raw": "{\"what\": \"Sets the charm status of a unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or possessed units based on charm type, prevents self-charming, checks for invalid vehicle charms, and logs debug information.\", \"effects\": \"Removes mounted auras from the unit and potentially the charmer; may throw an exception if attempting to charm a non-controllable vehicle; returns false if inputs are invalid or logic fails.\"}",
   "entry": {
    "class": "Unit",
    "name": "SetCharmedBy",
@@ -36000,10 +36004,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 18416
+    "line": 18441
    },
-   "hash": "f7787c8b1da4",
-   "desc": "Sets the charm status of a Unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or charmers on mounts/vehicles, prevents self-charming, and checks for invalid charm types or illegal states (like a player on a transport trying to charm). Side effects: May remove SPELL_AURA_MOUNTED from the unit or the charmer if they are mounted; may throw an exception if attempting to charm a vehicle with an incompatible kit; logs debug/fatal messages for specific conditions.",
+   "hash": "4379915c1b14",
+   "desc": "Sets the charm status of a unit by specifying the charmer, the type of charm, and an optional aura application. It validates inputs (ensuring the charmer exists and is in the world), handles dismounting for players or possessed units based on charm type, prevents self-charming, checks for invalid vehicle charms, and logs debug information. Side effects: Removes mounted auras from the unit and potentially the charmer; may throw an exception if attempting to charm a non-controllable vehicle; returns false if inputs are invalid or logic fails.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
