@@ -52,8 +52,8 @@ enum Spells
     SPELL_NIGHTMARE_PORTAL_VISUAL_PRE   = 71986,
     SPELL_NIGHTMARE_CLOUD               = 71970,
     SPELL_NIGHTMARE_CLOUD_VISUAL        = 71939,
-    SPELL_PRE_SUMMON_DREAM_PORTAL       = 72224,
-    SPELL_PRE_SUMMON_NIGHTMARE_PORTAL   = 72480,
+    SPELL_PRE_SUMMON_DREAM_PORTAL       = 72224, // normal
+    SPELL_PRE_SUMMON_NIGHTMARE_PORTAL   = 72480, // heroic
     SPELL_SUMMON_DREAM_PORTAL           = 71305,
     SPELL_SUMMON_NIGHTMARE_PORTAL       = 71987,
     SPELL_DREAMWALKERS_RAGE             = 71189,
@@ -94,15 +94,12 @@ enum Spells
     SPELL_GUT_SPRAY                     = 70633,
     SPELL_ROT_WORM_SPAWNER              = 70675,
 
-    // Dream Cloud
+    // Dream Cloud (normal)
     SPELL_EMERALD_VIGOR                 = 70873,
 
-    // Nightmare Cloud
+    // Nightmare Cloud (heroic)
     SPELL_TWISTED_NIGHTMARE             = 71941,
 };
-
-#define SUMMON_PORTAL RAID_MODE<uint32>(SPELL_PRE_SUMMON_DREAM_PORTAL, SPELL_PRE_SUMMON_DREAM_PORTAL, SPELL_PRE_SUMMON_NIGHTMARE_PORTAL, SPELL_PRE_SUMMON_NIGHTMARE_PORTAL)
-#define EMERALD_VIGOR RAID_MODE<uint32>(SPELL_EMERALD_VIGOR, SPELL_EMERALD_VIGOR, SPELL_TWISTED_NIGHTMARE, SPELL_TWISTED_NIGHTMARE)
 
 enum Events
 {
@@ -223,7 +220,7 @@ public:
 
     bool Execute(uint64 /*currTime*/, uint32 /*diff*/) override
     {
-        Ycore::CreatureWorker<ValithriaDespawner> worker(_creature, *this);
+        Acore::CreatureWorker<ValithriaDespawner> worker(_creature, *this);
         Cell::VisitObjects(_creature, worker, 333.0f);
         _creature->AI()->Reset();
         _creature->setActive(false);
@@ -434,73 +431,44 @@ public:
                     ++_missedPortals;
         }
 
-		void UpdateAI(uint32 diff) override
-		{
-			// does not enter combat
-			if (_instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) == NOT_STARTED)
-			{
-				uint32 startingHealth = me->GetMaxHealth() * 0.5f;
-				if (me->GetHealth() != startingHealth) // healing when boss cannot be engaged (lower spire not finished, cheating) doesn't start the fight, prevent winning this way
-					me->SetHealth(startingHealth);
-				return;
-			}
+        void UpdateAI(uint32 diff) override
+        {
+            // does not enter combat
+            if (_instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) == NOT_STARTED)
+            {
+                uint32 startingHealth = me->GetMaxHealth() * 0.5f;
+                if (me->GetHealth() != startingHealth) // healing when boss cannot be engaged (lower spire not finished, cheating) doesn't start the fight, prevent winning this way
+                    me->SetHealth(startingHealth);
+                return;
+            }
 
-			// Only check player positions if encounter is IN_PROGRESS
-			if (_instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) == IN_PROGRESS)
-			{
-				// Check if no players have X < 4295, if so reset
-				Map* snapMap = me->GetMap();
-				std::vector<ObjectGuid> guids = snapMap->CopyPlayerGuids();
-				bool hasPlayerInside = false;
-				for (ObjectGuid const& playerGuid : guids)
-				{
-					Player* player = ObjectAccessor::FindPlayer(playerGuid);
-					if (!player || !player->IsInWorld() || player->GetMap() != snapMap)
-						continue;
-					{
-						if (player->IsAlive() && (player->GetPositionX() < 4295.0f))
-						{
-							hasPlayerInside = true;
-							break;
-						}
-					}
-				}
-				
-				if (!hasPlayerInside)
-				{
-					if (Creature* trigger = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_VALITHRIA_TRIGGER)))
-						trigger->AI()->EnterEvadeMode();
-					return;
-				}
-			}
+            _events.Update(diff);
 
-			_events.Update(diff);
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
 
-			if (me->HasUnitState(UNIT_STATE_CASTING))
-				return;
-
-			switch (_events.ExecuteEvent())
-			{
-				case EVENT_INTRO_TALK:
-					Talk(SAY_VALITHRIA_ENTER_COMBAT);
-					break;
-				case EVENT_BERSERK:
-					Talk(SAY_VALITHRIA_BERSERK);
-					break;
-				case EVENT_DREAM_PORTAL:
-					if (!IsHeroic())
-						Talk(SAY_VALITHRIA_DREAM_PORTAL);
-					for (uint32 i = 0; i < _portalCount; ++i)
-						me->CastSpell(me, SUMMON_PORTAL, false);
-					_events.ScheduleEvent(EVENT_DREAM_PORTAL, 45s, 48s);
-					break;
-				case EVENT_DREAM_SLIP:
-					me->CastSpell(me, SPELL_DREAM_SLIP, false);
-					break;
-				default:
-					break;
-			}
-		}
+            switch (_events.ExecuteEvent())
+            {
+                case EVENT_INTRO_TALK:
+                    Talk(SAY_VALITHRIA_ENTER_COMBAT);
+                    break;
+                case EVENT_BERSERK:
+                    Talk(SAY_VALITHRIA_BERSERK);
+                    break;
+                case EVENT_DREAM_PORTAL:
+                    if (!IsHeroic())
+                        Talk(SAY_VALITHRIA_DREAM_PORTAL);
+                    for (uint32 i = 0; i < _portalCount; ++i)
+                        me->CastSpell(me, SPELL_PRE_SUMMON_DREAM_PORTAL, false);
+                    _events.ScheduleEvent(EVENT_DREAM_PORTAL, 45s, 48s);
+                    break;
+                case EVENT_DREAM_SLIP:
+                    me->CastSpell(me, SPELL_DREAM_SLIP, false);
+                    break;
+                default:
+                    break;
+            }
+        }
 
         uint32 GetData(uint32 type) const override
         {
@@ -540,31 +508,26 @@ public:
 
         void Reset() override
         {
-            events.Reset();
-            summons.DespawnAll();
-            if (instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) != DONE)
-                instance->SetBossState(DATA_VALITHRIA_DREAMWALKER, NOT_STARTED);
+            _Reset();
             me->SetReactState(REACT_PASSIVE);
-            checkTimer = 5000;
         }
 
-        void JustEngagedWith(Unit* target) override
+        void JustEnteredCombat(Unit* target) override
         {
+            if (IsEngaged())
+                return;
+
             if (!instance->CheckRequiredBosses(DATA_VALITHRIA_DREAMWALKER, target->ToPlayer()))
             {
-                me->setActive(true);
-                EnterEvadeMode();
+                EnterEvadeMode(EVADE_REASON_SEQUENCE_BREAK);
                 instance->DoCastSpellOnPlayers(LIGHT_S_HAMMER_TELEPORT);
                 return;
             }
-            if (instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) == DONE)
-            {
-                me->CombatStop();
-                return;
-            }
+
+            EngagementStart(target);
 
             me->setActive(true);
-            me->SetInCombatWithZone();
+            DoZoneInCombat();
             instance->SetBossState(DATA_VALITHRIA_DREAMWALKER, IN_PROGRESS);
             if (Creature* valithria = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_VALITHRIA_DREAMWALKER)))
                 valithria->AI()->DoAction(ACTION_ENTER_COMBAT);
@@ -573,21 +536,10 @@ public:
 
             std::list<Creature*> archmages;
             RisenArchmageCheck check;
-            Ycore::CreatureListSearcher<RisenArchmageCheck> searcher(me, archmages, check);
+            Acore::CreatureListSearcher<RisenArchmageCheck> searcher(me, archmages, check);
             Cell::VisitObjects(me, searcher, 100.0f);
             for (std::list<Creature*>::iterator itr = archmages.begin(); itr != archmages.end(); ++itr)
                 (*itr)->AI()->DoAction(ACTION_ENTER_COMBAT);
-        }
-
-        void AttackStart(Unit* target) override
-        {
-            if (target->IsPlayer())
-                BossAI::AttackStart(target);
-        }
-
-        void EnterEvadeMode(EvadeReason why = EVADE_REASON_OTHER) override
-        {
-            CreatureAI::EnterEvadeMode(why);
         }
 
         void MoveInLineOfSight(Unit* /*who*/) override {}
@@ -597,48 +549,27 @@ public:
             return target->IsPlayer();
         }
 
-        void JustReachedHome() override
+        void JustExitedCombat() override
         {
-            if (instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) != DONE)
-                DoAction(ACTION_DEATH); // setActive(false) in ValithriaDespawner
-            else
-                _JustReachedHome();
+            EngagementOver();
+
+            me->setActive(false);
+
+            if (!me->IsAlive())
+                return;
+            DoAction(ACTION_DEATH);
         }
 
         void DoAction(int32 action) override
         {
             if (action == ACTION_DEATH)
+            {
+                instance->SetBossState(DATA_VALITHRIA_DREAMWALKER, NOT_STARTED);
                 me->m_Events.AddEventAtOffset(new ValithriaDespawner(me), 5s);
-            else if (action == ACTION_ENTER_COMBAT)
-            {
-                if (!me->IsInCombat())
-                    me->SetInCombatWithZone();
+                if (Creature* lichKing = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_VALITHRIA_LICH_KING)))
+                    lichKing->AI()->EnterEvadeMode();
             }
         }
-
-        void UpdateAI(uint32 diff) override
-        {
-            if (!me->IsInCombat())
-                return;
-
-            if (checkTimer <= diff)
-            {
-                checkTimer = 3000;
-                me->SetInCombatWithZone();
-                ThreatContainer::StorageType const& threatList = me->GetThreatMgr().GetThreatList();
-                if (!threatList.empty())
-                    for (ThreatContainer::StorageType::const_iterator itr = threatList.begin(); itr != threatList.end(); ++itr)
-                        if (Unit* target = (*itr)->getTarget())
-                            if (target->IsAlive() && target->IsPlayer() && me->GetExactDist(target) < 200.0f && !target->IsImmunedToDamageOrSchool(SPELL_SCHOOL_MASK_ALL))
-                                return;
-                EnterEvadeMode();
-            }
-            else
-                checkTimer -= diff;
-        }
-
-    private:
-        uint16 checkTimer;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -688,17 +619,8 @@ public:
         {
             summon->SetPhaseMask((summon->GetPhaseMask() & ~0x10), true); // must not be in dream phase
             if (summon->GetEntry() != NPC_SUPPRESSER)
-            {
                 if (Unit* target = SelectTargetFromPlayerList(200.0f))
-                {
                     summon->AI()->AttackStart(target);
-                }
-                else if (Creature* vali = summon->FindNearestCreature(36789, 400.0f, true))
-                {
-                    summon->AI()->AttackStart(vali);
-                }
-                summon->SetHomePosition(4218, 2484, 365, 3);
-            }
         }
 
         void UpdateAI(uint32 diff) override
@@ -753,7 +675,7 @@ public:
     struct npc_risen_archmageAI : public ScriptedAI
     {
         npc_risen_archmageAI(Creature* creature) : ScriptedAI(creature),
-            _instance(creature->GetInstanceScript())
+            _instance(creature->GetInstanceScript()), _isInitialArchmage(false)
         {
         }
 
@@ -766,36 +688,34 @@ public:
         {
             _events.Reset();
             _events.ScheduleEvent(EVENT_FROSTBOLT_VOLLEY, 5s, 15s);
-            _events.ScheduleEvent(EVENT_MANA_VOID, 15s, 25s);
+            _events.ScheduleEvent(EVENT_MANA_VOID, 20s, 25s);
             _events.ScheduleEvent(EVENT_COLUMN_OF_FROST, 10s, 20s);
-		    if (Unit* target = me->SelectNearestTarget(25.0f))
-		    {
-	 		    me->AI()->AttackStart(target);
- 		    }
+            _isInitialArchmage = me->GetSpawnId() != 0;
         }
 
-        void LeaveCombat()
+        void JustEnteredCombat(Unit* who) override
         {
-            if (Unit* target = SelectTargetFromPlayerList(200.0f))
-			{
-				if (target->GetPositionX() <= 4295.0f)
-					me->AI()->AttackStart(target);
-			}
-        }
-        
-        void JustEngagedWith(Unit* /*target*/) override
-        {
-            me->FinishSpell(CURRENT_CHANNELED_SPELL, false);
-            me->SetInCombatWithZone();
-            if (me->GetSpawnId())
+            if (IsEngaged())
+                return;
+
+            me->InterruptNonMeleeSpells(false);
+
+            EngagementStart(who);
+
+            if (_isInitialArchmage)
+            {
+                if (Creature* lichKing = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_VALITHRIA_LICH_KING)))
+                    DoZoneInCombat(lichKing);
+
                 if (Creature* trigger = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_VALITHRIA_TRIGGER)))
-                    trigger->AI()->DoAction(ACTION_ENTER_COMBAT);
+                    DoZoneInCombat(trigger);
+            }
         }
 
         void DoAction(int32 action) override
         {
-            if (action == ACTION_ENTER_COMBAT && !me->IsInCombat())
-                me->SetInCombatWithZone();
+            if (action == ACTION_ENTER_COMBAT)
+                DoZoneInCombat();
         }
 
         void JustSummoned(Creature* summon) override
@@ -808,18 +728,9 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            if (!me->IsInCombat())
-                if (me->GetSpawnId())
-                    if (!me->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
-                        me->CastSpell(me, SPELL_CORRUPTION, true);
-			
-            if (me->GetPositionX() > 4295.0f)
-            {
-                me->AI()->EnterEvadeMode();
-                me->GetMotionMaster()->MovePoint(0, 4216.0f, 2484.0f, 364.87f);
-                return;
-            }
-			
+            if (!me->IsInCombat() && me->IsAlive() && _isInitialArchmage && !me->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+                DoCastSelf(SPELL_CORRUPTION);
+
             if (!UpdateVictim())
                 return;
 
@@ -857,6 +768,7 @@ public:
     private:
         EventMap _events;
         InstanceScript* _instance;
+        bool _isInitialArchmage;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -943,7 +855,7 @@ public:
                     me->GetMotionMaster()->Clear(false);
                     me->GetMotionMaster()->MoveIdle();
                     // must use originalCaster the same for all clouds to allow stacking
-                    me->CastSpell(me, EMERALD_VIGOR, false, nullptr, nullptr, _instance->GetGuidData(DATA_VALITHRIA_DREAMWALKER));
+                    me->CastSpell(me, SPELL_EMERALD_VIGOR, false, nullptr, nullptr, _instance->GetGuidData(DATA_VALITHRIA_DREAMWALKER));
                     me->DespawnOrUnsummon(1s);
                     break;
                 default:
@@ -978,39 +890,10 @@ public:
             _events.Reset();
             _events.ScheduleEvent(EVENT_FIREBALL, 2s, 4s);
             _events.ScheduleEvent(EVENT_LEY_WASTE, 15s, 20s);
-            if (Unit* target = SelectTargetFromPlayerList(200.0f))
-			{
-				if (target->GetPositionX() <= 4295.0f)
-					me->AI()->AttackStart(target);
-			}
-            else if (Creature* vali = me->FindNearestCreature(36789, 400.0f, true))
-            {
-                me->AI()->AttackStart(vali);
-            }
-        }
-
-        void LeaveCombat()
-        {
-            if (Unit* target = SelectTargetFromPlayerList(200.0f))
-			{
-				if (target->GetPositionX() <= 4295.0f)
-					me->AI()->AttackStart(target);
-			}
-            else if (Creature* vali = me->FindNearestCreature(36789, 400.0f, true))
-            {
-                me->AI()->AttackStart(vali);
-            }
         }
 
         void UpdateAI(uint32 diff) override
         {
-			if (me->GetPositionX() > 4295.0f)
-			{
-				me->AI()->EnterEvadeMode();
-				me->GetMotionMaster()->MovePoint(0, 4216.0f, 2484.0f, 364.87f);
-				return;
-			}
-			
             if (!UpdateVictim())
                 return;
 
@@ -1114,32 +997,6 @@ public:
         uint16 timer;
         bool casted;
 
-        void Reset() override
-        {
-            if (Unit* target = SelectTargetFromPlayerList(200.0f))
-			{
-				if (target->GetPositionX() <= 4295.0f)
-					me->AI()->AttackStart(target);
-			}
-            else if (Creature* vali = me->FindNearestCreature(36789, 400.0f, true))
-            {
-                me->AI()->AttackStart(vali);
-            }
-        }
-        
-        void LeaveCombat()
-        {
-            if (Unit* target = SelectTargetFromPlayerList(200.0f))
-			{
-				if (target->GetPositionX() <= 4295.0f)
-					me->AI()->AttackStart(target);
-			}
-            else if (Creature* vali = me->FindNearestCreature(36789, 400.0f, true))
-            {
-                me->AI()->AttackStart(vali);
-            }
-        }
-
         void DamageTaken(Unit*, uint32& dmg, DamageEffectType, SpellSchoolMask) override
         {
             if (dmg >= me->GetHealth())
@@ -1160,13 +1017,6 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-			if (me->GetPositionX() > 4295.0f)
-			{
-				me->AI()->EnterEvadeMode();
-				me->GetMotionMaster()->MovePoint(0, 4216.0f, 2484.0f, 364.87f);
-				return;
-			}
-			
             if (timer)
             {
                 if (timer <= diff)
@@ -1210,29 +1060,7 @@ public:
         void Reset() override
         {
             _events.Reset();
-            _events.ScheduleEvent(EVENT_GUT_SPRAY, 10s, 13s); 
-            if (Unit* target = SelectTargetFromPlayerList(200.0f))
-			{
-				if (target->GetPositionX() <= 4295.0f)
-					me->AI()->AttackStart(target);
-			}
-            else if (Creature* vali = me->FindNearestCreature(36789, 400.0f, true))
-            {
-                me->AI()->AttackStart(vali);
-            }
-        }
-
-        void LeaveCombat()
-        {
-            if (Unit* target = SelectTargetFromPlayerList(200.0f))
-			{
-				if (target->GetPositionX() <= 4295.0f)
-					me->AI()->AttackStart(target);
-			}
-            else if (Creature* vali = me->FindNearestCreature(36789, 400.0f, true))
-            {
-                me->AI()->AttackStart(vali);
-            }
+            _events.ScheduleEvent(EVENT_GUT_SPRAY, 10s, 13s);
         }
 
         void JustSummoned(Creature* summon) override
@@ -1250,13 +1078,6 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-			if (me->GetPositionX() > 4295.0f)
-			{
-				me->AI()->EnterEvadeMode();
-				me->GetMotionMaster()->MovePoint(0, 4216.0f, 2484.0f, 364.87f);
-				return;
-			}
-			
             if (!UpdateVictim())
                 return;
 
@@ -1420,9 +1241,9 @@ class spell_dreamwalker_summoner : public SpellScript
 
     void FilterTargets(std::list<WorldObject*>& targets)
     {
-        targets.remove_if(Ycore::AllWorldObjectsInExactRange(GetCaster(), 250.0f, true));
+        targets.remove_if(Acore::AllWorldObjectsInExactRange(GetCaster(), 250.0f, true));
         std::list<WorldObject*> list_copy = targets;
-        targets.remove_if(Ycore::UnitAuraCheck(true, SPELL_RECENTLY_SPAWNED));
+        targets.remove_if(Acore::UnitAuraCheck(true, SPELL_RECENTLY_SPAWNED));
         if (targets.empty())
         {
             if (list_copy.empty())
@@ -1430,7 +1251,7 @@ class spell_dreamwalker_summoner : public SpellScript
             targets = list_copy;
         }
 
-        WorldObject* target = Ycore::Containers::SelectRandomContainerElement(targets);
+        WorldObject* target = Acore::Containers::SelectRandomContainerElement(targets);
         targets.clear();
         targets.push_back(target);
     }
@@ -1470,24 +1291,19 @@ class spell_dreamwalker_summon_suppresser_aura : public AuraScript
         std::list<Creature*> summoners;
         caster->GetCreaturesWithEntryInRange(summoners, 200.0f, NPC_WORLD_TRIGGER);
         std::list<Creature*> list_copy = summoners;
-        summoners.remove_if(Ycore::UnitAuraCheck(true, SPELL_RECENTLY_SPAWNED));
+        summoners.remove_if(Acore::UnitAuraCheck(true, SPELL_RECENTLY_SPAWNED));
         if (summoners.empty())
         {
             if (list_copy.empty())
                 return;
             summoners = list_copy;
         }
-        Ycore::Containers::RandomResize(summoners, 2);
+        Acore::Containers::RandomResize(summoners, 2);
 
         for (uint32 i = 0; i < 3; ++i)
             caster->CastSpell(summoners.front(), SPELL_SUMMON_SUPPRESSER, true);
-        
-        if (caster->GetMap()->GetDifficulty() == RAID_DIFFICULTY_25MAN_NORMAL || 
-            caster->GetMap()->GetDifficulty() == RAID_DIFFICULTY_25MAN_HEROIC)
-        {
-            for (uint32 i = 0; i < 3; ++i)
-                caster->CastSpell(summoners.back(), SPELL_SUMMON_SUPPRESSER, true);
-        }
+        for (uint32 i = 0; i < 3; ++i)
+            caster->CastSpell(summoners.back(), SPELL_SUMMON_SUPPRESSER, true);
     }
 
     void Register() override
