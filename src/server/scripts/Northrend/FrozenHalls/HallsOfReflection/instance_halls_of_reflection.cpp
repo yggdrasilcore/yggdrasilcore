@@ -227,6 +227,7 @@ public:
                     creature->RemoveNpcFlag(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                     creature->RemoveUnitMovementFlag(MOVEMENTFLAG_WALKING);
                     break;
+<<<<<<< HEAD
                 case NPC_DARK_RANGER_LORALEN:
                     creature->SetVisible(false);
                     NPC_GuardGUID = creature->GetGUID();
@@ -254,6 +255,185 @@ public:
                     NPC_MarwynGUID = creature->GetGUID();
                     creature->AddUnitMovementFlag(MOVEMENTFLAG_WALKING);
                     break;
+=======
+                for (uint8 i = 0; i < MAX_SPIRITUAL_REFLECTIONS; ++i)
+                    if (Creature* reflection = instance->GetCreature(_spiritualReflectionGUID[i]))
+                        if (reflection->IsVisible())
+                        {
+                            reflection->SetInCombatWithZone();
+                            reflection->SetCanFly(false);
+                            reflection->SetDisableGravity(false);
+                            reflection->GetMotionMaster()->MoveJump(general->GetPositionX(), general->GetPositionY(), general->GetPositionZ(), 20.0f, 10.0f);
+                        }
+                break;
+            }
+            case ACTION_SPIRITUAL_REFLECTIONS_HIDE:
+                for (uint8 i = 0; i < MAX_SPIRITUAL_REFLECTIONS; ++i)
+                    if (Creature* reflection = instance->GetCreature(_spiritualReflectionGUID[i]))
+                        reflection->AI()->EnterEvadeMode();
+                break;
+            case DATA_LK_INTRO:
+                StorePersistentData(PERSISTENT_DATA_LK_INTRO, 1);
+                if (Creature* leader = GetCreature(NPC_SYLVANAS_PART2))
+                    leader->AI()->DoAction(ACTION_START_INTRO);
+                break;
+            case ACTION_START_LK_FIGHT:
+                SetBossState(DATA_LICH_KING, IN_PROGRESS);
+                _isLichKingFightActive = true;
+                DoStopTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_RETREATING_TIMED_EVENT);
+                DoStartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_RETREATING_TIMED_EVENT);
+                break;
+            case ACTION_STOP_LK_FIGHT:
+                if (!_isLichKingFightActive)
+                    break;
+                if (Creature* leader = GetCreature(NPC_SYLVANAS_PART2))
+                {
+                    if (!leader->IsAlive())
+                    {
+                        leader->Respawn();
+                        if (GetTeamIdInInstance() == TEAM_ALLIANCE)
+                            leader->UpdateEntry(NPC_JAINA_PART2);
+                    }
+                    leader->GetThreatMgr().ClearAllThreat();
+                    leader->CombatStop(true);
+                    leader->InterruptNonMeleeSpells(true);
+                    leader->GetMotionMaster()->Clear();
+                    leader->GetMotionMaster()->MoveIdle();
+                    leader->UpdatePosition(LeaderEscapePos, true);
+                    leader->StopMovingOnCurrentPos();
+                    leader->RemoveNpcFlag(UNIT_NPC_FLAG_QUESTGIVER);
+                    leader->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+                    leader->SetHealth(leader->GetMaxHealth() / 20);
+                    leader->AI()->Reset();
+                    leader->setActive(false);
+                    leader->RemoveUnitMovementFlag(MOVEMENTFLAG_WALKING);
+                    leader->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
+                }
+                if (Creature* lichKing = GetCreature(NPC_LICH_KING_BOSS))
+                {
+                    lichKing->GetThreatMgr().ClearAllThreat();
+                    lichKing->CombatStop(true);
+                    lichKing->InterruptNonMeleeSpells(true);
+                    lichKing->GetMotionMaster()->Clear();
+                    lichKing->GetMotionMaster()->MoveIdle();
+                    lichKing->UpdatePosition(lichKing->GetHomePosition(), true);
+                    lichKing->StopMovingOnCurrentPos();
+                    lichKing->RemoveAllAuras();
+                    lichKing->AddAura(GetTeamIdInInstance() == TEAM_ALLIANCE ? SPELL_JAINA_ICE_PRISON : SPELL_SYLVANAS_DARK_BINDING, lichKing);
+                    lichKing->AI()->Reset();
+                    lichKing->setActive(false);
+                    lichKing->RemoveUnitMovementFlag(MOVEMENTFLAG_WALKING);
+                    lichKing->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
+                    lichKing->SetSpeed(MOVE_RUN, lichKing->GetCreatureTemplate()->speed_run);
+                }
+                _isLichKingFightActive = false;
+                SetBossState(DATA_LICH_KING, FAIL);
+                _outroTimer = 0;
+                _outroStep = 0;
+                [[fallthrough]];
+            case ACTION_DELETE_ICE_WALL:
+                HandleGameObject(GO_ICE_WALL, true);
+                break;
+            case DATA_BATTERED_HILT:
+            {
+                if (GetPersistentData(PERSISTENT_DATA_BATTERED_HILT))
+                    return;
+
+                switch (data)
+                {
+                    case 1:
+                        StorePersistentData(PERSISTENT_DATA_BATTERED_HILT, 1);
+                        break;
+                    case 2:
+                        if (_batteredHiltStatus)
+                            break;
+                        _batteredHiltStatus |= BHSF_STARTED;
+                        if (Creature* bunny = GetCreature(NPC_ALTAR_BUNNY))
+                            bunny->CastSpell(bunny, SPELL_FROSTMOURNE_ALTAR_GLOW, true);
+                        if (Creature* uther = GetCreature(NPC_UTHER))
+                            uther->m_Events.AddEventAtOffset(new UtherBatteredHiltEvent(*uther, 1), 3s);
+                        break;
+                    case 3:
+                        if (!(_batteredHiltStatus & BHSF_STARTED) || (_batteredHiltStatus & BHSF_THROWN))
+                            break;
+                        _batteredHiltStatus |= BHSF_THROWN;
+                        if (Creature* uther = GetCreature(NPC_UTHER))
+                            uther->m_Events.AddEventAtOffset(new UtherBatteredHiltEvent(*uther, 3), 5500ms);
+                        break;
+                    case 4:
+                        if (Creature* quelDelar = GetCreature(NPC_QUEL_DELAR))
+                        {
+                            quelDelar->RemoveUnitMovementFlag(MOVEMENTFLAG_WALKING);
+                            quelDelar->SetSpeed(MOVE_RUN, 2.5f);
+                        }
+                        break;
+                    case 5:
+                        if (Creature* uther = GetCreature(NPC_UTHER))
+                            uther->m_Events.AddEventAtOffset(new UtherBatteredHiltEvent(*uther, 6), 3s);
+                        break;
+                    case 6:
+                        if (Creature* quelDelar = GetCreature(NPC_QUEL_DELAR))
+                        {
+                            quelDelar->SetSpeed(MOVE_RUN, quelDelar->GetCreatureTemplate()->speed_run);
+                            quelDelar->GetMotionMaster()->MoveLand(0, quelDelar->GetPositionX(), quelDelar->GetPositionY(), 707.70f, 7.0f);
+                        }
+                        break;
+                    case 7:
+                        if (Creature* quelDelar = GetCreature(NPC_QUEL_DELAR))
+                        {
+                            quelDelar->SetReactState(REACT_AGGRESSIVE);
+                            quelDelar->SetImmuneToAll(false);
+                            quelDelar->RemoveAurasDueToSpell(SPELL_QUEL_DELAR_HATRED);
+                        }
+                        break;
+                    case 8:
+                        if (Creature* quelDelar = GetCreature(NPC_QUEL_DELAR))
+                            quelDelar->SetInCombatWithZone();
+                        break;
+                    case 9:
+                        StorePersistentData(PERSISTENT_DATA_BATTERED_HILT, 1);
+                        _batteredHiltStatus |= BHSF_FINISHED;
+                        break;
+                }
+                return;
+            }
+        }
+    }
+
+    uint32 GetData(uint32 type) const override
+    {
+        switch (type)
+        {
+            case DATA_WAVE_NUMBER:
+                return static_cast<uint32>(_waveNumber);
+            case DATA_BATTERED_HILT:
+                return _batteredHiltStatus;
+        }
+
+        return 0;
+    }
+
+    ObjectGuid GetGuidData(uint32 type) const override
+    {
+        switch (type)
+        {
+            case NPC_ICE_WALL_TARGET:
+            case NPC_ICE_WALL_TARGET + 1:
+            case NPC_ICE_WALL_TARGET + 2:
+            case NPC_ICE_WALL_TARGET + 3:
+                return _iceWallTargetGUID[type - NPC_ICE_WALL_TARGET];
+            default:
+                return GetObjectGuid(type);
+        }
+    }
+
+    void OnUnitDeath(Unit* unit) override
+    {
+        if (_waveNumber && _remainingTrashKills)
+        {
+            switch (unit->GetEntry())
+            {
+>>>>>>> 28833e12d (fix(Scripts/HoR): fix HoR escape event outro and refactor tracking (#25287))
                 case NPC_WAVE_MERCENARY:
                 case NPC_WAVE_FOOTMAN:
                 case NPC_WAVE_RIFLEMAN:
