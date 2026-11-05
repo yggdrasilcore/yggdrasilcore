@@ -4009,11 +4009,6 @@ void Creature::ClearLeash()
     m_leashState.reset();
 }
 
-void Creature::ClearLastLeashExtensionTimePtr()
-{
-    ClearLeash();
-}
-
 void Creature::EngageLeash(Unit* target)
 {
     if (!target || (GetMap() && GetMap()->Instanceable()))
@@ -4128,21 +4123,6 @@ void Creature::RefreshLeashOnStationaryCombat(Unit* victim)
     it->second.deadline = std::max(it->second.deadline, now + (time_t)stock);
 }
 
-bool Creature::HasLeashEntryFor(Unit const* target) const
-{
-    if (!target || !m_leashState)
-        return false;
-    return m_leashState->entries.find(target->GetGUID()) != m_leashState->entries.end();
-}
-
-time_t Creature::GetLeashDeadlineFor(Unit const* target) const
-{
-    if (!target || !m_leashState)
-        return 0;
-    auto it = m_leashState->entries.find(target->GetGUID());
-    return it != m_leashState->entries.end() ? it->second.deadline : 0;
-}
-
 bool Creature::IsOutsideLeashRange(Unit const* victim) const
 {
     float leashDist = sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
@@ -4174,40 +4154,6 @@ bool Creature::IsLeashExpiredFor(Unit const* target) const
     if (it == m_leashState->entries.end())
         return false;
     return GameTime::GetGameTime().count() > it->second.deadline;
-}
-
-time_t Creature::GetLastLeashExtensionTime() const
-{
-    // Compat: most recent deadline across the queue (0 if empty).
-    if (!m_leashState || m_leashState->entries.empty())
-        return GameTime::GetGameTime().count();
-    time_t latest = 0;
-    for (auto const& kv : m_leashState->entries)
-        latest = std::max(latest, kv.second.deadline - (time_t)GetLeashTimer());
-    return latest;
-}
-
-void Creature::UpdateLeashExtensionTime()
-{
-    if (Unit* victim = GetVictim())
-        RefreshLeashOnStationaryCombat(victim);
-    else
-    {
-        // No victim (e.g. caster between casts): keep any existing entries alive.
-        if (m_leashState)
-        {
-            time_t now = GameTime::GetGameTime().count();
-            uint32 stock = GetLeashTimer();
-            for (auto& kv : m_leashState->entries)
-                kv.second.deadline = std::max(kv.second.deadline, now + (time_t)stock);
-        }
-    }
-}
-
-void Creature::UpdateLeashExtensionTimeFor(Unit* victim)
-{
-    if (victim)
-        TryExtendLeashOnDirectHit(victim);
 }
 
 uint32 Creature::GetLeashTimer() const
