@@ -44,6 +44,7 @@ SmartAI::SmartAI(Creature* c) : CreatureAI(c)
     mCanRepeatPath = false;
 
     mEvadeDisabled = false;
+    mSuppressEvade = false;
 
     mCanAutoAttack = true;
 
@@ -654,6 +655,9 @@ void SmartAI::MovementInform(uint32 MovementType, uint32 Data)
 
 void SmartAI::EnterEvadeMode(EvadeReason /*why*/)
 {
+    if (mSuppressEvade)
+        return;
+
     if (mEvadeDisabled)
     {
         GetScript()->ProcessEventsFor(SMART_EVENT_EVADE);
