@@ -796,6 +796,21 @@ bool Unit::HasAuraTypeWithFamilyFlags(AuraType auraType, uint32 familyName, uint
     return false;
 }
 
+bool Unit::IsReactiveProcDamage(SpellInfo const* spellProto, SpellInfo const* triggeredByAura)
+{
+    if (spellProto && spellProto->HasAura(SPELL_AURA_DAMAGE_SHIELD))
+        return true;
+
+    if (!triggeredByAura || !triggeredByAura->ProcFlags)
+        return false;
+
+    // Eye for an Eye reflects damage back from a dummy aura
+    if (triggeredByAura->Id == 9799 && triggeredByAura->Effects[EFFECT_0].ApplyAuraName == SPELL_AURA_DUMMY)
+        return true;
+
+    return (triggeredByAura->ProcFlags & ~uint32(TAKEN_HIT_PROC_FLAG_MASK)) == 0;
+}
+
 bool Unit::HasBreakableByDamageAuraType(AuraType type, uint32 excludeAura) const
 {
     AuraEffectList const& auras = GetAuraEffectsByType(type);
@@ -829,7 +844,7 @@ void Unit::DealDamageMods(Unit const* victim, uint32& damage, uint32* absorb)
     }
 }
 
-uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask, SpellInfo const* spellProto, bool durabilityLoss, bool /*allowGM*/, Spell const* damageSpell /*= nullptr*/)
+uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask, SpellInfo const* spellProto, bool durabilityLoss, bool /*allowGM*/, Spell const* damageSpell /*= nullptr*/, SpellInfo const* triggeredByAura /*= nullptr*/)
 {
     damage = sScriptMgr->DealDamage(attacker, victim, damage, damagetype);
     // Xinef: initialize damage done for rage calculations
@@ -1092,9 +1107,9 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         if (!victim->IsPlayer())
         {
             // Direct hostile actions (melee / shoot / direct spell hit) extend the
-            // victim's leash by one stock bracket. Passive aura applications such
-            // as Thorns / Frost Armor (damage shields) and DoTs do not extend.
-            if (damagetype != DOT && damage > 0 && !victim->GetOwnerGUID().IsPlayer() && (!spellProto || !spellProto->HasAura(SPELL_AURA_DAMAGE_SHIELD)))
+            // victim's leash by one stock bracket. Passive damage does not extend.
+            if (damagetype != DOT && damage > 0 && !victim->GetOwnerGUID().IsPlayer()
+                && !IsReactiveProcDamage(spellProto, damageSpell ? damageSpell->GetTriggeredByAuraSpellInfo() : nullptr))
                 victim->ToCreature()->TryExtendLeashOnDirectHit(attacker);
 
             if (attacker && attacker != victim)
@@ -1477,7 +1492,7 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
     }
 }
 
-void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss, Spell const* spell /*= nullptr*/)
+void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss, Spell const* spell /*= nullptr*/, SpellInfo const* triggeredByAura /*= nullptr*/)
 {
     if (damageInfo == 0)
         return;
@@ -1499,7 +1514,9 @@ void Unit::DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss,
 
     // Call default DealDamage
     CleanDamage cleanDamage(damageInfo->cleanDamage, damageInfo->absorb, BASE_ATTACK, MELEE_HIT_NORMAL);
-    Unit::DealDamage(this, victim, damageInfo->damage, &cleanDamage, SPELL_DIRECT_DAMAGE, SpellSchoolMask(damageInfo->schoolMask), spellProto, durabilityLoss, false, spell);
+    if (!triggeredByAura && spell)
+        triggeredByAura = spell->GetTriggeredByAuraSpellInfo();
+    Unit::DealDamage(this, victim, damageInfo->damage, &cleanDamage, SPELL_DIRECT_DAMAGE, SpellSchoolMask(damageInfo->schoolMask), spellProto, durabilityLoss, false, spell, triggeredByAura);
 }
 
 // @todo for melee need create structure as in
