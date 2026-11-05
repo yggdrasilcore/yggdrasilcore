@@ -35397,27 +35397,6 @@
    "model": "qwen3.5:4b"
   }
  },
- "Unit::DealDamage@733503a9:qwen3-5-4b": {
-  "hash": "bc85cb8a7283",
-  "desc": "Calculates and applies damage to a target unit, handling AI notifications, pet alerts, script hooks, and cheat god status checks. Side effects: Modifies the attacker's and victim's AI state, triggers OnDamage event, signals pets of owner attacks or being attacked, and potentially returns 0 if the victim is under cheat god status.",
-  "raw": "{\n  \"what\": \"Calculates and applies damage to a target unit, handling AI notifications, pet alerts, script hooks, and cheat god status checks.\",\n  \"effects\": \"Modifies the attacker's and victim's AI state, triggers OnDamage event, signals pets of owner attacks or being attacked, and potentially returns 0 if the victim is under cheat god status.\"\n}",
-  "entry": {
-   "class": "Unit",
-   "name": "DealDamage",
-   "sig": "uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true, bool allowGM = false, Spell const* spell = nullptr)",
-   "file": "src/server/game/Entities/Unit/Unit.h",
-   "line": 1194,
-   "access": "public",
-   "impl": {
-    "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 824
-   },
-   "hash": "bc85cb8a7283",
-   "desc": "Calculates and applies damage to a target unit, handling AI notifications, pet alerts, script hooks, and cheat god status checks. Side effects: Modifies the attacker's and victim's AI state, triggers OnDamage event, signals pets of owner attacks or being attacked, and potentially returns 0 if the victim is under cheat god status.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
  "Unit::DealMeleeDamage@12ab010d:qwen3-5-4b": {
   "hash": "7dae9afdc714",
   "desc": "Calculates and applies melee damage to a target unit by checking if the target is alive, not in flight, and not evading attacks (unless it's a creature without evasion), then triggers specific emotes for critical hits or parries, and potentially reduces off-hand attack timers based on haste mechanics. Side effects: Modifies the victim's state by triggering emote commands and adjusting attack timers; no direct side effects to other units or global state.",
@@ -35435,27 +35414,6 @@
    },
    "hash": "7dae9afdc714",
    "desc": "Calculates and applies melee damage to a target unit by checking if the target is alive, not in flight, and not evading attacks (unless it's a creature without evasion), then triggers specific emotes for critical hits or parries, and potentially reduces off-hand attack timers based on haste mechanics. Side effects: Modifies the victim's state by triggering emote commands and adjusting attack timers; no direct side effects to other units or global state.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Unit::DealSpellDamage@8081a1fc:qwen3-5-4b": {
-  "hash": "e01576be1f82",
-  "desc": "Validates input parameters and checks if the target unit is alive, not in flight, and not evading attacks before proceeding to deal spell damage.",
-  "raw": "{\"what\": \"Validates input parameters and checks if the target unit is alive, not in flight, and not evading attacks before proceeding to deal spell damage.\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Unit",
-   "name": "DealSpellDamage",
-   "sig": "void DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss, Spell const* spell = nullptr)",
-   "file": "src/server/game/Entities/Unit/Unit.h",
-   "line": 1196,
-   "access": "public",
-   "impl": {
-    "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 1472
-   },
-   "hash": "e01576be1f82",
-   "desc": "Validates input parameters and checks if the target unit is alive, not in flight, and not evading attacks before proceeding to deal spell damage.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -35503,9 +35461,9 @@
   }
  },
  "Unit::Kill@c2869faf:qwen3-5-4b": {
-  "hash": "64b3648b93e4",
-  "desc": "Processes damage dealt to a unit by applying health reduction, handling durability loss for players, managing interrupt flags based on damage type, extending the leash for direct hostile hits on creatures, and updating threat lists. Side effects: Modifies victim's health, potentially reduces player equipment durability, removes specific auras, extends creature leash, updates combat state, adds threat, and may trigger achievement criteria.",
-  "raw": "{\"what\": \"Processes damage dealt to a unit by applying health reduction, handling durability loss for players, managing interrupt flags based on damage type, extending the leash for direct hostile hits on creatures, and updating threat lists.\", \"effects\": \"Modifies victim's health, potentially reduces player equipment durability, removes specific auras, extends creature leash, updates combat state, adds threat, and may trigger achievement criteria.\"}",
+  "hash": "fc6bdf26cc39",
+  "desc": "Reduces the victim's health by the calculated damage amount and applies various game mechanics based on damage type and target type. Side effects: Modifies victim's health, removes auras with interrupt flags, extends leash for direct hits (if not player), starts combat or adds threat to attacker (if not player), and potentially reduces item durability for players.",
+  "raw": "{\"what\": \"Reduces the victim's health by the calculated damage amount and applies various game mechanics based on damage type and target type.\", \"effects\": \"Modifies victim's health, removes auras with interrupt flags, extends leash for direct hits (if not player), starts combat or adds threat to attacker (if not player), and potentially reduces item durability for players.\"}",
   "entry": {
    "class": "Unit",
    "name": "Kill",
@@ -35515,10 +35473,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 1070
+    "line": 1093
    },
-   "hash": "64b3648b93e4",
-   "desc": "Processes damage dealt to a unit by applying health reduction, handling durability loss for players, managing interrupt flags based on damage type, extending the leash for direct hostile hits on creatures, and updating threat lists. Side effects: Modifies victim's health, potentially reduces player equipment durability, removes specific auras, extends creature leash, updates combat state, adds threat, and may trigger achievement criteria.",
+   "hash": "fc6bdf26cc39",
+   "desc": "Reduces the victim's health by the calculated damage amount and applies various game mechanics based on damage type and target type. Side effects: Modifies victim's health, removes auras with interrupt flags, extends leash for direct hits (if not player), starts combat or adds threat to attacker (if not player), and potentially reduces item durability for players.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43403,6 +43361,69 @@
    },
    "hash": "9ecdf7350ed3",
    "desc": "Removes all entries from the interaction stop map that contain the current creature's GUID, then invalidates the interaction stop resume flag. Side effects: modifies",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Unit::DealDamage@a739bd54:qwen3-5-4b": {
+  "hash": "8040b161321c",
+  "desc": "Calculates and applies damage to a target unit, updating rage calculations for both the attacker and victim, notifying AI systems of the damage event, signaling pets if their owner was attacked, and checking for cheat god status before returning the final damage value. Side effects: Modifies rage values for attacker and victim; triggers OnDamage script hook; notifies pet owners of attacks; signals pet AI to respond to attacks; returns actual damage dealt (or 0 if cheat god is enabled on the victim).",
+  "raw": "{\n  \"what\": \"Calculates and applies damage to a target unit, updating rage calculations for both the attacker and victim, notifying AI systems of the damage event, signaling pets if their owner was attacked, and checking for cheat god status before returning the final damage value.\",\n  \"effects\": \"Modifies rage values for attacker and victim; triggers OnDamage script hook; notifies pet owners of attacks; signals pet AI to respond to attacks; returns actual damage dealt (or 0 if cheat god is enabled on the victim).\"\n}",
+  "entry": {
+   "class": "Unit",
+   "name": "DealDamage",
+   "sig": "uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true, bool allowGM = false, Spell const* spell = nullptr, SpellInfo const* triggeredByAura = nullptr)",
+   "file": "src/server/game/Entities/Unit/Unit.h",
+   "line": 1194,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Unit/Unit.cpp",
+    "line": 847
+   },
+   "hash": "8040b161321c",
+   "desc": "Calculates and applies damage to a target unit, updating rage calculations for both the attacker and victim, notifying AI systems of the damage event, signaling pets if their owner was attacked, and checking for cheat god status before returning the final damage value. Side effects: Modifies rage values for attacker and victim; triggers OnDamage script hook; notifies pet owners of attacks; signals pet AI to respond to attacks; returns actual damage dealt (or 0 if cheat god is enabled on the victim).",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Unit::DealSpellDamage@a2764998:qwen3-5-4b": {
+  "hash": "87693e39902f",
+  "desc": "Validates input parameters and checks victim status before processing spell damage; initializes a CleanDamage object with the provided damage details.",
+  "raw": "{\"what\": \"Validates input parameters and checks victim status before processing spell damage; initializes a CleanDamage object with the provided damage details.\", \"effects\": \"none\"}",
+  "entry": {
+   "class": "Unit",
+   "name": "DealSpellDamage",
+   "sig": "void DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss, Spell const* spell = nullptr, SpellInfo const* triggeredByAura = nullptr)",
+   "file": "src/server/game/Entities/Unit/Unit.h",
+   "line": 1196,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Unit/Unit.cpp",
+    "line": 1495
+   },
+   "hash": "87693e39902f",
+   "desc": "Validates input parameters and checks victim status before processing spell damage; initializes a CleanDamage object with the provided damage details.",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Unit::IsReactiveProcDamage@1c14ec90:qwen3-5-4b": {
+  "hash": "54123bd4b7d1",
+  "desc": "Determines if a spell's damage is reactive by checking for specific aura conditions or proc flags.",
+  "raw": "{\n  \"what\": \"Determines if a spell's damage is reactive by checking for specific aura conditions or proc flags.\",\n  \"effects\": \"none\"\n}",
+  "entry": {
+   "class": "Unit",
+   "name": "IsReactiveProcDamage",
+   "sig": "bool IsReactiveProcDamage(SpellInfo const* spellProto, SpellInfo const* triggeredByAura)",
+   "file": "src/server/game/Entities/Unit/Unit.h",
+   "line": 1469,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Unit/Unit.cpp",
+    "line": 799
+   },
+   "hash": "54123bd4b7d1",
+   "desc": "Determines if a spell's damage is reactive by checking for specific aura conditions or proc flags.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
