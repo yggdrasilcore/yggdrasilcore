@@ -1,3 +1,20 @@
+/*
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by the
+ * Free Software Foundation; either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef BOSS_THADDIUS_H_
 #define BOSS_THADDIUS_H_
 
@@ -672,22 +689,18 @@ public:
     };
 };
 
-class at_thaddius_entrance : public AreaTriggerScript
+class at_thaddius_entrance : public OnlyOnceAreaTriggerScript
 {
 public:
-    at_thaddius_entrance() : AreaTriggerScript("at_thaddius_entrance") { }
+    at_thaddius_entrance() : OnlyOnceAreaTriggerScript("at_thaddius_entrance") { }
 
-    bool OnTrigger(Player* player, AreaTrigger const* /*areaTrigger*/) override
+    bool _OnTrigger(Player* player, const AreaTrigger* /*trigger*/) override
     {
-        InstanceScript* instance = player->GetInstanceScript();
-        if (!instance || instance->GetData(DATA_THADDIUS_INTRO) || instance->GetBossState(BOSS_THADDIUS) == DONE)
-            return true;
-
-        if (Creature* thaddius = instance->GetCreature(DATA_THADDIUS_BOSS))
-            thaddius->AI()->Talk(SAY_GREET);
-
-        instance->SetData(DATA_THADDIUS_INTRO, 1);
-        return true;
+        if (InstanceScript* instance = player->GetInstanceScript())
+            if (instance->GetBossState(BOSS_THADDIUS) != DONE)
+                if (Creature* thaddius = instance->GetCreature(DATA_THADDIUS_BOSS))
+                    thaddius->AI()->Talk(SAY_GREET);
+        return false;
     }
 };
 
