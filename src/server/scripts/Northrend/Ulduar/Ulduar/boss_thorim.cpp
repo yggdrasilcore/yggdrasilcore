@@ -362,7 +362,135 @@ public:
 
         void DisableThorim(bool apply)
         {
+<<<<<<< HEAD
             if (apply)
+=======
+            me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_PACIFIED);
+            me->DisableRotate(false);
+            me->ClearUnitState(UNIT_STATE_ROOT);
+            me->resetAttackTimer(BASE_ATTACK);
+        }
+    }
+
+    GameObject* GetThorimObject(uint32 entry)
+    {
+        return instance->GetGameObject(entry);
+    }
+
+    void SpawnAllNPCs()
+    {
+        // Jormungar Behemoth 32882
+        me->SummonCreature(NPC_JORMUNGAR_BEHEMOT, 2149.68f, -263.477f, 419.679f, 3.12102f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
+
+        // Captured Mercenary Soldier 32885
+        me->SummonCreature(_isAlly ? NPC_CAPTURED_MERCENARY_SOLDIER_ALLY : NPC_CAPTURED_MERCENARY_SOLDIER_HORDE, 2127.24f, -251.309f, 419.793f, 5.89921f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
+        me->SummonCreature(_isAlly ? NPC_CAPTURED_MERCENARY_SOLDIER_ALLY : NPC_CAPTURED_MERCENARY_SOLDIER_HORDE, 2120.1f, -258.99f, 419.764f, 6.24828f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
+        me->SummonCreature(_isAlly ? NPC_CAPTURED_MERCENARY_SOLDIER_ALLY : NPC_CAPTURED_MERCENARY_SOLDIER_HORDE, 2123.32f, -254.771f, 419.789f, 6.17846f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
+
+        // Captured Mercenary Captain 32908
+        me->SummonCreature(_isAlly ? NPC_CAPTURED_MERCENARY_CAPTAIN_ALLY : NPC_CAPTURED_MERCENARY_CAPTAIN_HORDE, 2131.31f, -259.182f, 419.974f, 5.91667f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
+
+        // Dark Rune Acolyte (arena) 32886
+        me->SummonCreature(NPC_DARK_RUNE_ACOLYTE_I, 2129.09f, -277.142f, 419.756f, 1.22173f, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 5000);
+
+        // Iron Ring Guard 32874
+        me->SummonCreature(NPC_IRON_RING_GUARD, 2217.69f, -337.394f, 412.177f, 1.23918f);
+        me->SummonCreature(NPC_IRON_RING_GUARD, 2218.38f, -297.505f, 412.176f, 1.02974f);
+        me->SummonCreature(NPC_IRON_RING_GUARD, 2235.26f, -338.345f, 412.134f, 1.58979f);
+        me->SummonCreature(NPC_IRON_RING_GUARD, 2235.07f, -297.985f, 412.134f, 1.61336f);
+
+        // Dark Rune Acolyte (gauntlet) 33110
+        me->SummonCreature(NPC_DARK_RUNE_ACOLYTE_G, 2198.29f, -436.92f, 419.985f, 0.261799f);
+        me->SummonCreature(NPC_DARK_RUNE_ACOLYTE_G, 2227.58f, -308.303f, 412.134f, 1.59372f);
+        me->SummonCreature(NPC_DARK_RUNE_ACOLYTE_G, 2227.47f, -345.375f, 412.134f, 1.56622f);
+
+        // Iron Honor Guard 32875
+        me->SummonCreature(NPC_IRON_HONOR_GUARD, 2198.05f, -428.769f, 419.985f, 6.05629f);
+        me->SummonCreature(NPC_IRON_HONOR_GUARD, 2220.31f, -436.22f, 412.26f, 1.06465f);
+
+        // Runic Colossus 32872
+        me->SummonCreature(NPC_RUNIC_COLOSSUS, 2227.5f, -396.179f, 412.176f, 1.79769f);
+
+        // Ancient Rune Giant 32873
+        me->SummonCreature(NPC_ANCIENT_RUNE_GIANT, 2134.57f, -440.318f, 438.331f, 0.226893f);
+
+        // Sif 33196
+        me->SummonCreature(NPC_SIF, 2147.86f, -301.2f, 438.246f, 2.488f);
+    }
+
+    void CloseDoors()
+    {
+        GameObject* go;
+        if ((go = GetThorimObject(DATA_THORIM_LEVER)))
+        {
+            go->ReplaceAllGameObjectFlags((GameObjectFlags)48);
+            go->SetGoState(GO_STATE_READY);
+        }
+        if ((go = GetThorimObject(DATA_THORIM_FIRST_DOORS)))
+            go->SetGoState(GO_STATE_READY);
+
+        if ((go = GetThorimObject(DATA_THORIM_SECOND_DOORS)))
+            go->SetGoState(GO_STATE_READY);
+
+        if ((go = GetThorimObject(DATA_THORIM_FENCE)))
+            go->SetGoState(GO_STATE_ACTIVE);
+    }
+
+    void JustExitedCombat() override
+    {
+        EngagementOver();
+        if (_encounterFinished)
+            return;
+        EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
+    }
+
+    void EnterEvadeMode(EvadeReason why) override
+    {
+        DisableThorim(false);
+        BossAI::EnterEvadeMode(why);
+    }
+
+    void Reset() override
+    {
+        if (!_encounterFinished)
+            _Reset();
+
+        _trashCounter = 0;
+        _isAlly = true;
+        _isHitAllowed = false;
+        _spawnCommoners = false;
+        _hardMode = false;
+        _isArenaEmpty = false;
+        _hitByLightning = false;
+
+        if (Player* t = SelectTargetFromPlayerList(1000))
+            if (t->GetTeamId() == TEAM_HORDE)
+                _isAlly = false;
+
+        SpawnAllNPCs();
+
+        CloseDoors();
+        DisableThorim(false);
+    }
+
+    uint32 GetData(uint32 param) const override
+    {
+        if (param == DATA_HIT_BY_LIGHTNING)
+            return !_hitByLightning;
+        if (param == DATA_LOSE_YOUR_ILLUSION)
+            return _hardMode;
+
+        return 0;
+    }
+
+    void DoAction(int32 param) override
+    {
+        if (param == ACTION_START_TRASH_DIED)
+        {
+            _trashCounter++;
+            // activate levar
+            if (_trashCounter >= 6)
+>>>>>>> d3f1be6d2 (fix(Core/Scripts): Fix boss scripts resetting during death/defeat RP after threat system port (#25185))
             {
                 me->SetUnitFlag(UNIT_FLAG_DISABLE_MOVE | UNIT_FLAG_PACIFIED);
                 me->DisableRotate(true);
