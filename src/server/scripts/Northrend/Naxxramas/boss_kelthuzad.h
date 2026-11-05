@@ -1,3 +1,20 @@
+/*
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by the
+ * Free Software Foundation; either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef BOSS_KELTHUZAD_H_
 #define BOSS_KELTHUZAD_H_
 
@@ -31,10 +48,8 @@ enum Yells
 enum Spells
 {
     // Kel'Thzuad
-    SPELL_FROST_BOLT_SINGLE_10              = 28478,
-    SPELL_FROST_BOLT_SINGLE_25              = 55802,
-    SPELL_FROST_BOLT_MULTI_10               = 28479,
-    SPELL_FROST_BOLT_MULTI_25               = 55807,
+    SPELL_FROST_BOLT_SINGLE                 = 28478,
+    SPELL_FROST_BOLT_MULTI                  = 28479,
     SPELL_SHADOW_FISURE                     = 27810,
     SPELL_VOID_BLAST                        = 27812,
     SPELL_DETONATE_MANA                     = 27819,
@@ -355,11 +370,11 @@ public:
                     me->CastSpell(me, SPELL_BERSERK, true);
                     break;
                 case EVENT_FROST_BOLT_SINGLE:
-                    me->CastSpell(me->GetVictim(), RAID_MODE(SPELL_FROST_BOLT_SINGLE_10, SPELL_FROST_BOLT_SINGLE_25), false);
+                    me->CastSpell(me->GetVictim(), SPELL_FROST_BOLT_SINGLE, false);
                     events.Repeat(2s, 10s);
                     break;
                 case EVENT_FROST_BOLT_MULTI:
-                    me->CastSpell(me, RAID_MODE(SPELL_FROST_BOLT_MULTI_10, SPELL_FROST_BOLT_MULTI_25), false);
+                    me->CastSpell(me, SPELL_FROST_BOLT_MULTI, false);
                     events.Repeat(15s, 30s);
                     break;
                 case EVENT_SHADOW_FISSURE:

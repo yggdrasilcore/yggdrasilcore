@@ -1,3 +1,20 @@
+/*
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by the
+ * Free Software Foundation; either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef BOSSGLUTH_H_
 #define BOSSGLUTH_H_
 
@@ -13,10 +30,8 @@ namespace Gluth {
 enum Spells
 {
     SPELL_MORTAL_WOUND                  = 25646,
-    SPELL_ENRAGE_10                     = 28371,
-    SPELL_ENRAGE_25                     = 54427,
-    SPELL_DECIMATE_10                   = 28374,
-    SPELL_DECIMATE_25                   = 54426,
+    SPELL_ENRAGE                        = 28371,
+    SPELL_DECIMATE                      = 28374,
     SPELL_DECIMATE_DAMAGE               = 28375,
     SPELL_BERSERK                       = 26662,
     SPELL_INFECTED_WOUND                = 29306,
@@ -172,7 +187,7 @@ public:
                     break;
                 case EVENT_ENRAGE:
                     Talk(EMOTE_ENRAGE);
-                    me->CastSpell(me, RAID_MODE(SPELL_ENRAGE_10, SPELL_ENRAGE_25), true);
+                    me->CastSpell(me, SPELL_ENRAGE, true);
                     events.Repeat(22s);
                     break;
                 case EVENT_MORTAL_WOUND:
@@ -181,7 +196,7 @@ public:
                     break;
                 case EVENT_DECIMATE:
                     Talk(EMOTE_DECIMATE);
-                    me->CastSpell(me, RAID_MODE(SPELL_DECIMATE_10, SPELL_DECIMATE_25), false);
+                    me->CastSpell(me, SPELL_DECIMATE, false);
                     events.Repeat(RAID_MODE(110s, 90s));
                     break;
                 case EVENT_SUMMON_ZOMBIE:

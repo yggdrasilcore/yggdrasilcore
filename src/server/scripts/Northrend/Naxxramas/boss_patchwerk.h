@@ -1,3 +1,20 @@
+/*
+ * This file is part of the YggdrasilCore Project. See AUTHORS file for Copyright information
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by the
+ * Free Software Foundation; either version 3 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #ifndef BOSS_PATCHWERK_H_
 #define BOSS_PATCHWERK_H_
 
@@ -19,8 +36,7 @@ enum Yells
 
 enum Spells
 {
-    SPELL_HATEFUL_STRIKE_10         = 41926,
-    SPELL_HATEFUL_STRIKE_25         = 59192,
+    SPELL_HATEFUL_STRIKE            = 41926,
     SPELL_FRENZY                    = 28131,
     SPELL_BERSERK                   = 26662,
     SPELL_SLIME_BOLT                = 32309
@@ -144,7 +160,7 @@ public:
                         }
                         if (finalTarget)
                         {
-                            me->CastSpell(finalTarget, RAID_MODE(SPELL_HATEFUL_STRIKE_10, SPELL_HATEFUL_STRIKE_25), false);
+                            me->CastSpell(finalTarget, SPELL_HATEFUL_STRIKE, false);
                         }
                         events.Repeat(1s);
                         break;
