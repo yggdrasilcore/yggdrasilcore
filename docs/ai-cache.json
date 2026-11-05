@@ -19956,43 +19956,43 @@
   }
  },
  "Player::learnQuestRewardedSpells@981d97ac:qwen3-5-4b": {
-  "hash": "fc4e78c01952",
-  "desc": "Attempts to learn a spell from a quest reward by checking for an existing 'Learn Spell' effect that requires a specific trigger spell, while excluding profession specialties.",
-  "raw": "{\"what\": \"Attempts to learn a spell from a quest reward by checking for an existing 'Learn Spell' effect that requires a specific trigger spell, while excluding profession specialties.\", \"effects\": \"none\"}",
+  "hash": "d1b25f6ce349",
+  "desc": "Attempts to learn a spell rewarded by the quest, validating that the spell exists and checking for specific conditions before casting it.",
+  "raw": "{\"what\": \"Attempts to learn a spell rewarded by the quest, validating that the spell exists and checking for specific conditions before casting it.\", \"effects\": \"None\"}",
   "entry": {
    "class": "Player",
    "name": "learnQuestRewardedSpells",
    "sig": "void learnQuestRewardedSpells()",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 1693,
+   "line": 1696,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 12032
+    "line": 12163
    },
-   "hash": "fc4e78c01952",
-   "desc": "Attempts to learn a spell from a quest reward by checking for an existing 'Learn Spell' effect that requires a specific trigger spell, while excluding profession specialties.",
+   "hash": "d1b25f6ce349",
+   "desc": "Attempts to learn a spell rewarded by the quest, validating that the spell exists and checking for specific conditions before casting it.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Player::learnQuestRewardedSpells@ce07c873:qwen3-5-4b": {
-  "hash": "99fcfe64639e",
-  "desc": "Attempts to learn a spell rewarded by a quest by checking for an existing 'Learn Spell' effect that requires a specific trigger spell, skipping trade skill re-addition checks, and casting the reward spell if conditions are met.",
-  "raw": "{\n  \"what\": \"Attempts to learn a spell rewarded by a quest by checking for an existing 'Learn Spell' effect that requires a specific trigger spell, skipping trade skill re-addition checks, and casting the reward spell if conditions are met.\",\n  \"effects\": \"none\"\n}",
+  "hash": "a9b44e8630f8",
+  "desc": "Attempts to learn a spell rewarded by the quest, validating that the spell exists and checking for specific conditions before casting it.",
+  "raw": "{\"what\": \"Attempts to learn a spell rewarded by the quest, validating that the spell exists and checking for specific conditions before casting it.\", \"effects\": \"None\"}",
   "entry": {
    "class": "Player",
    "name": "learnQuestRewardedSpells",
    "sig": "void learnQuestRewardedSpells(Quest const* quest)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 1694,
+   "line": 1697,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 12032
+    "line": 12163
    },
-   "hash": "99fcfe64639e",
-   "desc": "Attempts to learn a spell rewarded by a quest by checking for an existing 'Learn Spell' effect that requires a specific trigger spell, skipping trade skill re-addition checks, and casting the reward spell if conditions are met.",
+   "hash": "a9b44e8630f8",
+   "desc": "Attempts to learn a spell rewarded by the quest, validating that the spell exists and checking for specific conditions before casting it.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
