@@ -15,8 +15,8 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef YCORE_MOTIONMASTER_H
-#define YCORE_MOTIONMASTER_H
+#ifndef ACORE_MOTIONMASTER_H
+#define ACORE_MOTIONMASTER_H
 
 #include "Common.h"
 #include "ObjectGuid.h"
@@ -85,9 +85,24 @@ enum ForcedMovement
     FORCED_MOVEMENT_NONE    = 0,
     FORCED_MOVEMENT_WALK    = 1,
     FORCED_MOVEMENT_RUN     = 2,
-    FORCED_MOVEMENT_FLY     = 3,
 
     FORCED_MOVEMENT_MAX
+};
+
+enum class PathSource
+{
+    WAYPOINT_MGR        = 0,
+    SMART_WAYPOINT_MGR  = 1,
+};
+
+enum class AnimTier : uint8
+{
+    Ground      = 0,
+    Swim        = 1,
+    Hover       = 2,
+    Fly         = 3,
+    Submerged   = 4,
+    Max
 };
 
 struct ChaseRange
@@ -220,11 +235,11 @@ public:
     void MoveForwards(Unit* target, float dist);
     void MoveConfused();
     void MoveFleeing(Unit* enemy, uint32 time = 0);
-    void MovePoint(uint32 id, const Position& pos, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE, float speed = 0.f, bool generatePath = true, bool forceDestination = true)
-    { MovePoint(id, pos.m_positionX, pos.m_positionY, pos.m_positionZ, forcedMovement, speed, pos.GetOrientation(), generatePath, forceDestination, MOTION_SLOT_ACTIVE); }
-    void MovePoint(uint32 id, float x, float y, float z, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE, float speed = 0.f, float orientation = 0.0f, bool generatePath = true, bool forceDestination = true, MovementSlot slot = MOTION_SLOT_ACTIVE);
+    void MovePoint(uint32 id, const Position& pos, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE, float speed = 0.f, bool generatePath = true, bool forceDestination = true, std::optional<AnimTier> animTier = std::nullopt)
+    { MovePoint(id, pos.m_positionX, pos.m_positionY, pos.m_positionZ, forcedMovement, speed, pos.GetOrientation(), generatePath, forceDestination, MOTION_SLOT_ACTIVE, animTier); }
+    void MovePoint(uint32 id, float x, float y, float z, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE, float speed = 0.f, float orientation = 0.0f, bool generatePath = true, bool forceDestination = true, MovementSlot slot = MOTION_SLOT_ACTIVE, std::optional<AnimTier> animTier = std::nullopt);
     void MoveSplinePath(Movement::PointsArray* path, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE);
-    void MoveSplinePath(uint32 path_id, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE);
+    void MovePath(uint32 path_id, ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE, PathSource pathSource = PathSource::WAYPOINT_MGR);
 
     // These two movement types should only be used with creatures having landing/takeoff animations
     void MoveLand(uint32 id, Position const& pos, float speed = 0.0f);
@@ -239,20 +254,15 @@ public:
     void MoveJump(Position const& pos, float speedXY, float speedZ, uint32 id = 0)
     { MoveJump(pos.m_positionX, pos.m_positionY, pos.m_positionZ, speedXY, speedZ, id); };
     void MoveJump(float x, float y, float z, float speedXY, float speedZ, uint32 id = 0, Unit const* target = nullptr);
-    void MoveCirclePath(float x, float y, float z, float radius, bool clockwise, uint8 stepCount,
-        ForcedMovement forcedMovement = FORCED_MOVEMENT_NONE, float speed = 0.0f);
     void MoveFall(uint32 id = 0, bool addFlagForNPC = false);
 
     void MoveSeekAssistance(float x, float y, float z);
     void MoveSeekAssistanceDistract(uint32 timer);
     void MoveTaxiFlight(uint32 path, uint32 pathnode);
     void MoveDistract(uint32 time);
-    void MovePath(uint32 path_id, bool repeatable);
+    void MoveWaypoint(uint32 path_id, bool repeatable, PathSource pathSource = PathSource::WAYPOINT_MGR);
     void MoveRotate(uint32 time, RotateDirection direction);
-#ifdef MOD_SHADOWS
-    void MoveKnockbackFromForPlayer(float srcX, float srcY, float speedXY, float speedZ);
-    void MovePointBackwards(uint32 id, float x, float y, float z, bool generatePath = true, bool forceDestination = true, MovementSlot slot = MOTION_SLOT_ACTIVE, float orientation = 0.0f);
-#endif
+
     [[nodiscard]] MovementGeneratorType GetCurrentMovementGeneratorType() const;
     [[nodiscard]] MovementGeneratorType GetMotionSlotType(int slot) const;
     bool HasMovementGeneratorType(MovementGeneratorType type) const;
@@ -264,8 +274,8 @@ public:
     bool GetDestination(float& x, float& y, float& z);
 
     void DistanceYourself(float range);
-    void Mutate(MovementGenerator* m, MovementSlot slot);
 private:
+    void Mutate(MovementGenerator* m, MovementSlot slot);                  // use Move* functions instead
 
     void DirectClean(bool reset);
     void DelayedClean();
