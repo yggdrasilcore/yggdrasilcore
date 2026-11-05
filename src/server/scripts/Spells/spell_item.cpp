@@ -3452,6 +3452,24 @@ class spell_item_rocket_boots : public SpellScript
     }
 };
 
+// 55002 - Flexweave Underlay
+class spell_item_flexweave_underlay : public SpellScript
+{
+    PrepareSpellScript(spell_item_flexweave_underlay);
+
+    SpellCastResult CheckCast()
+    {
+        if (GetCaster()->IsFlying() || GetCaster()->IsFalling())
+            return SPELL_CAST_OK;
+        return SPELL_FAILED_NOT_FLYING;
+    }
+
+    void Register() override
+    {
+        OnCheckCast += SpellCheckCastFn(spell_item_flexweave_underlay::CheckCast);
+    }
+};
+
 class spell_item_healing_injector : public SpellScript
 {
     PrepareSpellScript(spell_item_healing_injector);
@@ -4474,5 +4492,66 @@ void AddSC_item_spell_scripts()
     RegisterSpellScript(spell_item_multiphase_goggles);
     RegisterSpellScript(spell_item_bloodsail_admiral_hat);
     RegisterSpellScript(spell_item_brewfest_hops);
+<<<<<<< HEAD
     RegisterSpellScript(spell_item_lucky);
+=======
+    RegisterSpellScript(spell_item_alchemists_stone);
+    RegisterSpellScript(spell_item_darkmoon_card_greatness);
+    RegisterSpellScript(spell_item_death_choice);
+    RegisterSpellScriptWithArgs(spell_item_lightning_capacitor, "spell_item_lightning_capacitor");
+    RegisterSpellScriptWithArgs(spell_item_thunder_capacitor, "spell_item_thunder_capacitor");
+    RegisterSpellScriptWithArgs(spell_item_toc25_caster_trinket_normal, "spell_item_toc25_caster_trinket_normal");
+    RegisterSpellScriptWithArgs(spell_item_toc25_caster_trinket_heroic, "spell_item_toc25_caster_trinket_heroic");
+    RegisterSpellScript(spell_item_soul_preserver);
+    RegisterSpellScript(spell_item_charm_witch_doctor);
+    RegisterSpellScript(spell_item_lifegiving_gem);
+    RegisterSpellScript(spell_item_mana_drain);
+    RegisterSpellScript(spell_item_mind_control_cap);
+    RegisterSpellScript(spell_item_hourglass_sand);
+    RegisterSpellScript(spell_item_ultrasafe_transporter);
+    RegisterSpellScript(spell_item_power_circle);
+    RegisterSpellScript(spell_item_thrallmar_and_honor_hold_favor);
+    RegisterSpellScript(spell_item_drums_of_forgotten_kings);
+    RegisterSpellScript(spell_item_drums_of_the_wild);
+    RegisterSpellScript(spell_item_darkmoon_card_illusion);
+    RegisterSpellScript(spell_item_mad_alchemists_potion);
+    RegisterSpellScript(spell_item_crazy_alchemists_potion);
+    RegisterSpellScript(spell_item_decahedral_dwarven_dice);
+    RegisterSpellScript(spell_item_aura_of_madness);
+    RegisterSpellScript(spell_item_dementia);
+    RegisterSpellScript(spell_item_deadly_precision);
+    RegisterSpellScript(spell_item_deadly_precision_dummy);
+    RegisterSpellScript(spell_item_deathbringers_will_normal);
+    RegisterSpellScript(spell_item_deathbringers_will_heroic);
+    RegisterSpellScript(spell_item_discerning_eye_beast_dummy);
+    RegisterSpellScript(spell_item_flexweave_underlay);
+    RegisterSpellScript(spell_item_frozen_shadoweave);
+    RegisterSpellScript(spell_item_healing_touch_refund);
+    RegisterSpellScript(spell_item_heartpierce);
+    RegisterSpellScript(spell_item_heartpierce_hero);
+    RegisterSpellScript(spell_item_mark_of_conquest);
+    RegisterSpellScript(spell_item_pendant_of_the_violet_eye);
+    RegisterSpellScript(spell_item_persistent_shield);
+    RegisterSpellScript(spell_item_pet_healing);
+    RegisterSpellScript(spell_item_restless_strength);
+    RegisterSpellScript(spell_item_unstable_power);
+    RegisterSpellScript(spell_item_commendation_of_kaelthas);
+    RegisterSpellScript(spell_item_corpse_tongue_coin);
+    RegisterSpellScript(spell_item_corpse_tongue_coin_heroic);
+    RegisterSpellScript(spell_item_crystal_spire_of_karabor);
+    RegisterSpellScript(spell_item_soul_harvesters_charm);
+    RegisterSpellScript(spell_item_sunwell_exalted_caster_neck);
+    RegisterSpellScript(spell_item_sunwell_exalted_healer_neck);
+    RegisterSpellScript(spell_item_sunwell_exalted_melee_neck);
+    RegisterSpellScript(spell_item_sunwell_exalted_tank_neck);
+    RegisterSpellScript(spell_item_swift_hand_justice_dummy);
+    RegisterSpellScript(spell_item_tiny_abomination_in_a_jar);
+    RegisterSpellScript(spell_item_tiny_abomination_in_a_jar_hero);
+    RegisterSpellScript(spell_item_totem_of_flowing_water);
+    RegisterSpellScript(spell_item_petrified_twilight_scale);
+    RegisterSpellScript(spell_item_petrified_twilight_scale_heroic);
+    RegisterSpellScript(spell_item_purified_shard_of_the_scale);
+    RegisterSpellScript(spell_item_shiny_shard_of_the_scale);
+    RegisterSpellScript(spell_item_living_root_of_the_wildheart);
+>>>>>>> a7f61ed86 (fix(Core/Spells): Prevent Flexweave Underlay use on ground (#25158))
 }
