@@ -15,24 +15,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef YCORE_TARGETEDMOVEMENTGENERATOR_H
-#define YCORE_TARGETEDMOVEMENTGENERATOR_H
+#ifndef ACORE_TARGETEDMOVEMENTGENERATOR_H
+#define ACORE_TARGETEDMOVEMENTGENERATOR_H
 
-#include "FollowerReference.h"
+#include "AbstractFollower.h"
 #include "MovementGenerator.h"
 #include "Optional.h"
 #include "PathGenerator.h"
 #include "Timer.h"
 #include "Unit.h"
 
-class TargetedMovementGeneratorBase
-{
-public:
-    TargetedMovementGeneratorBase(Unit* target) { i_target.link(target, this); }
-    void stopFollowing() { }
-protected:
-    FollowerReference i_target;
-};
+using TargetedMovementGeneratorBase = AbstractFollower;
 
 enum ChaseMovementMode
 {
@@ -43,11 +36,11 @@ enum ChaseMovementMode
 };
 
 template<class T>
-class ChaseMovementGenerator : public MovementGeneratorMedium<T, ChaseMovementGenerator<T>>, public TargetedMovementGeneratorBase
+class ChaseMovementGenerator : public MovementGeneratorMedium<T, ChaseMovementGenerator<T>>, public AbstractFollower
 {
 public:
     ChaseMovementGenerator(Unit* target, Optional<ChaseRange> range = {}, Optional<ChaseAngle> angle = {})
-        : TargetedMovementGeneratorBase(target), i_leashExtensionTimer(5000), i_path(nullptr), i_recheckDistance(0), i_recalculateTravel(true), _range(range), _angle(angle), m_currentMode(CHASE_MODE_NORMAL) {}
+        : AbstractFollower(target), i_leashExtensionTimer(5000), i_path(nullptr), i_recheckDistance(0), i_recalculateTravel(true), _range(range), _angle(angle), m_currentMode(CHASE_MODE_NORMAL) {}
     ~ChaseMovementGenerator() { }
 
     MovementGeneratorType GetMovementGeneratorType() { return CHASE_MOTION_TYPE; }
@@ -61,7 +54,7 @@ public:
     bool PositionOkay(T* owner, Unit* target, Optional<float> maxDistance, Optional<ChaseAngle> angle);
 
     void unitSpeedChanged() { _lastTargetPosition.reset(); }
-    Unit* GetTarget() const { return i_target.getTarget(); }
+    Unit* GetTarget() const { return AbstractFollower::GetTarget(); }
 
     bool EnableWalking() const { return false; }
     bool HasLostTarget(Unit* unit) const { return unit->GetVictim() != this->GetTarget(); }
@@ -87,11 +80,11 @@ private:
 };
 
 template<class T>
-class FollowMovementGenerator : public MovementGeneratorMedium<T, FollowMovementGenerator<T>>, public TargetedMovementGeneratorBase
+class FollowMovementGenerator : public MovementGeneratorMedium<T, FollowMovementGenerator<T>>, public AbstractFollower
 {
 public:
     FollowMovementGenerator(Unit* target, float range, ChaseAngle angle, bool inheritWalkState, bool inheritSpeed)
-        : TargetedMovementGeneratorBase(target), i_path(nullptr), i_recheckPredictedDistanceTimer(0), i_recheckPredictedDistance(false), i_gravityLocked(false), _range(range), _angle(angle),_inheritWalkState(inheritWalkState), _inheritSpeed(inheritSpeed) {}
+        : AbstractFollower(target), i_path(nullptr), i_recheckPredictedDistanceTimer(0), i_recheckPredictedDistance(false), _range(range), _angle(angle), _inheritWalkState(inheritWalkState), _inheritSpeed(inheritSpeed) {}
     ~FollowMovementGenerator() { }
 
     MovementGeneratorType GetMovementGeneratorType() { return FOLLOW_MOTION_TYPE; }
@@ -102,11 +95,11 @@ public:
     void DoReset(T*);
     void MovementInform(T*);
 
-    Unit* GetTarget() const { return i_target.getTarget(); }
+    Unit* GetTarget() const { return AbstractFollower::GetTarget(); }
 
     void unitSpeedChanged() { _lastTargetPosition.reset(); }
 
-    bool PositionOkay(Unit* owner, Unit* target, bool isPlayerPet, bool& targetIsMoving, uint32 diff);
+    bool PositionOkay(Unit* target, bool isPlayerPet, bool& targetIsMoving, uint32 diff);
 
     static void _clearUnitStateMove(T* u) { u->ClearUnitState(UNIT_STATE_FOLLOW_MOVE); }
     static void _addUnitStateMove(T* u) { u->AddUnitState(UNIT_STATE_FOLLOW_MOVE); }
@@ -117,7 +110,6 @@ private:
     std::unique_ptr<PathGenerator> i_path;
     TimeTrackerSmall i_recheckPredictedDistanceTimer;
     bool i_recheckPredictedDistance;
-    bool i_gravityLocked;
 
     Optional<Position> _lastTargetPosition;
     Optional<Position> _lastPredictedPosition;
