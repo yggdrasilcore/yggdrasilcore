@@ -213,6 +213,10 @@ public:
 
     void DistancingEnded() override;
 
+    bool IsMainSpellPrevented(SpellInfo const* spellInfo) const;
+
+    void OnSpellCastFinished(SpellInfo const* spell, SpellFinishReason reason) override;
+
 private:
     bool mIsCharmed;
     uint32 mFollowCreditType;
@@ -264,6 +268,7 @@ private:
     bool _currentRangeMode;
     float _attackDistance;
     float _pendingDistancing;
+    uint32 _mainSpellId;
 };
 
 class SmartGameObjectAI : public GameObjectAI
