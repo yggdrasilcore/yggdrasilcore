@@ -203,9 +203,7 @@ struct boss_volkhan : public BossAI
             me->SetOrientation(2.19f);
 
             // and client
-            WorldPacket data;
-            me->BuildHeartBeatMsg(&data);
-            me->SendMessageToSet(&data, false);
+            me->SendMovementFlagUpdate(false);
             me->SetControlled(true, UNIT_STATE_ROOT);
         }
         else
