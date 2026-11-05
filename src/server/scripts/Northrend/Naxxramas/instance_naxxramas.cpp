@@ -55,7 +55,10 @@ BossBoundaryData const boundaries =
 
     /* Frostwyrm Lair */
     { BOSS_SAPPHIRON, new CircleBoundary(Position(3517.627f, -5255.5f), 110.0) },
-    { BOSS_KELTHUZAD, new CircleBoundary(Position(3716.0f, -5107.0f), 85.0) }
+    { BOSS_KELTHUZAD, new CircleBoundary(Position(3716.0f, -5107.0f), 85.0) },
+
+    /* Heigan */
+    { BOSS_HEIGAN,     new RectangleBoundary(2723.0f, 2826.0f, -3736.0f, -3641.0f) }
 };
 
 struct LivingPoisonData
