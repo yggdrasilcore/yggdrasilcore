@@ -2634,40 +2634,6 @@
    "model": "qwen3.5:4b"
   }
  },
- "Creature::HasLeashEntryFor@be0129f3:qwen3-5-4b": {
-  "hash": "284edbfe72d5",
-  "desc": "Checks whether a leash entry exists for the specified target unit by searching through the leash state's entries map using the target's GUID.",
-  "raw": "{\"what\": \"Checks whether a leash entry exists for the specified target unit by searching through the leash state's entries map using the target's GUID.\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Creature",
-   "name": "HasLeashEntryFor",
-   "sig": "bool HasLeashEntryFor(Unit const* target) const",
-   "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 416,
-   "access": "public",
-   "hash": "284edbfe72d5",
-   "desc": "Checks whether a leash entry exists for the specified target unit by searching through the leash state's entries map using the target's GUID.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Creature::GetLeashDeadlineFor@e6ee1745:qwen3-5-4b": {
-  "hash": "982f78592b71",
-  "desc": "Retrieves the leash deadline for a specific target unit by searching the internal leash state map and returning the associated deadline value, or 0 if the target is null, the leash state is invalid, or no entry exists.",
-  "raw": "{\"what\": \"Retrieves the leash deadline for a specific target unit by searching the internal leash state map and returning the associated deadline value, or 0 if the target is null, the leash state is invalid, or no entry exists.\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Creature",
-   "name": "GetLeashDeadlineFor",
-   "sig": "time_t GetLeashDeadlineFor(Unit const* target) const",
-   "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 417,
-   "access": "public",
-   "hash": "982f78592b71",
-   "desc": "Retrieves the leash deadline for a specific target unit by searching the internal leash state map and returning the associated deadline value, or 0 if the target is null, the leash state is invalid, or no entry exists.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
  "Creature::IsLeashExpiredFor@3465538e:qwen3-5-4b": {
   "hash": "ce804d8f6b17",
   "desc": "Checks whether a combat leash has expired for a specific target by verifying the existence of an entry in the leash state's map.",
@@ -2719,91 +2685,6 @@
    "access": "public",
    "hash": "f4d700813599",
    "desc": "Assigns the provided shared pointer to the member variable m_leashState, updating the creature's current leash state.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Creature::SetLastLeashExtensionTimePtr@cbe987fb:qwen3-5-4b": {
-  "hash": "a282ad417e1c",
-  "desc": "",
-  "raw": "",
-  "entry": {
-   "class": "Creature",
-   "name": "SetLastLeashExtensionTimePtr",
-   "sig": "void SetLastLeashExtensionTimePtr(std::shared_ptr<time_t> const& timer)",
-   "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 425,
-   "access": "public",
-   "hash": "a282ad417e1c",
-   "desc": "",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Creature::ClearLastLeashExtensionTimePtr@94944418:qwen3-5-4b": {
-  "hash": "7f694d799f91",
-  "desc": "Removes the last leash extension time pointer by first clearing any existing leash state.",
-  "raw": "{\"what\": \"Removes the last leash extension time pointer by first clearing any existing leash state.\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Creature",
-   "name": "ClearLastLeashExtensionTimePtr",
-   "sig": "void ClearLastLeashExtensionTimePtr()",
-   "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 426,
-   "access": "public",
-   "hash": "7f694d799f91",
-   "desc": "Removes the last leash extension time pointer by first clearing any existing leash state.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Creature::GetLastLeashExtensionTime@8c32d6fd:qwen3-5-4b": {
-  "hash": "2c8571e943da",
-  "desc": "Returns the timestamp of the most recent leash extension deadline from the internal state, or 0 if the state is null or the entry list is empty.",
-  "raw": "{\"what\": \"Returns the timestamp of the most recent leash extension deadline from the internal state, or 0 if the state is null or the entry list is empty.\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Creature",
-   "name": "GetLastLeashExtensionTime",
-   "sig": "time_t GetLastLeashExtensionTime() const",
-   "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 427,
-   "access": "public",
-   "hash": "2c8571e943da",
-   "desc": "Returns the timestamp of the most recent leash extension deadline from the internal state, or 0 if the state is null or the entry list is empty.",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Creature::UpdateLeashExtensionTime@f50c73f2:qwen3-5-4b": {
-  "hash": "3d8c45855a7d",
-  "desc": "Updates the deadline for leash extension timers based on whether a victim exists. If a victim is present, it refreshes the leash state for that specific combatant. If no victim exists, it extends the deadlines of all existing leash entries to ensure they remain valid until their original stock duration expires. Side effects: modifies m_leashState->entries by updating their deadline values",
-  "raw": "{\"what\": \"Updates the deadline for leash extension timers based on whether a victim exists. If a victim is present, it refreshes the leash state for that specific combatant. If no victim exists, it extends the deadlines of all existing leash entries to ensure they remain valid until their original stock duration expires.\", \"effects\": \"modifies m_leashState->entries by updating their deadline values\"}",
-  "entry": {
-   "class": "Creature",
-   "name": "UpdateLeashExtensionTime",
-   "sig": "void UpdateLeashExtensionTime()",
-   "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 428,
-   "access": "public",
-   "hash": "3d8c45855a7d",
-   "desc": "Updates the deadline for leash extension timers based on whether a victim exists. If a victim is present, it refreshes the leash state for that specific combatant. If no victim exists, it extends the deadlines of all existing leash entries to ensure they remain valid until their original stock duration expires. Side effects: modifies m_leashState->entries by updating their deadline values",
-   "ai": true,
-   "model": "qwen3.5:4b"
-  }
- },
- "Creature::UpdateLeashExtensionTimeFor@f8999f11:qwen3-5-4b": {
-  "hash": "7ee561b0418a",
-  "desc": "Extends the leash extension time for a specific unit if it exists",
-  "raw": "{\"what\": \"Extends the leash extension time for a specific unit if it exists\", \"effects\": \"none\"}",
-  "entry": {
-   "class": "Creature",
-   "name": "UpdateLeashExtensionTimeFor",
-   "sig": "void UpdateLeashExtensionTimeFor(Unit* victim)",
-   "file": "src/server/game/Entities/Creature/Creature.h",
-   "line": 429,
-   "access": "public",
-   "hash": "7ee561b0418a",
-   "desc": "Extends the leash extension time for a specific unit if it exists",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -33275,9 +33156,9 @@
   }
  },
  "Unit::CombatStop@fdd7e109:qwen3-5-4b": {
-  "hash": "bd9ee1e5b45b",
-  "desc": "Stops the unit's combat state by interrupting non-melee spells if specified, canceling attack animations for the player and target creature, clearing leash extensions, and removing all attackers. Side effects: Interrupts active spells (if includingCast is true), cancels attack swing animations, clears last leash extension time, removes all attackers from the unit's list, and clears in-combat status.",
-  "raw": "{\"what\": \"Stops the unit's combat state by interrupting non-melee spells if specified, canceling attack animations for the player and target creature, clearing leash extensions, and removing all attackers.\", \"effects\": \"Interrupts active spells (if includingCast is true), cancels attack swing animations, clears last leash extension time, removes all attackers from the unit's list, and clears in-combat status.\"}",
+  "hash": "eba151f9efbb",
+  "desc": "Stops the unit's combat state by interrupting non-melee spells if specified, canceling attack animations for player and creature targets, clearing leashes, and removing all attackers. Side effects: Interrupts non-melee spells (if includingCast is true), cancels attack swings, clears leashes, removes attackers, and clears in-combat status.",
+  "raw": "{\"what\": \"Stops the unit's combat state by interrupting non-melee spells if specified, canceling attack animations for player and creature targets, clearing leashes, and removing all attackers.\", \"effects\": \"Interrupts non-melee spells (if includingCast is true), cancels attack swings, clears leashes, removes attackers, and clears in-combat status.\"}",
   "entry": {
    "class": "Unit",
    "name": "CombatStop",
@@ -33287,10 +33168,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 10516
+    "line": 10537
    },
-   "hash": "bd9ee1e5b45b",
-   "desc": "Stops the unit's combat state by interrupting non-melee spells if specified, canceling attack animations for the player and target creature, clearing leash extensions, and removing all attackers. Side effects: Interrupts active spells (if includingCast is true), cancels attack swing animations, clears last leash extension time, removes all attackers from the unit's list, and clears in-combat status.",
+   "hash": "eba151f9efbb",
+   "desc": "Stops the unit's combat state by interrupting non-melee spells if specified, canceling attack animations for player and creature targets, clearing leashes, and removing all attackers. Side effects: Interrupts non-melee spells (if includingCast is true), cancels attack swings, clears leashes, removes attackers, and clears in-combat status.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
