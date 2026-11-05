@@ -228,7 +228,7 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
         }
 
         owner->StopMoving();
-        return true;
+        return false;
     }
 
     if (!i_path->ValidatePlayerMove())
@@ -317,7 +317,7 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
     init.SetWalk(walk);
     init.Launch();
 
-    return false;
+    return true;
 }
 
 template<class T>
@@ -412,18 +412,21 @@ bool ChaseMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
     {
         i_recheckDistance.Reset(400); // Sniffed value
 
-        if (i_recalculateTravel && PositionOkay(owner, target, _movingTowards ? maxTarget : Optional<float>(), angle))
+        if (m_currentMode != CHASE_MODE_DISTANCING)
         {
-            if ((owner->HasUnitState(UNIT_STATE_CHASE_MOVE) && !target->isMoving() && !mutualChase) || _range)
+            if (i_recalculateTravel && PositionOkay(owner, target, _movingTowards ? maxTarget : Optional<float>(), angle))
             {
-                i_recalculateTravel = false;
-                i_path = nullptr;
-                if (cOwner)
-                    cOwner->SetCannotReachTarget();
-                owner->StopMoving();
-                owner->SetInFront(target);
-                MovementInform(owner);
-                return true;
+                if ((owner->HasUnitState(UNIT_STATE_CHASE_MOVE) && !target->isMoving() && !mutualChase) || _range)
+                {
+                    i_recalculateTravel = false;
+                    i_path = nullptr;
+                    if (cOwner)
+                        cOwner->SetCannotReachTarget();
+                    owner->StopMoving();
+                    owner->SetInFront(target);
+                    MovementInform(owner);
+                    return true;
+                }
             }
         }
     }
@@ -456,6 +459,9 @@ bool ChaseMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
         else if (i_recalculateTravel)
             i_leashExtensionTimer.Reset(cOwner->GetAttackTime(BASE_ATTACK));
     }
+
+    if (m_currentMode == CHASE_MODE_DISTANCING)
+        return true;
 
     // if the target moved, we have to consider whether to adjust
     if (!_lastTargetPosition || target->GetPosition() != _lastTargetPosition.value() || mutualChase != _mutualChase || !owner->IsWithinLOSInMap(target))
