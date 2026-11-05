@@ -629,7 +629,7 @@ void Unit::UpdateSplinePosition()
     //if (HasUnitState(UNIT_STATE_CANNOT_TURN))
     //    loc.orientation = GetOrientation();
 
-    if (IsPlayer())
+    if (IsPlayer() || IsPet())
         UpdatePosition(loc.x, loc.y, loc.z, loc.orientation);
     else
         ToCreature()->SetPosition(loc.x, loc.y, loc.z, loc.orientation);
@@ -4005,6 +4005,10 @@ void Unit::_UpdateAutoRepeatSpell()
 
         // Reset attack
         resetAttackTimer(RANGED_ATTACK);
+
+        // Blizzlike: Reset melee swing timers when performing ranged attack
+        resetAttackTimer(BASE_ATTACK);
+        resetAttackTimer(OFF_ATTACK);
     }
 }
 
@@ -10544,7 +10548,7 @@ void Unit::CombatStop(bool includingCast)
     if (IsPlayer())
         ToPlayer()->SendAttackSwingCancelAttack();     // melee and ranged forced attack cancel
     if (Creature* pCreature = ToCreature())
-        pCreature->ClearLastLeashExtensionTimePtr();
+        pCreature->ClearLeash();
     ClearInCombat();
 
     // xinef: just in case
@@ -15807,6 +15811,13 @@ void Unit::CleanupBeforeRemoveFromMap(bool finalCleanup)
     if (IsInWorld()) // not in world and not being removed atm
         RemoveFromWorld();
 
+    // added for mod_playerbots crash fixes; m_Events.KillAllEvents(false) placed after RemoveFromWorld and 
+    // interupt and before RemoveAllAuras.
+    // Cancel and remove pending events (including SpellEvent) before aura/spellmod cleanup.
+    // Without this, SpellEvent may be cancelled later during EventProcessor destruction after auras/spellmods are gone,
+    // leading to invalid access in Player::RestoreSpellMods on logout.
+    m_Events.KillAllEvents(false);
+
     ASSERT(GetGUID());
 
     // A unit may be in removelist and not in world, but it is still in grid
@@ -18438,7 +18449,7 @@ bool Unit::SetCharmedBy(Unit* charmer, CharmType type, AuraApplication const* au
     }
 
     // dismount players when charmed
-    if (IsPlayer())
+    if (IsPlayer() && type != CHARM_TYPE_POSSESS)
         RemoveAurasByType(SPELL_AURA_MOUNTED);
 
     if (charmer->IsPlayer())

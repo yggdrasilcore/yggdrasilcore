@@ -432,6 +432,7 @@ public:
                     DoCast(me, 58506, false);
                     me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_READY_UNARMED);
                     me->SendMovementFlagUpdate();
+                    me->SetImmuneToAll(true);
                     break;
                 case ACTION_START_SJONNIR_FIGHT:
                     me->SetFaction(FACTION_FRIENDLY);
@@ -568,14 +569,9 @@ public:
                                 if (!plr)
                                     return; //no target
 
-                                float speed = 10.0f;
-                                float tooFarAwaySpeed = me->GetDistance(plr->GetPositionX(), plr->GetPositionY(), plr->GetPositionZ()) / (5000.0f * 0.001f);
-                                if (speed < tooFarAwaySpeed)
-                                    speed = tooFarAwaySpeed;
+                                darkMatterTarget->GetMotionMaster()->MovePoint(0, plr->GetPositionX(), plr->GetPositionY(), plr->GetPositionZ());
 
-                                darkMatterTarget->GetMotionMaster()->MovePoint(0, plr->GetPositionX(), plr->GetPositionY(), plr->GetPositionZ(), FORCED_MOVEMENT_NONE, speed);
-
-                                if (darkMatterTarget->GetDistance(plr) < 15.0f)
+                                if (darkMatterTarget->GetDistance(plr) < 5.0f)
                                 {
                                     events.RescheduleEvent(EVENT_DARK_MATTER_END, 3s);
                                 }

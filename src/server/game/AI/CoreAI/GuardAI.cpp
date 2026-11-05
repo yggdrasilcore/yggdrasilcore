@@ -51,7 +51,7 @@ void GuardAI::EnterEvadeMode(EvadeReason /*why*/)
     me->RemoveAllAuras();
     me->GetThreatMgr().ClearAllThreat();
     me->CombatStop(true);
-    me->ClearLastLeashExtensionTimePtr();
+    me->ClearLeash();
 
     me->AddUnitState(UNIT_STATE_EVADE);
     me->GetMotionMaster()->MoveTargetedHome();

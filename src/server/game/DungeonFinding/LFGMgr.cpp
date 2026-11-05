@@ -740,7 +740,7 @@ namespace lfg
             // xinef: dont check compatibile dungeons for already running group (bind problems)
             if (!isContinue)
             {
-                GetCompatibleDungeons(dungeons, players, joinData.lockmap);
+                GetCompatibleDungeons(dungeons, players, joinData.lockmap, rDungeonId);
                 if (dungeons.empty())
                     joinData.result = grp ? LFG_JOIN_PARTY_NOT_MEET_REQS : LFG_JOIN_NOT_MEET_REQS;
             }
@@ -1556,7 +1556,7 @@ namespace lfg
        @param[in]     players Set of players to check their dungeon restrictions
        @param[out]    lockMap Map of players Lock status info of given dungeons (Empty if dungeons is not empty)
     */
-    void LFGMgr::GetCompatibleDungeons(LfgDungeonSet& dungeons, LfgGuidSet const& players, LfgLockPartyMap& lockMap)
+    void LFGMgr::GetCompatibleDungeons(LfgDungeonSet& dungeons, LfgGuidSet const& players, LfgLockPartyMap& lockMap, bool isRDF)
     {
     GroupSocialLock lock;
         lockMap.clear();
@@ -1567,6 +1567,9 @@ namespace lfg
             for (LfgLockMap::const_iterator it2 = cachedLockMap.begin(); it2 != cachedLockMap.end() && !dungeons.empty(); ++it2)
             {
                 uint32 dungeonId = (it2->first & 0x00FFFFFF); // Compare dungeon ids
+
+                if (it2->second == LFG_LOCKSTATUS_RAID_LOCKED && isRDF)
+                    continue;
 
                 LfgDungeonSet::iterator itDungeon = dungeons.find(dungeonId);
                 if (itDungeon != dungeons.end())
@@ -1709,6 +1712,7 @@ namespace lfg
         }
 
         ObjectGuid oldGroupGUID;
+        bool hasRandomLfgMember = proposal.group.IsEmpty();
         for (LfgGuidList::const_iterator it = players.begin(); it != players.end(); ++it)
         {
             ObjectGuid pguid = (*it);
@@ -1725,8 +1729,16 @@ namespace lfg
                 SetState(grp->GetGUID(), LFG_STATE_PROPOSAL);
             }
 
+            if (auto const proposalPlayer = proposal.players.find(pguid); proposalPlayer != proposal.players.end())
+            {
+                if (!hasRandomLfgMember && (proposalPlayer->second.group.IsEmpty() || proposalPlayer->second.group != proposal.group))
+                    hasRandomLfgMember = true;
+            }
+            else
+                hasRandomLfgMember = true;
+
             // Xinef: Apply Random Buff
-            if (grp && !grp->IsLfgWithBuff())
+            if (grp && !grp->IsLfgWithBuff() && hasRandomLfgMember)
             {
                 if (!group || group->GetGUID() != oldGroupGUID)
                     grp->AddLfgBuffFlag();
@@ -1853,10 +1865,8 @@ namespace lfg
                 else
                 {
                     // RDF removes all binds to that map
-                    if (randomDungeon && !sInstanceSaveMgr->PlayerIsPermBoundToInstance(player->GetGUID(), dungeon->map, player->GetDungeonDifficulty()))
-                    {
+                    if (randomDungeon)
                         sInstanceSaveMgr->PlayerUnbindInstance(player->GetGUID(), dungeon->map, player->GetDungeonDifficulty(), true);
-                    }
                 }
 
                 playersTeleported.push_back(player);

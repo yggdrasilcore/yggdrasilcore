@@ -158,6 +158,7 @@ public:
         _events.Reset();
         _currentWingTaunt = SAY_FIRST_WING_TAUNT;
         _horsemanLoaded = 0;
+        _thaddiusScreamsScheduled = false;
 
         // Achievements
         _abominationsKilled = 0;
@@ -233,7 +234,11 @@ public:
     {
         InstanceScript::OnPlayerEnter(player);
 
-        _events.ScheduleEvent(EVENT_THADDIUS_SCREAMS, 2min, 2min + 30s);
+        if (!_thaddiusScreamsScheduled)
+        {
+            _thaddiusScreamsScheduled = true;
+            _events.ScheduleEvent(EVENT_THADDIUS_SCREAMS, 2min, 2min + 30s);
+        }
     }
 
     void OnCreatureCreate(Creature* creature) override
@@ -614,7 +619,7 @@ public:
                     break;
 
                 instance->PlayDirectSoundToMap(SOUND_SCREAM + urand(0, 3));
-                return _events.ScheduleEvent(EVENT_THADDIUS_SCREAMS, 2min, 2min + 30s);
+                return _events.ScheduleEvent(EVENT_THADDIUS_SCREAMS, 5min, 10min);
             }
             case EVENT_AND_THEY_WOULD_ALL_GO_DOWN_TOGETHER:
                 _horsemanAchievement = false;
@@ -646,7 +651,9 @@ public:
                 return CreatureTalk(DATA_BARON_RIVENDARE_BOSS, SAY_HORSEMEN_DIALOG2);
             case EVENT_FROSTWYRM_WATERFALL_DOOR:
                 SetGoState(DATA_SAPPHIRON_GATE, GO_STATE_ACTIVE);
-                return _events.ScheduleEvent(EVENT_KELTHUZAD_LICH_KING_TALK1, 5s);
+                if (GetBossState(BOSS_KELTHUZAD) != DONE)
+                    _events.ScheduleEvent(EVENT_KELTHUZAD_LICH_KING_TALK1, 5s);
+                break;
             case EVENT_KELTHUZAD_LICH_KING_TALK1:
                 CreatureTalk(DATA_KELTHUZAD_BOSS, SAY_SAPP_DIALOG1);
                 return _events.ScheduleEvent(EVENT_KELTHUZAD_LICH_KING_TALK2, 10s);
@@ -675,6 +682,7 @@ private:
     EventMap _events;
     uint8 _currentWingTaunt;
     uint8 _horsemanLoaded;
+    bool _thaddiusScreamsScheduled;
 
     // GameObjects
     std::set<GameObject*> _heiganEruption[HeiganEruptSectionCount];
