@@ -521,6 +521,12 @@ public:
     };
 };
 
+enum ScarletFleetDefender
+{
+    SPELL_SHOOT                     = 52566,
+    EVENT_SHOOT                     = 1,
+};
+
 class npc_scarlet_fleet_defender : public CreatureScript
 {
 public:
@@ -534,6 +540,40 @@ public:
     struct npc_scarlet_fleet_defenderAI : public ScriptedAI
     {
         npc_scarlet_fleet_defenderAI(Creature* creature) : ScriptedAI(creature) { }
+
+        EventMap events;
+
+        void Reset() override
+        {
+            events.Reset();
+        }
+
+        void JustEngagedWith(Unit* /*who*/) override
+        {
+            events.ScheduleEvent(EVENT_SHOOT, 5s);
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (!UpdateVictim())
+            {
+                events.Reset();
+                return;
+            }
+
+            events.Update(diff);
+
+            while (uint32 eventId = events.ExecuteEvent())
+            {
+                if (eventId == EVENT_SHOOT)
+                {
+                    me->CastSpell(me->GetVictim(), SPELL_SHOOT);
+                    events.Repeat(5s);
+                }
+            }
+
+            DoMeleeAttackIfReady();
+        }
 
         void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
