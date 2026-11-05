@@ -1191,9 +1191,9 @@ public:
     /*********************************************************/
     /***       METHODS RELATED TO DAMAGE CACULATIONS       ***/
     /*********************************************************/
-    static uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true, bool allowGM = false, Spell const* spell = nullptr);
+    static uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true, bool allowGM = false, Spell const* spell = nullptr, SpellInfo const* triggeredByAura = nullptr);
     void DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss);
-    void DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss, Spell const* spell = nullptr);
+    void DealSpellDamage(SpellNonMeleeDamage* damageInfo, bool durabilityLoss, Spell const* spell = nullptr, SpellInfo const* triggeredByAura = nullptr);
     void DealDamageShieldDamage(Unit* victim);
     static void DealDamageMods(Unit const* victim, uint32& damage, uint32* absorb);
 
@@ -1466,6 +1466,7 @@ public:
     [[nodiscard]] bool HasAuraWithMechanic(uint32 mechanicMask) const;
 
     [[nodiscard]] bool HasAuraTypeWithFamilyFlags(AuraType auraType, uint32 familyName, uint32 familyFlags) const;
+    static bool IsReactiveProcDamage(SpellInfo const* spellProto, SpellInfo const* triggeredByAura);
 
     [[nodiscard]] bool HasBreakableByDamageAuraType(AuraType type, uint32 excludeAura = 0) const;
     bool HasBreakableByDamageCrowdControlAura(Unit* excludeCasterChannel = nullptr) const;
