@@ -27527,7 +27527,7 @@
   }
  },
  "Player::SetGroupInvite@1579b6b1:qwen3-5-4b": {
-  "hash": "7483e21aafea",
+  "hash": "b8b5175bb8d8",
   "desc": "Sets the group invite for the player to the specified group",
   "raw": "{\"what\": \"Sets the group invite for the player to the specified group\", \"effects\": \"none\"}",
   "entry": {
@@ -27535,13 +27535,13 @@
    "name": "SetGroupInvite",
    "sig": "void SetGroupInvite(Group* group)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2463,
+   "line": 2466,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 11616
+    "line": 11715
    },
-   "hash": "7483e21aafea",
+   "hash": "b8b5175bb8d8",
    "desc": "Sets the group invite for the player to the specified group",
    "ai": true,
    "model": "qwen3.5:4b"
@@ -27584,22 +27584,22 @@
   }
  },
  "Player::SetGroup@dd515b7c:qwen3-5-4b": {
-  "hash": "56940f058d7f",
-  "desc": "Assigns the player to a specific group and optionally sets their subgroup within that group, updating visibility accordingly. Side effects: Updates the player's group membership and subgroup; calls UpdateObjectVisibility with false.",
-  "raw": "{\"what\": \"Assigns the player to a specific group and optionally sets their subgroup within that group, updating visibility accordingly.\", \"effects\": \"Updates the player's group membership and subgroup; calls UpdateObjectVisibility with false.\"}",
+  "hash": "89bd58ef13df",
+  "desc": "Sets the player's group and optionally their subgroup within that group, updating object visibility accordingly.",
+  "raw": "{\"what\": \"Sets the player's group and optionally their subgroup within that group, updating object visibility accordingly.\", \"effects\": \"None\"}",
   "entry": {
    "class": "Player",
    "name": "SetGroup",
    "sig": "void SetGroup(Group* group, int8 subgroup = -1)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2468,
+   "line": 2471,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 11622
+    "line": 11721
    },
-   "hash": "56940f058d7f",
-   "desc": "Assigns the player to a specific group and optionally sets their subgroup within that group, updating visibility accordingly. Side effects: Updates the player's group membership and subgroup; calls UpdateObjectVisibility with false.",
+   "hash": "89bd58ef13df",
+   "desc": "Sets the player's group and optionally their subgroup within that group, updating object visibility accordingly.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
