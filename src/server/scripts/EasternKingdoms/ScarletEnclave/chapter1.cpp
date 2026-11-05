@@ -521,6 +521,12 @@ public:
     };
 };
 
+enum ScarletFleetDefender
+{
+    SPELL_SHOOT                     = 52566,
+    EVENT_SHOOT                     = 1,
+};
+
 class npc_scarlet_fleet_defender : public CreatureScript
 {
 public:
@@ -534,6 +540,56 @@ public:
     struct npc_scarlet_fleet_defenderAI : public ScriptedAI
     {
         npc_scarlet_fleet_defenderAI(Creature* creature) : ScriptedAI(creature) { }
+
+        EventMap events;
+
+        void Reset() override
+        {
+            events.Reset();
+        }
+
+        void JustEngagedWith(Unit* /*who*/) override
+        {
+            events.ScheduleEvent(EVENT_SHOOT, 1s, 5s);
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (!UpdateVictim())
+            {
+                events.Reset();
+                return;
+            }
+
+            events.Update(diff);
+
+            while (uint32 eventId = events.ExecuteEvent())
+            {
+                if (eventId == EVENT_SHOOT)
+                {
+                    Unit* victim = me->GetVictim();
+
+                    // Mirror SMARTCAST_COMBAT_MOVE: no combat movement after a successful cast,
+                    // chase back into range after a failed one.
+                    bool castOk = me->CastSpell(victim, SPELL_SHOOT) == SPELL_CAST_OK;
+
+                    if (castOk)
+                    {
+                        me->AddUnitState(UNIT_STATE_NO_COMBAT_MOVEMENT);
+                        me->StopMoving();
+                    }
+                    else
+                    {
+                        me->ClearUnitState(UNIT_STATE_NO_COMBAT_MOVEMENT);
+                        me->GetMotionMaster()->MoveChase(victim);
+                    }
+
+                    events.Repeat(5s, 8s);
+                }
+            }
+
+            DoMeleeAttackIfReady();
+        }
 
         void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
