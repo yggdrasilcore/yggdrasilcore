@@ -35,10 +35,10 @@
 #include "Opcodes.h"
 #include "Pet.h"
 #include "Player.h"
-#include "PointMovementGenerator.h"
 #include "PoolMgr.h"
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
+#include "SpellAuraDefines.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "TemporarySummon.h"
@@ -49,85 +49,6 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSessionMgr.h"
-#include <mutex>
-#include <unordered_map>
-#include <unordered_set>
-
-namespace
-{
-    // player low guid -> raw guids of creatures stopped by that player
-    using InteractionStopMap = std::unordered_map<uint32, std::unordered_set<uint64>>;
-
-    InteractionStopMap* GetInteractionStopMap()
-    {
-        static InteractionStopMap map;
-        return &map;
-    }
-
-    std::mutex* GetInteractionStopLock()
-    {
-        static std::mutex lock;
-        return &lock;
-    }
-
-    void RemoveInteractionStopHolder(uint32 playerLowGuid, uint64 creatureGuid)
-    {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-
-        if (auto itr = GetInteractionStopMap()->find(playerLowGuid); itr != GetInteractionStopMap()->end())
-        {
-            itr->second.erase(creatureGuid);
-            if (itr->second.empty())
-                GetInteractionStopMap()->erase(itr);
-        }
-    }
-
-    bool HasInteractionStopHolder(uint64 creatureGuid)
-    {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-        for (auto const& entry : *GetInteractionStopMap())
-            if (entry.second.find(creatureGuid) != entry.second.end())
-                return true;
-        return false;
-    }
-
-    bool PruneInteractionStopHolders(Creature* creature)
-    {
-        uint64 creatureGuid = creature->GetGUID().GetRawValue();
-
-        std::vector<uint32> holders;
-        {
-            std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-            for (auto const& entry : *GetInteractionStopMap())
-                if (entry.second.find(creatureGuid) != entry.second.end())
-                    holders.push_back(entry.first);
-        }
-
-        std::vector<uint32> invalidHolders;
-        for (uint32 lowGuid : holders)
-        {
-            Player* holder = ObjectAccessor::FindConnectedPlayer(ObjectGuid::Create<HighGuid::Player>(lowGuid));
-            if (!holder || !holder->IsInWorld() || holder->GetMap() != creature->GetMap() || holder->GetDistance(creature) > 2.5f)
-                invalidHolders.push_back(lowGuid);
-        }
-
-        if (!invalidHolders.empty())
-        {
-            std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-            for (uint32 lowGuid : invalidHolders)
-            {
-                if (auto itr = GetInteractionStopMap()->find(lowGuid); itr != GetInteractionStopMap()->end())
-                {
-                    itr->second.erase(creatureGuid);
-                    if (itr->second.empty())
-                        GetInteractionStopMap()->erase(itr);
-                }
-            }
-        }
-
-        return holders.size() > invalidHolders.size();
-    }
-}
 
 /// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
@@ -158,15 +79,6 @@ std::string CreatureMovementData::ToString() const
     str << ", InteractionPauseTimer: " << InteractionPauseTimer;
 
     return str.str();
-}
-
-TrainerSpell const* TrainerSpellData::Find(uint32 spell_id) const
-{
-    TrainerSpellMap::const_iterator itr = spellList.find(spell_id);
-    if (itr != spellList.end())
-        return &itr->second;
-
-    return nullptr;
 }
 
 bool VendorItemData::RemoveItem(uint32 item_id)
@@ -213,7 +125,7 @@ CreatureModel const* CreatureTemplate::GetRandomValidModel() const
     if (Models.size() == 1)
         return &Models[0];
 
-    auto selectedItr = Ycore::Containers::SelectRandomWeightedContainerElement(Models, [](CreatureModel const& model)
+    auto selectedItr = Acore::Containers::SelectRandomWeightedContainerElement(Models, [](CreatureModel const& model)
         {
             return model.Probability;
         });
@@ -314,10 +226,9 @@ bool AssistDelayEvent::Execute(uint64 /*e_time*/, uint32 /*p_time*/)
                     assistant->AI()->AttackStart(victim);
 
                     // When nearby mobs aggro from another mob's initial call for assistance
-                    // they inherit the leash queue from the originally engaged NPC (chain leashing).
-                    // Attacking one keeps the rest from evading.
+                    // their leash timers become linked and attacking one will keep the rest from evading.
                     if (assistant->GetVictim())
-                        assistant->SetLeashStatePtr(m_owner->GetLeashStatePtr());
+                        assistant->SetLastLeashExtensionTimePtr(m_owner->GetLastLeashExtensionTimePtr());
                 }
             }
         }
@@ -354,8 +265,8 @@ Creature::Creature(): Unit(), MovableMapObject(), m_groupLootTimer(0), lootingGr
     m_corpseRemoveTime(0), m_respawnTime(0), m_respawnDelay(300), m_corpseDelay(60), m_wanderDistance(0.0f), m_boundaryCheckTime(2500),
     m_transportCheckTimer(1000), lootPickPocketRestoreTime(0), m_combatPulseTime(0), m_combatPulseDelay(0), m_reactState(REACT_AGGRESSIVE), m_defaultMovementType(IDLE_MOTION_TYPE),
     m_spawnId(0), m_equipmentId(0), m_originalEquipmentId(0), m_alreadyCallForHelp(false), m_AlreadyCallAssistance(false),
-    m_AlreadySearchedAssistance(false), m_regenHealth(true), m_regenPower(true), m_AI_locked(false), m_meleeDamageSchoolMask(SPELL_SCHOOL_MASK_NORMAL), m_originalEntry(0), m_moveInLineOfSightDisabled(false), m_moveInLineOfSightStrictlyDisabled(false),
-    m_homePosition(), m_transportHomePosition(), m_creatureInfo(nullptr), m_creatureData(nullptr), m_detectionDistance(20.0f),_sparringPct(0.0f), m_waypointID(0), m_path_id(0), m_formation(nullptr), m_leashState(nullptr), m_cannotReachTimer(0),
+    m_AlreadySearchedAssistance(false), m_regenHealth(true), m_regenPower(true), m_AI_locked(false), m_meleeDamageSchoolMask(SPELL_SCHOOL_MASK_NORMAL), m_originalEntry(0), _gossipMenuId(0), m_moveInLineOfSightDisabled(false), m_moveInLineOfSightStrictlyDisabled(false),
+    m_homePosition(), m_transportHomePosition(), m_creatureInfo(nullptr), m_creatureData(nullptr), m_detectionDistance(20.0f),_sparringPct(0.0f), m_waypointID(0), m_path_id(0), m_formation(nullptr), m_lastLeashExtensionTime(nullptr), m_cannotReachTimer(0),
     _isMissingSwimmingFlagOutOfCombat(false), m_assistanceTimer(0), _playerDamageReq(0), _damagedByPlayer(false), _isCombatMovementAllowed(true)
 {
     m_regenTimer = CREATURE_REGEN_INTERVAL;
@@ -380,7 +291,6 @@ Creature::Creature(): Unit(), MovableMapObject(), m_groupLootTimer(0), lootingGr
     _focusSpell = nullptr;
 
     m_respawnedTime = time_t(0);
-    m_aggroTimer = 0;
 }
 
 Creature::~Creature()
@@ -400,10 +310,10 @@ void Creature::AddToWorld()
         // it's also initialized in AIM_Initialize(), few lines below, but it's not a problem
         Motion_Initialize();
 
-        { std::lock_guard<std::recursive_mutex> lock(*GetMap()->GetStoreLock()); GetMap()->GetObjectsStore().Insert<Creature>(GetGUID(), this); }
+        GetMap()->GetObjectsStore().Insert<Creature>(GetGUID(), this);
         if (m_spawnId)
         {
-            { std::lock_guard<std::recursive_mutex> lock(*GetMap()->GetStoreLock()); GetMap()->GetCreatureBySpawnIdStore().insert(std::make_pair(m_spawnId, this)); }
+            GetMap()->GetCreatureBySpawnIdStore().insert(std::make_pair(m_spawnId, this));
         }
         Unit::AddToWorld();
 
@@ -424,26 +334,6 @@ void Creature::AddToWorld()
         loot.sourceWorldObjectGUID = GetGUID();
 
         sScriptMgr->OnCreatureAddWorld(this);
-
-        // De-render reset: if the creature re-renders far from home (de-rendered while
-        // pulled/kited and grid unloaded mid-combat), reset leash and go back home.
-        // Threat is already cleared on grid unload, but position stays pulled.
-        // Skips pets/summons/charmed (they follow owners, no leash).
-        if (IsAlive() && !IsPet() && !IsCharmed() && !IsSummon() && !GetCharmerOrOwnerGUID() && GetMap() && !GetMap()->Instanceable())
-        {
-            float leashDist = sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
-            if (leashDist > 0.0f && GetExactDist(m_homePosition.GetPositionX(), m_homePosition.GetPositionY(), m_homePosition.GetPositionZ()) > leashDist)
-            {
-                if (!IsInCombat() && !IsEngaged())
-                {
-                    ClearLeash();
-                    if (IsAIEnabled && !IsInEvadeMode())
-                        AI()->EnterEvadeMode(CreatureAI::EvadeReason::EVADE_REASON_OTHER);
-                    else
-                        GetMotionMaster()->MoveTargetedHome();
-                }
-            }
-        }
     }
 }
 
@@ -451,19 +341,6 @@ void Creature::RemoveFromWorld()
 {
     if (IsInWorld())
     {
-        if (Transport* transport = GetTransport())
-            transport->RemovePassenger(this, true);
-
-        Unit::RemoveFromWorld();
-
-        // Unlink from findable stores after aura cleanup: Aura::GetCaster()
-        // resolves the caster via the store during RemoveNotOwnSingleTargetAuras.
-        // Still before the callbacks below so they cannot observe a half-removed object.
-        if (m_spawnId)
-            { std::lock_guard<std::recursive_mutex> lock(*GetMap()->GetStoreLock()); Ycore::Containers::MultimapErasePair(GetMap()->GetCreatureBySpawnIdStore(), m_spawnId, this); }
-
-        { std::lock_guard<std::recursive_mutex> lock(*GetMap()->GetStoreLock()); GetMap()->GetObjectsStore().Remove<Creature>(GetGUID()); }
-
         sScriptMgr->OnCreatureRemoveWorld(this);
 
         if (GetZoneScript())
@@ -471,6 +348,16 @@ void Creature::RemoveFromWorld()
 
         if (m_formation)
             sFormationMgr->RemoveCreatureFromGroup(m_formation, this);
+
+        if (Transport* transport = GetTransport())
+            transport->RemovePassenger(this, true);
+
+        Unit::RemoveFromWorld();
+
+        if (m_spawnId)
+            Acore::Containers::MultimapErasePair(GetMap()->GetCreatureBySpawnIdStore(), m_spawnId, this);
+
+        GetMap()->GetObjectsStore().Remove<Creature>(GetGUID());
     }
 }
 
@@ -706,13 +593,13 @@ bool Creature::UpdateEntry(uint32 Entry, const CreatureData* data, bool changele
     SetMeleeDamageSchool(SpellSchools(cInfo->dmgschool));
     CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(GetLevel(), cInfo->unit_class);
     float armor = stats->GenerateArmor(cInfo);
-    SetModifierValue(UNIT_MOD_ARMOR,             BASE_VALUE, armor);
-    SetModifierValue(UNIT_MOD_RESISTANCE_HOLY,   BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_HOLY]));
-    SetModifierValue(UNIT_MOD_RESISTANCE_FIRE,   BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_FIRE]));
-    SetModifierValue(UNIT_MOD_RESISTANCE_NATURE, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_NATURE]));
-    SetModifierValue(UNIT_MOD_RESISTANCE_FROST,  BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_FROST]));
-    SetModifierValue(UNIT_MOD_RESISTANCE_SHADOW, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_SHADOW]));
-    SetModifierValue(UNIT_MOD_RESISTANCE_ARCANE, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_ARCANE]));
+    SetStatFlatModifier(UNIT_MOD_ARMOR,             BASE_VALUE, armor);
+    SetStatFlatModifier(UNIT_MOD_RESISTANCE_HOLY,   BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_HOLY]));
+    SetStatFlatModifier(UNIT_MOD_RESISTANCE_FIRE,   BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_FIRE]));
+    SetStatFlatModifier(UNIT_MOD_RESISTANCE_NATURE, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_NATURE]));
+    SetStatFlatModifier(UNIT_MOD_RESISTANCE_FROST,  BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_FROST]));
+    SetStatFlatModifier(UNIT_MOD_RESISTANCE_SHADOW, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_SHADOW]));
+    SetStatFlatModifier(UNIT_MOD_RESISTANCE_ARCANE, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_ARCANE]));
 
     SetCanModifyStats(true);
     UpdateAllStats();
@@ -875,31 +762,10 @@ void Creature::Update(uint32 diff)
                     m_boundaryCheckTime -= diff;
             }
 
-            if (m_aggroTimer)
-            {
-                if (diff >= m_aggroTimer)
-                {
-                    m_aggroTimer = 0;
-                    if (IsAIEnabled && !IsInEvadeMode() && HasReactState(REACT_AGGRESSIVE) && !IsEngaged())
-                        if (Unit* target = SelectNearestTarget(MAX_AGGRO_RADIUS, true))
-                            if (CanStartAttack(target))
-                                AI()->AttackStart(target);
-                }
-                else
-                {
-                    m_aggroTimer -= diff;
-                }
-            }
-
             Unit* owner = GetCharmerOrOwner();
-            if (HasAuraType(SPELL_AURA_MOD_CHARM) && owner && GetAreaId() != owner->GetAreaId() && !IsWithinDistInMap(owner, GetMap()->GetVisibilityRange(), true, false))
+            if (IsCharmed() && !IsWithinDistInMap(owner, GetMap()->GetVisibilityRange(), true, false, false))
             {
                 RemoveCharmAuras();
-                if (Creature* creature = ToCreature())
-                {
-                    creature->SetRespawnDelay(1);  // 1 second respawn
-                    creature->DespawnOrUnsummon();
-                }
             }
 
             if (Unit* victim = GetVictim())
@@ -926,14 +792,11 @@ void Creature::Update(uint32 diff)
                 else
                     m_moveCircleMovementTime -= diff;
 
-                // Periodically check if unable to move (CC/root): extend leash so it
-                // doesn't evade while crowd-controlled. Stationary melee extension
-                // itself is handled by the chase generator (meleeing in place).
+                // Periodically check if able to move, if not, extend leash timer
                 if (diff >= m_extendLeashTime)
                 {
                     if (HasUnitState(UNIT_STATE_LOST_CONTROL))
-                        if (Unit* victim = GetVictim())
-                            RefreshLeashOnStationaryCombat(victim);
+                        UpdateLeashExtensionTime();
                     m_extendLeashTime = EXTEND_LEASH_CHECK_INTERVAL;
                 }
                 else
@@ -1049,21 +912,16 @@ void Creature::Update(uint32 diff)
     if (IsInWorld() && !IsDuringRemoveFromWorld())
     {
         // pussywizard:
-        // Owner-following creatures and transport riders both need this refresh.
-        // Client-steered movers own transport membership through HandleMoverRelocation().
-        // Re-probing them would detach/re-add them and force a stop spline, which snaps
-        // the controlling client away from its predicted position.
-        if (!m_movedByPlayer && (GetOwnerGUID().IsPlayer() || GetTransport()))
+        if (GetOwnerGUID().IsPlayer())
         {
             if (m_transportCheckTimer <= diff)
             {
                 m_transportCheckTimer = 1000;
                 Transport* newTransport = GetMap()->GetTransportForPos(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), this);
-                Transport* oldTransport = GetTransport();
-                if (newTransport != oldTransport)
+                if (newTransport != GetTransport())
                 {
-                    if (oldTransport)
-                        oldTransport->RemovePassenger(this, true);
+                    if (GetTransport())
+                        GetTransport()->RemovePassenger(this, true);
                     if (newTransport)
                         newTransport->AddPassenger(this, true);
                     this->StopMovingOnCurrentPos();
@@ -1151,10 +1009,7 @@ void Creature::Regenerate(Powers power)
     }
 
     // Apply modifiers (if any).
-    AuraEffectList const& ModPowerRegenPCTAuras = GetAuraEffectsByType(SPELL_AURA_MOD_POWER_REGEN_PERCENT);
-    for (AuraEffectList::const_iterator i = ModPowerRegenPCTAuras.begin(); i != ModPowerRegenPCTAuras.end(); ++i)
-        if (Powers((*i)->GetMiscValue()) == power)
-            AddPct(addvalue, (*i)->GetAmount());
+    addvalue *= GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_POWER_REGEN_PERCENT, power);
 
     addvalue += GetTotalAuraModifierByMiscValue(SPELL_AURA_MOD_POWER_REGEN, power) * (power == POWER_FOCUS ? PET_FOCUS_REGEN_INTERVAL.count() : CREATURE_REGEN_INTERVAL) / (5 * IN_MILLISECONDS);
 
@@ -1190,9 +1045,7 @@ void Creature::RegenerateHealth()
     }
 
     // Apply modifiers (if any).
-    AuraEffectList const& ModPowerRegenPCTAuras = GetAuraEffectsByType(SPELL_AURA_MOD_HEALTH_REGEN_PERCENT);
-    for (AuraEffectList::const_iterator i = ModPowerRegenPCTAuras.begin(); i != ModPowerRegenPCTAuras.end(); ++i)
-        AddPct(addvalue, (*i)->GetAmount());
+    addvalue *= GetTotalAuraMultiplier(SPELL_AURA_MOD_HEALTH_REGEN_PERCENT);
 
     addvalue += GetTotalAuraModifier(SPELL_AURA_MOD_REGEN) * CREATURE_REGEN_INTERVAL  / (5 * IN_MILLISECONDS);
 
@@ -1212,8 +1065,8 @@ void Creature::DoFleeToGetAssistance()
     {
         Creature* creature = nullptr;
 
-        Ycore::NearestAssistCreatureInCreatureRangeCheck u_check(this, GetVictim(), radius);
-        Ycore::CreatureLastSearcher<Ycore::NearestAssistCreatureInCreatureRangeCheck> searcher(this, creature, u_check);
+        Acore::NearestAssistCreatureInCreatureRangeCheck u_check(this, GetVictim(), radius);
+        Acore::CreatureLastSearcher<Acore::NearestAssistCreatureInCreatureRangeCheck> searcher(this, creature, u_check);
 
         Cell::VisitObjects(this, searcher, radius);
 
@@ -1402,52 +1255,13 @@ bool Creature::isCanInteractWithBattleMaster(Player* player, bool msg) const
     return true;
 }
 
-bool Creature::isCanTrainingAndResetTalentsOf(Player* player) const
+bool Creature::CanResetTalents(Player* player) const
 {
-    return player->GetLevel() >= 10
-        && GetCreatureTemplate()->trainer_type == TRAINER_TYPE_CLASS
-        && player->IsClass((Classes)GetCreatureTemplate()->trainer_class, CLASS_CONTEXT_CLASS_TRAINER);
-}
-
-bool Creature::IsValidTrainerForPlayer(Player* player, uint32* npcFlags /*= nullptr*/) const
-{
-    if (!IsTrainer())
-    {
+    Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(GetEntry());
+    if (!trainer)
         return false;
-    }
 
-    switch (m_creatureInfo->trainer_type)
-    {
-        case TRAINER_TYPE_CLASS:
-        case TRAINER_TYPE_PETS:
-            if (m_creatureInfo->trainer_class && !player->IsClass((Classes)m_creatureInfo->trainer_class, CLASS_CONTEXT_CLASS_TRAINER))
-            {
-                if (npcFlags)
-                    *npcFlags &= ~UNIT_NPC_FLAG_TRAINER_CLASS;
-
-                return false;
-            }
-            break;
-        case TRAINER_TYPE_MOUNTS:
-            if (m_creatureInfo->trainer_race && m_creatureInfo->trainer_race != player->getRace())
-            {
-                return false;
-            }
-            break;
-        case TRAINER_TYPE_TRADESKILLS:
-            if (m_creatureInfo->trainer_spell && !player->HasSpell(m_creatureInfo->trainer_spell))
-            {
-                if (npcFlags)
-                    *npcFlags &= ~UNIT_NPC_FLAG_TRAINER_PROFESSION;
-
-                return false;
-            }
-            break;
-        default:
-            break;
-    }
-
-    return true;
+    return player->GetLevel() >= 10 && trainer->IsTrainerValidForPlayer(player);
 }
 
 Player* Creature::GetLootRecipient() const
@@ -1499,19 +1313,10 @@ void Creature::SetLootRecipient(Unit* unit, bool withGroup)
 
             if (map && map->IsDungeon() && (isWorldBoss() || IsDungeonBoss()))
             {
-                std::vector<ObjectGuid> guids;
+                Map::PlayerList const& PlayerList = map->GetPlayers();
+                for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
                 {
-                    std::shared_lock<std::shared_mutex> lock(*map->GetPlayerRefLock());
-                    Map::PlayerList const& PlayerList = map->GetPlayers();
-                    for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
-                        if (Player* listed = i->GetSource())
-                            guids.push_back(listed->GetGUID());
-                }
-                for (ObjectGuid const& playerGuid : guids)
-                {
-                    Player* groupMember = ObjectAccessor::FindPlayer(playerGuid);
-                    if (!groupMember || !groupMember->IsInWorld() || groupMember->GetMap() != map)
-                        continue;
+                    if (Player* groupMember = i->GetSource())
                     {
                         if (groupMember->IsGameMaster() || groupMember->IsSpectator())
                         {
@@ -1568,7 +1373,6 @@ void Creature::SaveToDB(uint32 mapid, uint8 spawnMask, uint32 phaseMask)
         m_spawnId = sObjectMgr->GenerateCreatureSpawnId();
 
     CreatureData& data = sObjectMgr->NewOrExistCreatureData(m_spawnId);
-    data.spawnId = m_spawnId;
 
     uint32 displayId = GetNativeDisplayId();
     uint32 npcflag = GetNpcFlags();
@@ -1702,8 +1506,8 @@ void Creature::SelectLevel(bool changelevel)
 
     /// @todo: set UNIT_FIELD_POWER*, for some creature class case (energy, etc)
 
-    SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, (float)health);
-    SetModifierValue(UNIT_MOD_MANA, BASE_VALUE, (float)mana);
+    SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, (float)health);
+    SetStatFlatModifier(UNIT_MOD_MANA, BASE_VALUE, (float)mana);
 
     // damage
 
@@ -1721,8 +1525,8 @@ void Creature::SelectLevel(bool changelevel)
     SetBaseWeaponDamage(RANGED_ATTACK, MINDAMAGE, weaponBaseMinDamage);
     SetBaseWeaponDamage(RANGED_ATTACK, MAXDAMAGE, weaponBaseMaxDamage);
 
-    SetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE, stats->AttackPower);
-    SetModifierValue(UNIT_MOD_ATTACK_POWER_RANGED, BASE_VALUE, stats->RangedAttackPower);
+    SetStatFlatModifier(UNIT_MOD_ATTACK_POWER, BASE_VALUE, stats->AttackPower);
+    SetStatFlatModifier(UNIT_MOD_ATTACK_POWER_RANGED, BASE_VALUE, stats->RangedAttackPower);
 
     sScriptMgr->OnCreatureSelectLevel(cInfo, this);
 }
@@ -1852,7 +1656,6 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
     {
         // If an alive instance of this spawnId is already found, skip creation
         // If only dead instance(s) exist, despawn them and spawn a new (maybe also dead) version
-        std::lock_guard<std::recursive_mutex> lock(*map->GetStoreLock());
         const auto creatureBounds = map->GetCreatureBySpawnIdStore().equal_range(spawnId);
         std::vector <Creature*> despawnList;
 
@@ -1911,7 +1714,7 @@ bool Creature::LoadCreatureFromDB(ObjectGuid::LowType spawnId, Map* map, bool ad
         if (CanFly())
         {
             float tz = map->GetHeight(GetPhaseMask(), data->posX, data->posY, data->posZ, true, MAX_FALL_DISTANCE);
-            if (data->posZ - tz > 0.1f && Ycore::IsValidMapCoord(tz))
+            if (data->posZ - tz > 0.1f && Acore::IsValidMapCoord(tz))
             {
                 Relocate(data->posX, data->posY, tz);
             }
@@ -2065,13 +1868,6 @@ bool Creature::IsAlwaysDetectableFor(WorldObject const* seer) const
 
 bool Creature::CanStartAttack(Unit const* who) const
 {
-    // Post-spawn aggro delay: ignore movement-based proximity aggro until the
-    // timer runs out. Creature::Update picks a nearby target once the delay
-    // has elapsed, so the creature still engages. A unit already in combat
-    // with the creature is exempt so retaliation keeps working.
-    if (m_aggroTimer && !IsEngagedBy(who))
-        return false;
-
     if (IsCivilian())
         return false;
 
@@ -2096,7 +1892,7 @@ bool Creature::CanStartAttack(Unit const* who) const
     if (!_IsTargetAcceptable(who))
         return false;
 
-    if (IsNeutralToAll() || !IsWithinDistInMap(who, GetAggroRange(who) + m_CombatDistance, true, false)) // pussywizard: +m_combatDistance for turrets and similar
+    if (IsNeutralToAll() || !IsWithinDistInMap(who, GetAggroRange(who) + m_CombatDistance, true, false, false)) // pussywizard: +m_combatDistance for turrets and similar
         return false;
 
     if (!CanCreatureAttack(who))
@@ -2176,7 +1972,6 @@ void Creature::setDeathState(DeathState state, bool despawn)
 
         ReplaceAllNpcFlags(NPCFlags(cinfo->npcflag));
         ClearUnitState(uint32(UNIT_STATE_ALL_STATE & ~(UNIT_STATE_IGNORE_PATHFINDING | UNIT_STATE_NO_ENVIRONMENT_UPD)));
-        _interactionStopResume.valid = false;
         SetMeleeDamageSchool(SpellSchools(cinfo->dmgschool));
 
         Unit::setDeathState(DeathState::Alive, despawn);
@@ -2288,9 +2083,6 @@ void Creature::Respawn(bool force)
 
             //Re-initialize reactstate that could be altered by movementgenerators
             InitializeReactState();
-
-            if (HasReactState(REACT_AGGRESSIVE) && !IsPet() && !IsCivilian())
-                m_aggroTimer = sWorld->getIntConfig(CONFIG_CREATURE_AGGRO_DELAY_AFTER_SPAWN);
 
         }
         m_respawnedTime = GameTime::GetGameTime().count();
@@ -2554,8 +2346,8 @@ Unit* Creature::SelectNearestTarget(float dist, bool playerOnly /* = false */) c
 
     Unit* target = nullptr;
 
-    Ycore::NearestHostileUnitCheck u_check(this, dist, playerOnly);
-    Ycore::UnitLastSearcher<Ycore::NearestHostileUnitCheck> searcher(this, target, u_check);
+    Acore::NearestHostileUnitCheck u_check(this, dist, playerOnly);
+    Acore::UnitLastSearcher<Acore::NearestHostileUnitCheck> searcher(this, target, u_check);
     Cell::VisitObjects(this, searcher, dist);
     return target;
 }
@@ -2571,8 +2363,8 @@ Unit* Creature::SelectNearestTargetInAttackDistance(float dist) const
         dist = MAX_SEARCHER_DISTANCE;
 
     Unit* target = nullptr;
-    Ycore::NearestHostileUnitInAttackDistanceCheck u_check(this, dist);
-    Ycore::UnitLastSearcher<Ycore::NearestHostileUnitInAttackDistanceCheck> searcher(this, target, u_check);
+    Acore::NearestHostileUnitInAttackDistanceCheck u_check(this, dist);
+    Acore::UnitLastSearcher<Acore::NearestHostileUnitInAttackDistanceCheck> searcher(this, target, u_check);
     Cell::VisitObjects(this, searcher, std::max(dist, ATTACK_DISTANCE));
 
     return target;
@@ -2607,8 +2399,8 @@ void Creature::CallAssistance(Unit* target /*= nullptr*/)
         {
             std::list<Creature*> assistList;
 
-            Ycore::AnyAssistCreatureInRangeCheck u_check(this, target, radius);
-            Ycore::CreatureListSearcher<Ycore::AnyAssistCreatureInRangeCheck> searcher(this, assistList, u_check);
+            Acore::AnyAssistCreatureInRangeCheck u_check(this, target, radius);
+            Acore::CreatureListSearcher<Acore::AnyAssistCreatureInRangeCheck> searcher(this, assistList, u_check);
             Cell::VisitObjects(this, searcher, radius);
 
             if (!assistList.empty())
@@ -2646,8 +2438,8 @@ void Creature::CallForHelp(float radius, Unit* target /*= nullptr*/)
     if (m_alreadyCallForHelp) // avoid recursive call for help for any reason
         return;
 
-    Ycore::CallOfHelpCreatureInRangeDo u_do(this, target, radius);
-    Ycore::CreatureWorker<Ycore::CallOfHelpCreatureInRangeDo> worker(this, u_do);
+    Acore::CallOfHelpCreatureInRangeDo u_do(this, target, radius);
+    Acore::CreatureWorker<Acore::CallOfHelpCreatureInRangeDo> worker(this, u_do);
     Cell::VisitObjects(this, worker, radius);
 }
 
@@ -2797,11 +2589,7 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
         return false;
 
     if (!victim->isInAccessiblePlaceFor(this))
-    {
-        // An engaged target that boards a transport stays attackable; new pulls do not.
-        if (!IsEngagedBy(victim) || !IsTargetOnOtherTransport(victim))
-            return false;
-    }
+        return false;
 
     if (IsAIEnabled && !AI()->CanAIAttack(victim))
         return false;
@@ -2828,8 +2616,7 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
 
     if (!GetCharmerOrOwnerGUID().IsPlayer())
     {
-        // No leashing in dungeons / instanced maps: chase forever.
-        if (GetMap()->Instanceable())
+        if (GetMap()->IsDungeon())
             return true;
 
         float visibility = std::max<float>(GetVisibilityRange(), victim->GetVisibilityRange());
@@ -2838,15 +2625,9 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
         if (!IsWithinDist(victim, visibility))
             return false;
 
-        // Inside leash range (31 yds 3D from spawn, under the Z cap):
-        // stock timer does not apply.
-        if (!IsOutsideLeashRange(victim))
-            return true;
-
-        // Outside leash range: allow kiting away for the stock timer, extended by
-        // direct hostile actions (one stock per bracket). Taunt keeps it attacking.
-        // Each target tracks its own leash deadline (leash queue).
-        if (!isWorldBoss() && (!IsLeashExpiredFor(victim) || HasTauntAura()))
+        // pussywizard: don't check distance to home position if recently damaged (allow kiting away from spawnpoint!)
+        // xinef: this should include taunt auras
+        if (!isWorldBoss() && (GetLastLeashExtensionTime() + GetLeashTimer() > GameTime::GetGameTime().count() || HasTauntAura()))
             return true;
     }
 
@@ -2866,9 +2647,9 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
     float x, y, z;
     x = y = z = 0.0f;
     if (GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE)->GetResetPosition(x, y, z))
-        return GetExactDist(x, y, z) <= dist;
+        return IsInDist2d(x, y, dist);
     else
-        return GetExactDist(m_homePosition.GetPositionX(), m_homePosition.GetPositionY(), m_homePosition.GetPositionZ()) <= dist;
+        return IsInDist2d(&m_homePosition, dist);
 }
 
 CreatureAddon const* Creature::GetCreatureAddon() const
@@ -3170,190 +2951,6 @@ CreatureMovementData const& Creature::GetMovementTemplate() const
     return GetCreatureTemplate()->Movement;
 }
 
-// Aura applied on player interaction to hold the creature in place.
-// Duration comes from creature_template_movement / creature_movement_override
-// InteractionPauseTimer (ms): NULL keeps the default (Creature.MovingStopTimeForPlayer),
-// 0 disables the stop, >0 sets a custom duration.
-void Creature::PauseMovementForInteraction(Player* caster)
-{
-    // Never interrupt owned creatures (pets, summons, etc.)
-    if (GetOwner())
-        return;
-
-    // Never interrupt combat
-    if (IsInCombat())
-        return;
-
-    uint32 pause = GetMovementTemplate().GetInteractionPauseTimer();
-    if (!pause)
-        return;
-
-    if (!_interactionStopResume.valid)
-    {
-        _interactionStopResume.valid = true;
-        _interactionStopResume.movegen = GetMotionMaster()->GetCurrentMovementGeneratorType();
-        _interactionStopResume.wasMoving = !movespline->Finalized() || HasUnitState(UNIT_STATE_ROAMING_MOVE);
-        float dx = 0.0f, dy = 0.0f, dz = 0.0f;
-        _interactionStopResume.hasDest = GetMotionMaster()->GetDestination(dx, dy, dz);
-        if (_interactionStopResume.hasDest)
-            _interactionStopResume.dest.Relocate(dx, dy, dz, 0.0f);
-        _interactionStopResume.home = GetHomePosition();
-
-        LOG_DEBUG("entities.unit", "Creature {} (entry {}, {}) frozen for interaction with player {}: wasMoving={}, movegen={}, at ({}, {}, {}), dest=({}, {}, {}, valid={})",
-            GetGUID().ToString(), GetEntry(), GetName(),
-            caster ? caster->GetGUID().ToString() : std::string("none"),
-            _interactionStopResume.wasMoving, uint32(_interactionStopResume.movegen),
-            GetPositionX(), GetPositionY(), GetPositionZ(),
-            dx, dy, dz, _interactionStopResume.hasDest);
-    }
-
-    PauseMovement(pause);
-
-    if (!caster)
-        return;
-
-    if (Aura* aura = caster->AddAura(INTERACTION_STOP_AURA, this))
-        aura->SetDuration(static_cast<int32>(pause));
-
-    // Track for logout cleanup / early release
-    {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-        (*GetInteractionStopMap())[caster->GetGUID().GetCounter()].insert(GetGUID().GetRawValue());
-    }
-}
-
-void Creature::ClearInteractionStop(Player* player)
-{
-    if (!player)
-        return;
-
-    RemoveInteractionStopHolder(player->GetGUID().GetCounter(), GetGUID().GetRawValue());
-
-    // Another valid player is still interacting: keep the aura and the freeze.
-    if (PruneInteractionStopHolders(this))
-        return;
-
-    if (HasAura(INTERACTION_STOP_AURA))
-    {
-        RemoveAurasDueToSpell(INTERACTION_STOP_AURA);
-
-        // Expire any remaining generator pause immediately
-        ResumeMovement();
-        PauseMovement(1);
-
-        ResumeInteractionMovement();
-    }
-    else
-        _interactionStopResume.valid = false;
-}
-
-void Creature::ForceClearInteractionStop()
-{
-    if (!HasAura(INTERACTION_STOP_AURA) && !_interactionStopResume.valid && !HasInteractionStopHolder(GetGUID().GetRawValue()))
-        return;
-
-    RemoveAurasDueToSpell(INTERACTION_STOP_AURA);
-    ResumeMovement();
-    ClearInteractionStopHolders();
-
-    LOG_DEBUG("entities.unit", "Creature {} (entry {}) interaction stop force-cleared",
-        GetGUID().ToString(), GetEntry());
-}
-
-void Creature::ClearInteractionStopHolders()
-{
-    {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-        for (auto itr = GetInteractionStopMap()->begin(); itr != GetInteractionStopMap()->end();)
-        {
-            itr->second.erase(GetGUID().GetRawValue());
-            if (itr->second.empty())
-                itr = GetInteractionStopMap()->erase(itr);
-            else
-                ++itr;
-        }
-    }
-
-    _interactionStopResume.valid = false;
-}
-
-void Creature::ResumeInteractionMovement()
-{
-    if (!_interactionStopResume.valid)
-        return;
-
-    if (HasInteractionStopHolder(GetGUID().GetRawValue()))
-    {
-        LOG_DEBUG("entities.unit", "Creature {} (entry {}) interaction stop released by one player but still held by another, keeping freeze",
-            GetGUID().ToString(), GetEntry());
-        return;
-    }
-
-    InteractionStopResume snapshot = _interactionStopResume;
-    _interactionStopResume.valid = false;
-
-    SetHomePosition(snapshot.home);
-
-    LOG_DEBUG("entities.unit", "Creature {} (entry {}) unfrozen after interaction: wasMoving={}, movegen={}",
-        GetGUID().ToString(), GetEntry(), snapshot.wasMoving, uint32(snapshot.movegen));
-
-    if (!snapshot.wasMoving || !IsAlive() || IsInCombat())
-        return;
-
-    if (snapshot.movegen == POINT_MOTION_TYPE && movespline->Finalized())
-    {
-        for (int slot : { MOTION_SLOT_ACTIVE, MOTION_SLOT_CONTROLLED })
-        {
-            if (GetMotionMaster()->GetMotionSlotType(slot) == POINT_MOTION_TYPE)
-            {
-                if (MovementGenerator* gen = GetMotionMaster()->GetMotionSlot(slot))
-                    static_cast<PointMovementGenerator<Creature>*>(gen)->Relaunch(this);
-                break;
-            }
-        }
-    }
-}
-
-void Creature::ClearInteractionStopsBy(Player* player)
-{
-    if (!player || !player->GetMap())
-        return;
-
-    std::unordered_set<uint64> guids;
-    {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-        if (auto itr = GetInteractionStopMap()->find(player->GetGUID().GetCounter()); itr != GetInteractionStopMap()->end())
-            guids = itr->second;
-    }
-
-    for (uint64 raw : guids)
-        if (Creature* creature = player->GetMap()->GetCreature(ObjectGuid(raw)))
-            creature->ClearInteractionStop(player);
-
-    {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-        GetInteractionStopMap()->erase(player->GetGUID().GetCounter());
-    }
-}
-
-void Creature::ClearInteractionStopsOutOfRange(Player* player)
-{
-    if (!player || !player->GetMap())
-        return;
-
-    std::unordered_set<uint64> guids;
-    {
-        std::lock_guard<std::mutex> lock(*GetInteractionStopLock());
-        if (auto itr = GetInteractionStopMap()->find(player->GetGUID().GetCounter()); itr != GetInteractionStopMap()->end())
-            guids = itr->second;
-    }
-
-    for (uint64 raw : guids)
-        if (Creature* creature = player->GetMap()->GetCreature(ObjectGuid(raw)))
-            if (player->GetDistance(creature) > 2.5f)
-                creature->ClearInteractionStop(player);
-}
-
 void Creature::AllLootRemovedFromCorpse()
 {
     if (loot.loot_type != LOOT_SKINNING && !IsPet() && GetCreatureTemplate()->SkinLootId && hasLootRecipient())
@@ -3498,11 +3095,6 @@ uint32 Creature::UpdateVendorItemCurrentCount(VendorItem const* vItem, uint32 us
     return vCount->count;
 }
 
-TrainerSpellData const* Creature::GetTrainerSpells() const
-{
-    return sObjectMgr->GetNpcTrainerSpells(GetEntry());
-}
-
 // overwrite WorldObject function for proper name localization
 std::string const& Creature::GetNameForLocaleIdx(LocaleConstant loc_idx) const
 {
@@ -3522,7 +3114,7 @@ std::string const& Creature::GetNameForLocaleIdx(LocaleConstant loc_idx) const
 
 void Creature::SetPosition(float x, float y, float z, float o)
 {
-    if (!Ycore::IsValidMapCoord(x, y, z, o))
+    if (!Acore::IsValidMapCoord(x, y, z, o))
         return;
 
     GetMap()->CreatureRelocation(this, x, y, z, o);
@@ -3674,11 +3266,6 @@ float Creature::GetAggroRange(Unit const* target) const
     return (aggroRadius * aggroRate);
 }
 
-float Creature::GetFlightClearanceThreshold() const
-{
-    return std::max(GetCollisionWidth() * 0.5f, GROUND_HEIGHT_TOLERANCE);
-}
-
 void Creature::UpdateMovementFlags()
 {
     // Do not update movement flags if creature is controlled by a player (charm/vehicle)
@@ -3689,32 +3276,19 @@ void Creature::UpdateMovementFlags()
     if (!info)
         return;
 
-    // Creatures with CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE control movement flags and anim tier in their own scripts
+    // Creatures with CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE should control MovementFlags in your own scripts
     if (info->HasFlagsExtra(CREATURE_FLAG_EXTRA_NO_MOVE_FLAGS_UPDATE))
         return;
 
     float ground = GetFloorZ();
 
     bool canHover = CanHover();
-    float hoverOffset = canHover ? GetFloatValue(UNIT_FIELD_HOVERHEIGHT) : 0.0f;
-    bool isInAir = (G3D::fuzzyGt(GetPositionZ(), ground + hoverOffset + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE));
-    bool const hasActiveSpline = movespline && movespline->Initialized() && !movespline->Finalized();
-    bool const isFlightPath = hasActiveSpline && _isFlightPath;
+    bool isInAir  = (G3D::fuzzyGt(GetPositionZ(), ground + (canHover ? GetFloatValue(UNIT_FIELD_HOVERHEIGHT) : 0.0f) + GROUND_HEIGHT_TOLERANCE) || G3D::fuzzyLt(GetPositionZ(), ground - GROUND_HEIGHT_TOLERANCE)); // Can be underground too, prevent the falling
 
-    bool const hadFlightFlags = HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);
-    bool const flightAllowed = GetMovementTemplate().IsFlightAllowed() || hadFlightFlags;
-    bool const aboveGround = G3D::fuzzyGt(GetPositionZ(), ground + hoverOffset + GetFlightClearanceThreshold());
-    bool const wantFlight = isFlightPath || (flightAllowed && aboveGround && !IsFalling());
-
-    LiquidData const& liquidData = GetLiquidData();
-
-    if (wantFlight)
+    if (GetMovementTemplate().IsFlightAllowed() && isInAir && !IsFalling())
     {
-        if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly || HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-        {
-            if (!HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
-                SetCanFly(true);
-        }
+        if (GetMovementTemplate().Flight == CreatureFlightMovementType::CanFly && !m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY))
+            SetCanFly(true);
         else if (!IsLevitating())
             SetDisableGravity(true);
 
@@ -3723,7 +3297,7 @@ void Creature::UpdateMovementFlags()
     }
     else
     {
-        if (HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY))
+        if (m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY))
             SetCanFly(false);
 
         if (IsLevitating())
@@ -3737,6 +3311,7 @@ void Creature::UpdateMovementFlags()
         RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING);
 
     bool Swim = false;
+    LiquidData const& liquidData = GetLiquidData();
     switch (liquidData.Status)
     {
         case LIQUID_MAP_WATER_WALK:
@@ -3751,34 +3326,6 @@ void Creature::UpdateMovementFlags()
     }
 
     SetSwim(CanSwim() && Swim);
-
-    uint8 const currentAnimTier = GetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER);
-    bool const hasFlightFlags = HasUnitMovementFlag(MOVEMENTFLAG_CAN_FLY | MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_FLYING);
-    bool const hasHoverFlag = IsHovering();
-    bool const hadAirTier = currentAnimTier == UNIT_BYTE1_FLAG_FLY || currentAnimTier == UNIT_BYTE1_FLAG_HOVER || currentAnimTier == UNIT_BYTE1_FLAG_SUBMERGED;
-
-    if (!IsRooted() && (hasActiveSpline || hasFlightFlags || hasHoverFlag || hadAirTier))
-    {
-        uint8 animTier;
-
-        bool const underWater = liquidData.Status == LIQUID_MAP_UNDER_WATER;
-        bool const inWater = underWater || liquidData.Status == LIQUID_MAP_IN_WATER;
-
-        if (!IsAlive())
-            animTier = UNIT_BYTE1_FLAG_GROUND;
-        else if (inWater)
-            animTier = underWater ? UNIT_BYTE1_FLAG_SUBMERGED : UNIT_BYTE1_FLAG_GROUND;
-        else if ((flightAllowed || hasFlightFlags) && aboveGround)
-            animTier = UNIT_BYTE1_FLAG_FLY;
-        else if (hasActiveSpline && isFlightPath)
-            animTier = UNIT_BYTE1_FLAG_FLY;
-        else if (hasHoverFlag)
-            animTier = UNIT_BYTE1_FLAG_HOVER;
-        else
-            animTier = UNIT_BYTE1_FLAG_GROUND;
-
-        SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, animTier);
-    }
 }
 
 float Creature::GetNativeObjectScale() const
@@ -3947,31 +3494,17 @@ bool Creature::IsMovementPreventedByCasting() const
     return false;
 }
 
-bool Creature::IsTargetOnOtherTransport(Unit const* target) const
-{
-    if (!target || !GetMap() || GetMap()->Instanceable() || GetMap()->IsBattlegroundOrArena())
-        return false;
-
-    Transport* transport = target->GetTransport();
-    return transport && transport != GetTransport();
-}
-
 void Creature::SetCannotReachTarget(ObjectGuid const& cannotReach)
 {
-    // A target on another transport waits on the leash timer, not the unreachable timer.
-    ObjectGuid guid = cannotReach;
-    if (!guid.IsEmpty() && !GetCharmerOrOwnerGUID().IsPlayer())
-        if (Unit* target = ObjectAccessor::GetUnit(*this, guid))
-            if (IsTargetOnOtherTransport(target))
-                guid.Clear();
-
-    if (guid == m_cannotReachTarget)
+    if (cannotReach == m_cannotReachTarget)
+    {
         return;
+    }
 
-    m_cannotReachTarget = guid;
+    m_cannotReachTarget = cannotReach;
     m_cannotReachTimer = 0;
 
-    if (guid)
+    if (cannotReach)
     {
         LOG_DEBUG("entities.unit", "Creature::SetCannotReachTarget() called with true. Details: {}", GetDebugInfo());
     }
@@ -3992,176 +3525,41 @@ bool Creature::IsNotReachableAndNeedRegen() const
     return false;
 }
 
-std::shared_ptr<Creature::LeashState> const& Creature::GetLeashStatePtr() const
+std::shared_ptr<time_t> const& Creature::GetLastLeashExtensionTimePtr() const
 {
-    if (!m_leashState)
-        m_leashState = std::make_shared<LeashState>();
-    return m_leashState;
+    if (m_lastLeashExtensionTime == nullptr)
+        m_lastLeashExtensionTime = std::make_shared<time_t>(GameTime::GetGameTime().count());
+    return m_lastLeashExtensionTime;
 }
 
-void Creature::SetLeashStatePtr(std::shared_ptr<LeashState> const& state)
+void Creature::SetLastLeashExtensionTimePtr(std::shared_ptr<time_t> const& timer)
 {
-    m_leashState = state;
+    m_lastLeashExtensionTime = timer;
 }
 
-void Creature::ClearLeash()
+void Creature::ClearLastLeashExtensionTimePtr()
 {
-    m_leashState.reset();
+    m_lastLeashExtensionTime.reset();
 }
 
-void Creature::EngageLeash(Unit* target)
+time_t Creature::GetLastLeashExtensionTime() const
 {
-    if (!target || (GetMap() && GetMap()->Instanceable()))
-        return;
-
-    // Player-owned creatures (pets, charmed units) don't run the leash system.
-    if (GetCharmerOrOwnerGUID().IsPlayer())
-        return;
-
-    time_t now = GameTime::GetGameTime().count();
-    uint32 stock = GetLeashTimer();
-    auto& entries = GetLeashStatePtr()->entries;
-    if (entries.find(target->GetGUID()) == entries.end())
-        entries.emplace(target->GetGUID(), LeashEntry{ now, now + (time_t)stock });
+    return *GetLastLeashExtensionTimePtr();
 }
 
-bool Creature::CanAttackAtRange() const
+void Creature::UpdateLeashExtensionTime()
 {
-    for (uint8 i = 0; i < MAX_CREATURE_SPELLS; ++i)
-        if (m_spells[i])
-            return true;
-    return false;
+    (*GetLastLeashExtensionTimePtr()) = GameTime::GetGameTime().count();
 }
 
-float Creature::GetLeashZCap() const
-{
-    if (CanAttackAtRange())
-        return sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
-    return sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_MELEE_Z_THRESHOLD);
-}
+uint8 Creature::GetLeashTimer() const
+{ // Based on testing on Classic, seems to range from ~11s for low level mobs (1-5) to ~16s for high level mobs (70+)
+    uint8 timerOffset = 11;
 
-bool Creature::ShouldSuppressLeashExtensionFor(Unit const* target) const
-{
-    if (!target || target == this)
-        return true;
-    // Waiting at a transport's base must consume the stock leash timer.
-    if (IsTargetOnOtherTransport(target))
-        return true;
-    if (CanFly())
-        return false;
-    return target->GetPositionZ() - GetPositionZ() > GetLeashZCap();
-}
+    uint8 timerModifier = uint8(GetCreatureTemplate()->minlevel / 10) - 2;
 
-void Creature::TryExtendLeashOnDirectHit(Unit* attacker)
-{
-    if (!attacker || attacker == this || (GetMap() && GetMap()->Instanceable()))
-        return;
-
-    // Player-owned creatures (pets, charmed units) don't run the leash system.
-    if (GetCharmerOrOwnerGUID().IsPlayer())
-        return;
-
-    time_t now = GameTime::GetGameTime().count();
-    uint32 stock = GetLeashTimer();
-    auto& entries = GetLeashStatePtr()->entries;
-    auto it = entries.find(attacker->GetGUID());
-    if (it == entries.end())
-    {
-        // Still create the entry so the normal stock timer runs; further
-        // extensions are suppressed while the Z gap persists.
-        entries.emplace(attacker->GetGUID(), LeashEntry{ now, now + (time_t)stock });
-        return;
-    }
-
-    // Engaged-guard (upstream #27390 port): stray hits that can't put the
-    // creature into combat with this attacker earn no leash time.
-    if (!IsEngagedBy(attacker))
-    {
-        if (IsInEvadeMode() || !IsAlive() || !attacker->IsAlive())
-            return;
-        // Respawn grace period: creature can't be pulled yet (see CanCreatureAttack).
-        if (m_respawnedTime && (now - m_respawnedTime) < 5)
-            return;
-    }
-
-    // No extensions (bracketed or otherwise) for targets too far above a
-    // ground creature: the normal stock timer simply runs out.
-    if (ShouldSuppressLeashExtensionFor(attacker))
-        return;
-
-    LeashEntry& entry = it->second;
-    // One extension per stock bracket: only hits inside the last `stock`
-    // seconds before the deadline push it by one stock. Hits earlier in the
-    // bracket were already covered by the previous extension.
-    // Expired entries re-leash from now.
-    if (now > entry.deadline)
-        entry.deadline = now + (time_t)stock;
-    else if (now >= entry.deadline - (time_t)stock)
-        entry.deadline += (time_t)stock;
-}
-
-void Creature::RefreshLeashOnStationaryCombat(Unit* victim)
-{
-    if (!victim || victim == this || (GetMap() && GetMap()->Instanceable()))
-        return;
-
-    time_t now = GameTime::GetGameTime().count();
-    uint32 stock = GetLeashTimer();
-    auto& entries = GetLeashStatePtr()->entries;
-    auto it = entries.find(victim->GetGUID());
-    if (it == entries.end())
-    {
-        entries.emplace(victim->GetGUID(), LeashEntry{ now, now + (time_t)stock });
-        return;
-    }
-
-    // Standing still does not extend the leash for targets too far above a
-    // ground creature (e.g. hovering flying player).
-    if (ShouldSuppressLeashExtensionFor(victim))
-        return;
-
-    it->second.deadline = std::max(it->second.deadline, now + (time_t)stock);
-}
-
-bool Creature::IsOutsideLeashRange(Unit const* victim) const
-{
-    float leashDist = sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
-    if (leashDist <= 0.0f)
-        return false;
-    // Target on another transport is unreachable on foot; let the stock leash deadline end it.
-    if (IsTargetOnOtherTransport(victim))
-        return true;
-    float hx, hy, hz;
-    hx = hy = hz = 0.0f;
-    bool hasResetPos = GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE)->GetResetPosition(hx, hy, hz);
-    float homeX = hasResetPos ? hx : m_homePosition.GetPositionX();
-    float homeY = hasResetPos ? hy : m_homePosition.GetPositionY();
-    float homeZ = hasResetPos ? hz : m_homePosition.GetPositionZ();
-    if (GetExactDist(homeX, homeY, homeZ) > leashDist)
-        return true;
-    return victim && victim->GetPositionZ() - GetPositionZ() > GetLeashZCap();
-}
-
-bool Creature::IsLeashExpiredFor(Unit const* target) const
-{
-    if (!target)
-        return true;
-    // Fresh targets (no entry yet) are allowed to engage; the entry is
-    // created on CombatStart/Attack. Missing entry => not expired.
-    if (!m_leashState)
-        return false;
-    auto it = m_leashState->entries.find(target->GetGUID());
-    if (it == m_leashState->entries.end())
-        return false;
-    return GameTime::GetGameTime().count() > it->second.deadline;
-}
-
-uint32 Creature::GetLeashTimer() const
-{
-    // Stock timer: 9 seconds + 1 sec per 10 levels, based on lowest possible
-    // spawn level of creature_template for this NPC. Lvl 1-9 => 9s, 29 => 11s, 70+ => 16s.
-    uint32 minLevel = GetCreatureTemplate() ? GetCreatureTemplate()->minlevel : 1;
-    return 9u + minLevel / 10u;
+    // Formula is likely not quite correct, but better than flat timer
+    return std::max<uint8>(timerOffset, timerOffset + timerModifier);
 }
 
 bool Creature::CanPeriodicallyCallForAssistance() const

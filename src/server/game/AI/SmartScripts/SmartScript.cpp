@@ -333,26 +333,24 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             {
                 if (me && me->FindMap())
                 {
-                    Map* musicMap = me->GetMap();
-                    uint32 zoneId = me->GetZoneId();
-                    uint32 areaId = me->GetAreaId();
-                    std::vector<ObjectGuid> guids = musicMap->CopyPlayerGuids();
+                    Map::PlayerList const& players = me->GetMap()->GetPlayers();
 
-                    for (ObjectGuid const& playerGuid : guids)
+                    if (!players.IsEmpty())
                     {
-                        Player* player = ObjectAccessor::FindPlayer(playerGuid);
-                        if (!player || !player->IsInWorld() || player->GetMap() != musicMap)
-                            continue;
-                        if (player->GetZoneId() == zoneId)
-                        {
-                            if (e.action.music.type > 1)
+                        for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
+                            if (Player* player = i->GetSource())
                             {
-                                if (player->GetAreaId() == areaId)
-                                    targets.push_back(player);
+                                if (player->GetZoneId() == me->GetZoneId())
+                                {
+                                    if (e.action.music.type > 1)
+                                    {
+                                        if (player->GetAreaId() == me->GetAreaId())
+                                            targets.push_back(player);
+                                    }
+                                    else
+                                        targets.push_back(player);
+                                }
                             }
-                            else
-                                targets.push_back(player);
-                        }
                     }
                 }
             }
@@ -381,26 +379,24 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             {
                 if (me && me->FindMap())
                 {
-                    Map* musicMap = me->GetMap();
-                    uint32 zoneId = me->GetZoneId();
-                    uint32 areaId = me->GetAreaId();
-                    std::vector<ObjectGuid> guids = musicMap->CopyPlayerGuids();
+                    Map::PlayerList const& players = me->GetMap()->GetPlayers();
 
-                    for (ObjectGuid const& playerGuid : guids)
+                    if (!players.IsEmpty())
                     {
-                        Player* player = ObjectAccessor::FindPlayer(playerGuid);
-                        if (!player || !player->IsInWorld() || player->GetMap() != musicMap)
-                            continue;
-                        if (player->GetZoneId() == zoneId)
-                        {
-                            if (e.action.randomMusic.type > 1)
+                        for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
+                            if (Player* player = i->GetSource())
                             {
-                                if (player->GetAreaId() == areaId)
-                                    targets.push_back(player);
+                                if (player->GetZoneId() == me->GetZoneId())
+                                {
+                                    if (e.action.randomMusic.type > 1)
+                                    {
+                                        if (player->GetAreaId() == me->GetAreaId())
+                                            targets.push_back(player);
+                                    }
+                                    else
+                                        targets.push_back(player);
+                                }
                             }
-                            else
-                                targets.push_back(player);
-                        }
                     }
                 }
             }
@@ -575,7 +571,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             {
                 if (IsUnit(target))
                 {
-                    uint32 emote = Ycore::Containers::SelectRandomContainerElement(emotes);
+                    uint32 emote = Acore::Containers::SelectRandomContainerElement(emotes);
                     target->ToUnit()->HandleEmoteCommand(emote);
                     LOG_DEBUG("scripts.ai", "SmartScript::ProcessAction:: SMART_ACTION_RANDOM_EMOTE: Creature guidLow {} handle random emote {}",
                               target->GetGUID().ToString(), emote);
@@ -648,7 +644,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 caster = unit->SummonTrigger(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ(), unit->GetOrientation(), 5000);
 
             if (e.action.cast.targetsLimit)
-                Ycore::Containers::RandomResize(targets, e.action.cast.targetsLimit);
+                Acore::Containers::RandomResize(targets, e.action.cast.targetsLimit);
 
             bool failedSpellCast = false, successfulSpellCast = false;
 
@@ -711,7 +707,6 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                         continue;
                     }
 
-                    // Let us not try to cast spell if we know it is going to fail anyway. Stick to chasing and continue.
                     if (distanceToTarget > spellMaxRange && isWithinLOSInMap)
                     {
                         failedSpellCast = true;
@@ -749,12 +744,9 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
 
                     if (e.action.cast.castFlags & SMARTCAST_COMBAT_MOVE)
                     {
-                        // If cast flag SMARTCAST_COMBAT_MOVE is set combat movement will not be allowed unless target is outside spell range, out of mana, or LOS.
-                        if (result == SPELL_FAILED_OUT_OF_RANGE || result == SPELL_CAST_OK)
-                            // if we are just out of range, we only chase until we are back in spell range.
+                        if (result == SPELL_FAILED_OUT_OF_RANGE)
                             CAST_AI(SmartAI, me->AI())->SetCurrentRangeMode(true, std::max(spellMaxRange - NOMINAL_MELEE_RANGE, 0.0f));
-                        else // move into melee on any other fail
-                            // if spell fail for any other reason, we chase to melee range, or stay where we are if spellcast was successful.
+                        else if (result != SPELL_CAST_OK)
                             CAST_AI(SmartAI, me->AI())->SetCurrentRangeMode(false, 0.f);
                     }
 
@@ -784,7 +776,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 break;
 
             if (e.action.cast.targetsLimit)
-                Ycore::Containers::RandomResize(targets, e.action.cast.targetsLimit);
+                Acore::Containers::RandomResize(targets, e.action.cast.targetsLimit);
 
             TriggerCastFlags triggerFlags = TRIGGERED_NONE;
             if (e.action.cast.castFlags & SMARTCAST_TRIGGERED)
@@ -828,7 +820,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 break;
 
             if (e.action.cast.targetsLimit)
-                Ycore::Containers::RandomResize(targets, e.action.cast.targetsLimit);
+                Acore::Containers::RandomResize(targets, e.action.cast.targetsLimit);
 
             for (WorldObject* target : targets)
             {
@@ -1037,7 +1029,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             me->DoFleeToGetAssistance();
             if (e.action.flee.withEmote)
             {
-                Ycore::BroadcastTextBuilder builder(me, CHAT_MSG_MONSTER_EMOTE, BROADCAST_TEXT_FLEE_FOR_ASSIST, me->getGender());
+                Acore::BroadcastTextBuilder builder(me, CHAT_MSG_MONSTER_EMOTE, BROADCAST_TEXT_FLEE_FOR_ASSIST, me->getGender());
                 sCreatureTextMgr->SendChatPacket(me, builder, CHAT_MSG_MONSTER_EMOTE);
             }
             LOG_DEBUG("sql.sql", "SmartScript::ProcessAction:: SMART_ACTION_FLEE_FOR_ASSIST: Creature {} DoFleeToGetAssistance", me->GetGUID().ToString());
@@ -1140,7 +1132,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             std::copy_if(e.action.randomPhase.phases.begin(), e.action.randomPhase.phases.end(),
                          std::back_inserter(phases), [](uint32 phase) { return phase != 0; });
 
-            uint32 phase = Ycore::Containers::SelectRandomContainerElement(phases);
+            uint32 phase = Acore::Containers::SelectRandomContainerElement(phases);
             SetPhase(phase);
             LOG_DEBUG("scripts.ai", "SmartScript::ProcessAction: SMART_ACTION_RANDOM_PHASE: Creature {} sets event phase to {}",
                       GetBaseObject()->GetGUID().ToString(), phase);
@@ -1267,20 +1259,13 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             {
                 if (me && !me->isDead())
                 {
-                    ObjectGuid dieGuid = me->GetGUID();
-                    Map* dieMap = me->GetMap();
-                    me->m_Events.AddEventAtOffset([dieGuid, dieMap]
+                    me->m_Events.AddEventAtOffset([&]
                         {
-                            // Resolve on fire: me may have despawned/unloaded since scheduling.
-                            if (!dieMap)
-                                return;
-                            Creature* target = dieMap->GetCreature(dieGuid);
-                            if (!target || target->isDead())
-                                return;
                             // We need to check again to see if we didn't die in the process.
+                            if (me && !me->isDead())
                             {
-                                target->KillSelf();
-                                LOG_DEBUG("sql.sql", "SmartScript::ProcessAction: SMART_ACTION_DIE: Creature {}", target->GetGUID().ToString());
+                                me->KillSelf();
+                                LOG_DEBUG("sql.sql", "SmartScript::ProcessAction: SMART_ACTION_DIE: Creature {}", me->GetGUID().ToString());
                             }
                         }, Milliseconds(e.action.die.milliseconds));
                 }
@@ -1335,7 +1320,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                     target->ToCreature()->CallForHelp(float(e.action.callHelp.range));
                     if (e.action.callHelp.withEmote)
                     {
-                        Ycore::BroadcastTextBuilder builder(target, CHAT_MSG_MONSTER_EMOTE, BROADCAST_TEXT_CALL_FOR_HELP, LANG_UNIVERSAL, nullptr);
+                        Acore::BroadcastTextBuilder builder(target, CHAT_MSG_MONSTER_EMOTE, BROADCAST_TEXT_CALL_FOR_HELP, LANG_UNIVERSAL, nullptr);
                         sCreatureTextMgr->SendChatPacket(target, builder, CHAT_MSG_MONSTER_EMOTE);
                     }
                     LOG_DEBUG("scripts.ai", "SmartScript::ProcessAction: SMART_ACTION_CALL_FOR_HELP: Creature {}, target: {}",
@@ -1513,7 +1498,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 break;
 
             // attack random target
-            if (Unit* target = Ycore::Containers::SelectRandomContainerElement(targets)->ToUnit())
+            if (Unit* target = Acore::Containers::SelectRandomContainerElement(targets)->ToUnit())
                 me->AI()->AttackStart(target);
             break;
         }
@@ -1734,7 +1719,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                 StoreCounter(e.action.setCounter.counterId, e.action.setCounter.value, e.action.setCounter.reset, e.action.setCounter.subtract);
             break;
         }
-        case SMART_ACTION_WP_START:
+        case SMART_ACTION_ESCORT_START:
         {
             if (!IsSmart())
                 break;
@@ -1761,16 +1746,16 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             CAST_AI(SmartAI, me->AI())->SetDespawnTime(DespawnTime);
             break;
         }
-        case SMART_ACTION_WP_PAUSE:
+        case SMART_ACTION_ESCORT_PAUSE:
         {
             if (!IsSmart())
                 break;
 
             uint32 delay = e.action.wpPause.delay;
-            CAST_AI(SmartAI, me->AI())->PausePath(delay, e.GetEventType() == SMART_EVENT_WAYPOINT_REACHED ? false : true);
+            CAST_AI(SmartAI, me->AI())->PausePath(delay, e.GetEventType() == SMART_EVENT_ESCORT_REACHED ? false : true);
             break;
         }
-        case SMART_ACTION_WP_STOP:
+        case SMART_ACTION_ESCORT_STOP:
         {
             if (!IsSmart())
                 break;
@@ -1781,7 +1766,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             CAST_AI(SmartAI, me->AI())->StopPath(DespawnTime, quest, fail);
             break;
         }
-        case SMART_ACTION_WP_RESUME:
+        case SMART_ACTION_ESCORT_RESUME:
         {
             if (!IsSmart())
                 break;
@@ -1894,7 +1879,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                     if (targets.empty())
                         return;
                     else
-                        target = Ycore::Containers::SelectRandomContainerElement(targets);
+                        target = Acore::Containers::SelectRandomContainerElement(targets);
 
                     float x, y, z;
                     target->GetPosition(x, y, z);
@@ -2160,7 +2145,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             std::copy_if(e.action.randTimedActionList.actionLists.begin(), e.action.randTimedActionList.actionLists.end(),
                          std::back_inserter(actionLists), [](uint32 actionList) { return actionList != 0; });
 
-            uint32 id = Ycore::Containers::SelectRandomContainerElement(actionLists);
+            uint32 id = Acore::Containers::SelectRandomContainerElement(actionLists);
             if (e.GetTargetType() == SMART_TARGET_NONE)
             {
                 LOG_ERROR("sql.sql", "SmartScript: Entry {} SourceType {} Event {} Action {} is using TARGET_NONE(0) for Script9 target. Please correct target_type in database.", e.entryOrGuid, e.GetScriptType(), e.GetEventType(), e.GetActionType());
@@ -2309,7 +2294,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             // xinef: my implementation
             if (e.action.jump.selfJump)
             {
-                if (WorldObject* target = Ycore::Containers::SelectRandomContainerElement(targets))
+                if (WorldObject* target = Acore::Containers::SelectRandomContainerElement(targets))
                     if (me)
                         me->GetMotionMaster()->MoveJump(target->GetPositionX() + e.target.x, target->GetPositionY() + e.target.y, target->GetPositionZ() + e.target.z, (float)e.action.jump.speedxy, (float)e.action.jump.speedz);
             }
@@ -2530,21 +2515,19 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                     {
                         for (uint32 wp = e.action.startClosestWaypoint.pathId1; wp <= e.action.startClosestWaypoint.pathId2; ++wp)
                         {
-                            WPPath* path = sSmartWaypointMgr->GetPath(wp);
+                            WaypointPath* path = sSmartWaypointMgr->GetPath(wp);
                             if (!path || path->empty())
                                 continue;
 
                             auto itrWp = path->find(1);
                             if (itrWp != path->end())
                             {
-                                if (WayPoint* wpData = itrWp->second)
+                                WaypointData& wpData = itrWp->second;
+                                float distToThisPath = creature->GetExactDistSq(wpData.x, wpData.y, wpData.z);
+                                if (distToThisPath < distanceToClosest)
                                 {
-                                    float distToThisPath = creature->GetExactDistSq(wpData->x, wpData->y, wpData->z);
-                                    if (distToThisPath < distanceToClosest)
-                                    {
-                                        distanceToClosest = distToThisPath;
-                                        closestWpId = wp;
-                                    }
+                                    distanceToClosest = distToThisPath;
+                                    closestWpId = wp;
                                 }
                             }
                         }
@@ -2715,7 +2698,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
         }
         case SMART_ACTION_PLAYER_TALK:
         {
-            std::string text = sObjectMgr->GetYcoreString(e.action.playerTalk.textId, DEFAULT_LOCALE);
+            std::string text = sObjectMgr->GetAcoreString(e.action.playerTalk.textId, DEFAULT_LOCALE);
 
             if (!targets.empty())
                 for (WorldObject* target : targets)
@@ -3234,7 +3217,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
             }
             break;
         }
-        case SMART_ACTION_WAYPOINT_DATA_START:
+        case SMART_ACTION_WAYPOINT_START:
         {
             if (e.action.wpData.pathId)
             {
@@ -3243,7 +3226,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                     if (IsCreature(target))
                     {
                         target->ToCreature()->LoadPath(e.action.wpData.pathId);
-                        target->ToCreature()->GetMotionMaster()->MovePath(e.action.wpData.pathId, e.action.wpData.repeat);
+                        target->ToCreature()->GetMotionMaster()->MoveWaypoint(e.action.wpData.pathId, e.action.wpData.repeat, e.action.wpData.pathSource);
                     }
                 }
             }
@@ -3260,7 +3243,7 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                     {
                         uint32 path = urand(e.action.wpDataRandom.pathId1, e.action.wpDataRandom.pathId2);
                         target->ToCreature()->LoadPath(path);
-                        target->ToCreature()->GetMotionMaster()->MovePath(path, e.action.wpDataRandom.repeat);
+                        target->ToCreature()->GetMotionMaster()->MoveWaypoint(path, e.action.wpDataRandom.repeat);
                     }
                 }
             }
@@ -3304,6 +3287,26 @@ void SmartScript::ProcessAction(SmartScriptHolder& e, Unit* unit, uint32 var0, u
                     target->ToCreature()->SetReputationRewardDisabled(static_cast<bool>(e.action.reward.reputation));
                     target->ToCreature()->SetLootRewardDisabled(static_cast<bool>(e.action.reward.loot));
                 }
+            break;
+        }
+        case SMART_ACTION_SET_ANIM_TIER:
+        {
+            for (WorldObject* target : targets)
+                if (IsUnit(target))
+                    target->ToUnit()->SetAnimTier(AnimTier(e.action.animTier.animTier));
+            break;
+        }
+        case SMART_ACTION_SET_GOSSIP_MENU:
+        {
+            for (WorldObject* target : targets)
+            {
+                if (Creature* creature = target->ToCreature())
+                {
+                    creature->SetGossipMenuId(e.action.setGossipMenu.gossipMenuId);
+                    LOG_DEBUG("sql.sql", "SmartScript::ProcessAction: SMART_ACTION_SET_GOSSIP_MENU: Creature {} set gossip menu to {}",
+                        creature->GetGUID().ToString(), e.action.setGossipMenu.gossipMenuId);
+                }
+            }
             break;
         }
         default:
@@ -3546,12 +3549,8 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
                 {
                     if (Group* group = player->GetGroup())
                     {
-                        std::vector<ObjectGuid> guids = group->GetMemberGUIDs();
-                        for (ObjectGuid const& guid : guids)
-                        {
-                            Player* member = ObjectAccessor::FindPlayer(guid);
-                            if (!member || !member->IsInWorld())
-                                continue;
+                        for (GroupReference* groupRef = group->GetFirstMember(); groupRef != nullptr; groupRef = groupRef->next())
+                            if (Player* member = groupRef->GetSource())
                             {
                                 if (member->IsInMap(player))
                                     targets.push_back(member);
@@ -3561,7 +3560,6 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
                                         if (pet->IsPet() && pet->IsInMap(player))
                                             targets.push_back(pet);
                             }
-                        }
                     }
                     // We still add the player to the list if there is no group. If we do
                     // this even if there is a group (thus the else-check), it will add the
@@ -3727,7 +3725,7 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
                         targets.push_back(unit);
 
             if (e.target.playerRange.maxCount)
-                Ycore::Containers::RandomResize(targets, e.target.playerRange.maxCount);
+                Acore::Containers::RandomResize(targets, e.target.playerRange.maxCount);
 
             break;
         }
@@ -3907,7 +3905,7 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
                             targets.push_back(unit);
 
             if (e.target.o > 0)
-                Ycore::Containers::RandomResize(targets, e.target.o);
+                Acore::Containers::RandomResize(targets, e.target.o);
 
             break;
         }
@@ -3948,7 +3946,7 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
                     }
 
             if (e.target.roleSelection.resize > 0)
-                Ycore::Containers::RandomResize(targets, e.target.roleSelection.resize);
+                Acore::Containers::RandomResize(targets, e.target.roleSelection.resize);
 
             break;
         }
@@ -3969,12 +3967,9 @@ void SmartScript::GetTargets(ObjectVector& targets, SmartScriptHolder const& e, 
             {
                 if (Group* lootGroup = me->GetLootRecipientGroup())
                 {
-                    std::vector<ObjectGuid> guids = lootGroup->GetMemberGUIDs();
-                    for (ObjectGuid const& guid : guids)
+                    for (GroupReference* it = lootGroup->GetFirstMember(); it != nullptr; it = it->next())
                     {
-                        Player* recipient = ObjectAccessor::FindPlayer(guid);
-                        if (!recipient || !recipient->IsInWorld())
-                            continue;
+                        if (Player* recipient = it->GetSource())
                         {
                             targets.push_back(recipient);
                         }
@@ -4049,8 +4044,8 @@ void SmartScript::GetWorldObjectsInDist(ObjectVector& targets, float dist) const
     if (!obj)
         return;
 
-    Ycore::AllWorldObjectsInRange u_check(obj, dist);
-    Ycore::WorldObjectListSearcher<Ycore::AllWorldObjectsInRange> searcher(obj, targets, u_check);
+    Acore::AllWorldObjectsInRange u_check(obj, dist);
+    Acore::WorldObjectListSearcher<Acore::AllWorldObjectsInRange> searcher(obj, targets, u_check);
     Cell::VisitObjects(obj, searcher, dist);
 }
 
@@ -4182,7 +4177,7 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
                     RecalcTimer(e, 1000, 3000);
                     return;
                 }
-                ProcessTimedAction(e, e.event.friendlyCC.repeatMin, e.event.friendlyCC.repeatMax, Ycore::Containers::SelectRandomContainerElement(creatures));
+                ProcessTimedAction(e, e.event.friendlyCC.repeatMin, e.event.friendlyCC.repeatMax, Acore::Containers::SelectRandomContainerElement(creatures));
                 break;
             }
         case SMART_EVENT_FRIENDLY_MISSING_BUFF:
@@ -4198,7 +4193,7 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
             if (creatures.empty())
                 return;
 
-            ProcessTimedAction(e, e.event.missingBuff.repeatMin, e.event.missingBuff.repeatMax, Ycore::Containers::SelectRandomContainerElement(creatures));
+            ProcessTimedAction(e, e.event.missingBuff.repeatMin, e.event.missingBuff.repeatMax, Acore::Containers::SelectRandomContainerElement(creatures));
             break;
         }
         case SMART_EVENT_HAS_AURA:
@@ -4419,22 +4414,24 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
             {
                 if ((e.event.movementInform.type && var0 != e.event.movementInform.type) || (e.event.movementInform.id && var1 != e.event.movementInform.id))
                     return;
+                if (e.event.movementInform.pathId != 0 && e.event.movementInform.pathId != me->GetWaypointPath())
+                    return;
                 ProcessAction(e, unit, var0, var1);
                 break;
             }
         case SMART_EVENT_TRANSPORT_RELOCATE:
-        case SMART_EVENT_WAYPOINT_START:
+        case SMART_EVENT_ESCORT_START:
             {
                 if (e.event.waypoint.pathID && var0 != e.event.waypoint.pathID)
                     return;
                 ProcessAction(e, unit, var0);
                 break;
             }
-        case SMART_EVENT_WAYPOINT_REACHED:
-        case SMART_EVENT_WAYPOINT_RESUMED:
-        case SMART_EVENT_WAYPOINT_PAUSED:
-        case SMART_EVENT_WAYPOINT_STOPPED:
-        case SMART_EVENT_WAYPOINT_ENDED:
+        case SMART_EVENT_ESCORT_REACHED:
+        case SMART_EVENT_ESCORT_RESUMED:
+        case SMART_EVENT_ESCORT_PAUSED:
+        case SMART_EVENT_ESCORT_STOPPED:
+        case SMART_EVENT_ESCORT_ENDED:
             {
                 if (!me || (e.event.waypoint.pointID && var0 != e.event.waypoint.pointID) || (e.event.waypoint.pathID && GetPathId() != e.event.waypoint.pathID))
                     return;
@@ -4523,14 +4520,7 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
                 if (!IsInPhase(e.event.eventPhaseChange.phasemask))
                     return;
 
-                WorldObject* templastInvoker = GetLastInvoker();
-                if (!templastInvoker)
-                    return;
-
-                if (!IsUnit(templastInvoker))
-                    return;
-
-                ProcessAction(e, templastInvoker->ToUnit());
+                ProcessAction(e);
                 break;
             }
         case SMART_EVENT_GAME_EVENT_START:
@@ -4559,6 +4549,7 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
             {
                 if (e.event.doAction.eventId != var0)
                     return;
+                RecalcTimer(e, e.event.doAction.cooldownMin, e.event.doAction.cooldownMax);
                 ProcessAction(e, unit, var0);
                 break;
             }
@@ -4828,8 +4819,8 @@ void SmartScript::ProcessEvent(SmartScriptHolder& e, Unit* unit, uint32 var0, ui
             RecalcTimer(e, 1200, 1200);
             break;
         }
-        case SMART_EVENT_WAYPOINT_DATA_REACHED:
-        case SMART_EVENT_WAYPOINT_DATA_ENDED:
+        case SMART_EVENT_WAYPOINT_REACHED:
+        case SMART_EVENT_WAYPOINT_ENDED:
         {
             if (!me || (e.event.wpData.pointId && var0 != e.event.wpData.pointId) || (e.event.wpData.pathId && me->GetWaypointPath() != e.event.wpData.pathId))
                 return;
@@ -5009,12 +5000,6 @@ void SmartScript::OnUpdate(uint32 const diff)
     if ((mScriptType == SMART_SCRIPT_TYPE_CREATURE || mScriptType == SMART_SCRIPT_TYPE_GAMEOBJECT) && !GetBaseObject())
         return;
 
-    // Base object may have despawned/unloaded since the last tick; running
-    // events against a dead object is a UAF. Abort the tick if it's gone.
-    if (WorldObject* base = GetBaseObject())
-        if (!base->IsInWorld())
-            return;
-
     InstallEvents();//before UpdateTimers
 
     if (mEventSortingRequired)
@@ -5120,7 +5105,7 @@ void SmartScript::FillScript(SmartAIEventList e, WorldObject* obj, AreaTrigger c
     }
     for (SmartAIEventList::iterator i = e.begin(); i != e.end(); ++i)
     {
-#ifndef YCORE_DEBUG
+#ifndef ACORE_DEBUG
         if ((*i).event.event_flags & SMART_EVENT_FLAG_DEBUG_ONLY)
             continue;
 #endif
@@ -5277,8 +5262,8 @@ Unit* SmartScript::DoSelectLowestHpFriendly(float range, uint32 MinHPDiff) const
 
     Unit* unit = nullptr;
 
-    Ycore::MostHPMissingInRange u_check(me, range, MinHPDiff);
-    Ycore::UnitLastSearcher<Ycore::MostHPMissingInRange> searcher(me, unit, u_check);
+    Acore::MostHPMissingInRange u_check(me, range, MinHPDiff);
+    Acore::UnitLastSearcher<Acore::MostHPMissingInRange> searcher(me, unit, u_check);
     Cell::VisitObjects(me, searcher, range);
     return unit;
 }
@@ -5291,8 +5276,8 @@ Unit* SmartScript::DoSelectLowestHpPercentFriendly(float range, uint32 minHpPct,
     }
 
     Unit* unit = nullptr;
-    Ycore::MostHPPercentMissingInRange u_check(me, range, minHpPct, maxHpPct);
-    Ycore::UnitLastSearcher<Ycore::MostHPPercentMissingInRange> searcher(me, unit, u_check);
+    Acore::MostHPPercentMissingInRange u_check(me, range, minHpPct, maxHpPct);
+    Acore::UnitLastSearcher<Acore::MostHPPercentMissingInRange> searcher(me, unit, u_check);
     Cell::VisitObjects(me, searcher, range);
     return unit;
 }
@@ -5302,8 +5287,8 @@ void SmartScript::DoFindFriendlyCC(std::vector<Creature*>& creatures, float rang
     if (!me)
         return;
 
-    Ycore::FriendlyCCedInRange u_check(me, range);
-    Ycore::CreatureListSearcher<Ycore::FriendlyCCedInRange> searcher(me, creatures, u_check);
+    Acore::FriendlyCCedInRange u_check(me, range);
+    Acore::CreatureListSearcher<Acore::FriendlyCCedInRange> searcher(me, creatures, u_check);
     Cell::VisitObjects(me, searcher, range);
 }
 
@@ -5312,8 +5297,8 @@ void SmartScript::DoFindFriendlyMissingBuff(std::vector<Creature*>& creatures, f
     if (!me)
         return;
 
-    Ycore::FriendlyMissingBuffInRange u_check(me, range, spellid);
-    Ycore::CreatureListSearcher<Ycore::FriendlyMissingBuffInRange> searcher(me, creatures, u_check);
+    Acore::FriendlyMissingBuffInRange u_check(me, range, spellid);
+    Acore::CreatureListSearcher<Acore::FriendlyMissingBuffInRange> searcher(me, creatures, u_check);
     Cell::VisitObjects(me, searcher, range);
 }
 
@@ -5323,8 +5308,8 @@ Unit* SmartScript::DoFindClosestFriendlyInRange(float range, bool playerOnly) co
         return nullptr;
 
     Unit* unit = nullptr;
-    Ycore::AnyFriendlyNotSelfUnitInObjectRangeCheck u_check(me, me, range, playerOnly);
-    Ycore::UnitLastSearcher<Ycore::AnyFriendlyNotSelfUnitInObjectRangeCheck> searcher(me, unit, u_check);
+    Acore::AnyFriendlyNotSelfUnitInObjectRangeCheck u_check(me, me, range, playerOnly);
+    Acore::UnitLastSearcher<Acore::AnyFriendlyNotSelfUnitInObjectRangeCheck> searcher(me, unit, u_check);
     Cell::VisitObjects(me, searcher, range);
     return unit;
 }
