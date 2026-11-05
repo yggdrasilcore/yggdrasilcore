@@ -2438,13 +2438,6 @@ void Unit::CalcAbsorbResist(DamageInfo& dmgInfo, bool Splited)
             if (!caster || (caster == victim) || !caster->IsInWorld() || !caster->IsAlive())
                 continue;
 
-            // Limit effect range to spell's cast range. (Only for single target auras, AreaAuras don't need it)
-            // Ignore LOS attribute is only used for the cast portion of the spell
-            SpellInfo const* splitSpellInfo = (*itr)->GetSpellInfo();
-            if (!splitSpellInfo->Effects[(*itr)->GetEffIndex()].IsAreaAuraEffect())
-                if (!caster->IsWithinDist(victim, splitSpellInfo->GetMaxRange(splitSpellInfo->IsPositive(), caster)))
-                    continue;
-
             int32 splitDamage = (*itr)->GetAmount();
 
             // absorb must be smaller than the damage itself
@@ -2505,13 +2498,7 @@ void Unit::CalcAbsorbResist(DamageInfo& dmgInfo, bool Splited)
             if (!caster || (caster == victim) || !caster->IsInWorld() || !caster->IsAlive())
                 continue;
 
-            // Limit effect range to spell's cast range. (Only for single target auras, AreaAuras don't need it)
-            // Ignore LOS attribute is only used for the cast portion of the spell
             SpellInfo const* splitSpellInfo = (*itr)->GetSpellInfo();
-            if (!splitSpellInfo->Effects[(*itr)->GetEffIndex()].IsAreaAuraEffect())
-                if (!caster->IsWithinDist(victim, splitSpellInfo->GetMaxRange(splitSpellInfo->IsPositive(), caster)))
-                    continue;
-
             uint32 splitDamage = CalculatePct(dmgInfo.GetDamage(), (*itr)->GetAmount());
             SpellSchoolMask splitSchoolMask  = schoolMask;
 
