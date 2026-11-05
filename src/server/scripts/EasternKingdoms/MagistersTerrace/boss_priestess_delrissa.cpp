@@ -89,14 +89,16 @@ struct boss_priestess_delrissa : public BossAI
     void InitializeAI() override
     {
         ScriptedAI::InitializeAI();
-        std::list<uint32> helpersList;
-        for (uint8 i = 0; i < MAX_HELPERS_COUNT; ++i)
-            helpersList.push_back(helpersEntries[i]);
-        Ycore::Containers::RandomResize(helpersList, MAX_ACTIVE_HELPERS);
 
-        uint8 j = 0;
-        for (std::list<uint32>::const_iterator itr = helpersList.begin(); itr != helpersList.end(); ++itr, ++j)
-            me->SummonCreature(*itr, helpersLocations[j], TEMPSUMMON_MANUAL_DESPAWN, 0);
+        if (instance->GetBossState(DATA_DELRISSA) != DONE)
+        {
+            std::vector<uint32> helpersList(std::begin(helpersEntries), std::end(helpersEntries));
+            Acore::Containers::RandomResize(helpersList, MAX_ACTIVE_HELPERS);
+
+            uint8 j = 0;
+            for (uint32 entry : helpersList)
+                me->SummonCreature(entry, helpersLocations[j++], TEMPSUMMON_MANUAL_DESPAWN, 0);
+        }
     }
 
     void JustSummoned(Creature* summon) override
@@ -139,7 +141,7 @@ struct boss_priestess_delrissa : public BossAI
 
         ScheduleTimedEvent(2s, [&] {
             std::list<Creature*> cList = DoFindFriendlyMissingBuff(40.0f, SPELL_POWER_WORD_SHIELD);
-            if (Unit* target = Ycore::Containers::SelectRandomContainerElement(cList))
+            if (Unit* target = Acore::Containers::SelectRandomContainerElement(cList))
                 DoCast(target, SPELL_POWER_WORD_SHIELD);
         }, 10s);
 
@@ -158,7 +160,7 @@ struct boss_priestess_delrissa : public BossAI
                     target = me;
                     break;
                 case 2:
-                    target = ObjectAccessor::GetCreature(*me, Ycore::Containers::SelectRandomContainerElement(summons));
+                    target = ObjectAccessor::GetCreature(*me, Acore::Containers::SelectRandomContainerElement(summons));
                     break;
             }
 
