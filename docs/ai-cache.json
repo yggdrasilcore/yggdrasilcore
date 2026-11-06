@@ -26431,22 +26431,22 @@
   }
  },
  "Player::EnvironmentalDamage@c5fe82a9:qwen3-5-4b": {
-  "hash": "dc13f04006a6",
-  "desc": "Checks if the player is immune to environmental damage; if not, calculates absorption and resistance values based on the damage type (lava or slime) and initiates a damage calculation process.",
-  "raw": "{\"what\": \"Checks if the player is immune to environmental damage; if not, calculates absorption and resistance values based on the damage type (lava or slime) and initiates a damage calculation process.\", \"effects\": \"none\"}",
+  "hash": "50dc86b5243a",
+  "desc": "Calculates and applies environmental damage to the player based on the damage type (e.g., lava, slime) while checking for immunities and applying absorption or resistance logic. Side effects: Modifies player health; may bypass immunities if DAMAGE_FALL_TO_VOID is selected.",
+  "raw": "{\"what\": \"Calculates and applies environmental damage to the player based on the damage type (e.g., lava, slime) while checking for immunities and applying absorption or resistance logic.\", \"effects\": \"Modifies player health; may bypass immunities if DAMAGE_FALL_TO_VOID is selected.\"}",
   "entry": {
    "class": "Player",
    "name": "EnvironmentalDamage",
    "sig": "uint32 EnvironmentalDamage(EnviromentalDamage type, uint32 damage)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2303,
+   "line": 2306,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 765
+    "line": 769
    },
-   "hash": "dc13f04006a6",
-   "desc": "Checks if the player is immune to environmental damage; if not, calculates absorption and resistance values based on the damage type (lava or slime) and initiates a damage calculation process.",
+   "hash": "50dc86b5243a",
+   "desc": "Calculates and applies environmental damage to the player based on the damage type (e.g., lava, slime) while checking for immunities and applying absorption or resistance logic. Side effects: Modifies player health; may bypass immunities if DAMAGE_FALL_TO_VOID is selected.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
