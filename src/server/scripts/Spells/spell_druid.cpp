@@ -60,7 +60,51 @@ enum DruidSpells
     SPELL_DRUID_ENRAGE                      = 5229,
     SPELL_DRUID_ENRAGED_DEFENSE             = 70725,
     SPELL_DRUID_ITEM_T10_FERAL_4P_BONUS     = 70726,
+<<<<<<< HEAD
     SPELL_DRUID_MOONGLADE_2P_BONUS          = 37286
+=======
+    SPELL_DRUID_MAIM_INTERRUPT              = 32747,
+    SPELL_DRUID_MOONGLADE_2P_BONUS          = 37286,
+    // Proc system spells
+    SPELL_DRUID_GLYPH_OF_INNERVATE_MANA     = 54833,
+    SPELL_DRUID_GLYPH_OF_STARFIRE_PROC      = 54846,
+    SPELL_DRUID_GLYPH_OF_RAKE_STUN          = 54820,
+    SPELL_DRUID_LEADER_OF_THE_PACK_HEAL     = 34299,
+    SPELL_DRUID_LEADER_OF_THE_PACK_MANA     = 68285,
+    SPELL_DRUID_GLYPH_OF_REJUV_HEAL         = 54755,
+    SPELL_DRUID_ECLIPSE_LUNAR               = 48518,
+    SPELL_DRUID_ECLIPSE_SOLAR               = 48517,
+    SPELL_DRUID_T3_PROC_ENERGIZE_MANA       = 28722,
+    SPELL_DRUID_T3_PROC_ENERGIZE_RAGE       = 28723,
+    SPELL_DRUID_T3_PROC_ENERGIZE_ENERGY     = 28724,
+    SPELL_DRUID_BLESSING_OF_THE_CLAW        = 28750,
+    SPELL_DRUID_EXHILARATE                  = 28742,
+    SPELL_DRUID_INFUSION                    = 37238,
+    SPELL_DRUID_BLESSING_OF_REMULOS         = 40445,
+    SPELL_DRUID_BLESSING_OF_ELUNE           = 40446,
+    SPELL_DRUID_BLESSING_OF_CENARIUS        = 40452,
+    SPELL_DRUID_REVITALIZE_ENERGIZE_MANA    = 48542,
+    SPELL_DRUID_REVITALIZE_ENERGIZE_RAGE    = 48541,
+    SPELL_DRUID_REVITALIZE_ENERGIZE_ENERGY  = 48540,
+    SPELL_DRUID_REVITALIZE_ENERGIZE_RP      = 48543,
+    SPELL_DRUID_GLYPH_OF_RIP                = 54818,
+    SPELL_DRUID_RIP_DURATION_LACERATE_DMG   = 60141,
+    SPELL_DRUID_REJUVENATION_T10_PROC       = 70691,
+    SPELL_DRUID_BALANCE_T10_BONUS           = 70718,
+    SPELL_DRUID_BALANCE_T10_BONUS_PROC      = 70721,
+    SPELL_DRUID_LANGUISH                    = 71023,
+    // T9 Feral Relic
+    SPELL_DRUID_T9_FERAL_RELIC_BEAR         = 67354,
+    SPELL_DRUID_T9_FERAL_RELIC_CAT          = 67355,
+    // Frenzied Regeneration
+    SPELL_DRUID_FRENZIED_REGENERATION_HEAL  = 22845,
+    // Insect Swarm
+    SPELL_DRUID_ITEM_T8_BALANCE_RELIC       = 64950,
+    // Nourish
+    SPELL_DRUID_GLYPH_OF_NOURISH            = 62971,
+    // Wild Growth
+    SPELL_DRUID_RESTORATION_T10_2P_BONUS    = 70658
+>>>>>>> 45ea548ff (fix(Scripts/Spells): Add missing Druid T10 Balance 2P bonus (#24865))
 };
 
 enum DruidIcons
@@ -193,6 +237,11 @@ class spell_dru_omen_of_clarity : public AuraScript
 {
     PrepareAuraScript(spell_dru_omen_of_clarity);
 
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_DRUID_BALANCE_T10_BONUS, SPELL_DRUID_BALANCE_T10_BONUS_PROC });
+    }
+
     bool CheckProc(ProcEventInfo& eventInfo)
     {
         SpellInfo const* spellInfo = eventInfo.GetSpellInfo();
@@ -239,9 +288,17 @@ class spell_dru_omen_of_clarity : public AuraScript
         return true;
     }
 
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    {
+        Unit* target = GetTarget();
+        if (target->HasAura(SPELL_DRUID_BALANCE_T10_BONUS))
+            target->CastSpell(nullptr, SPELL_DRUID_BALANCE_T10_BONUS_PROC, true, nullptr, aurEff);
+    }
+
     void Register() override
     {
         DoCheckProc += AuraCheckProcFn(spell_dru_omen_of_clarity::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_dru_omen_of_clarity::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
     }
 };
 
