@@ -497,7 +497,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
                     }
                     else
                     {
-                        sScriptMgr->OnPlayerChat(GetPlayer(), type, lang, msg);
+                        sScriptMgr->OnPlayerCanUseChat(GetPlayer(), type, lang, msg);
                     }
                 }
             }
