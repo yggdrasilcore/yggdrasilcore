@@ -182,7 +182,11 @@ WorldSession::~WorldSession()
     while (_recvQueue.next(packet))
         delete packet;
 
-    LoginDatabase.Execute("UPDATE account SET online = 0 WHERE id = {};", GetAccountId());     // One-time query
+    // Bot sessions never mark the account online (they have no socket), so
+    // they must not clear the flag for an account that also has a real
+    // connection.
+    if (!IsBot())
+        LoginDatabase.Execute("UPDATE account SET online = 0 WHERE id = {};", GetAccountId());     // One-time query
 }
 
 void WorldSession::UpdateAccountFlag(uint32 flag, bool remove /*= flase*/)
