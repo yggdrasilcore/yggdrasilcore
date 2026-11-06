@@ -437,6 +437,13 @@ bool ChaseMovementGenerator<T>::DoUpdate(T* owner, uint32 time_diff)
             cOwner->SetCannotReachTarget();
         owner->ClearUnitState(UNIT_STATE_CHASE_MOVE);
         owner->SetInFront(target);
+<<<<<<< HEAD
+=======
+
+        if (cOwner)
+            cOwner->SetCannotReachTarget();
+
+>>>>>>> 35102dcfe (fix(Core/Movement): Clear CanNotReachTarget when chase spline finishes (#25235))
         MovementInform(owner);
     }
 
