@@ -42,6 +42,9 @@ namespace
     constexpr float SMOOTH_MIN_SEGMENT = 1.0f;                      // tighter knots jitter client-side
     constexpr uint32 SMOOTH_MAX_SAMPLE_SEGMENTS = 16;               // curve validation budget per MoveTo
     constexpr float SMOOTH_MAX_BLEND_T = 0.45f;                     // blend must stay clear of the target
+    constexpr float SMOOTH_ARRIVAL_KNOT = 0.5f;                     // final leg steered onto the authored facing
+    constexpr float SMOOTH_MIN_LAST_LEG = 0.1f;                     // client stops steering facing below ~0.09 yd
+    constexpr float SMOOTH_MAX_ARRIVAL_TURN = float(M_PI) * 0.5f;   // beyond this the facing is a turn in place
 
     // CreatureMovementInfo.dbc `field1` decoded as float (SmoothFacingChaseRate, rad/s).
     // 0 = snap (no slew). Server copy of your DBC export: only non-zero rows listed.
@@ -484,6 +487,57 @@ namespace
         }
     }
 
+    // The client takes facing from the spline tangent while the spline runs
+    // (CMovementShared::PlotUnitSplineMovement) and applies the packet's final angle in one
+    // frame on arrival (CMovement_C::CallMoveEventHandlers). With the duplicated last knot
+    // the end tangent is the last leg, so an authored facing that differs from it is a
+    // visible snap. Bending the last half yard onto the authored facing makes the assignment
+    // a no-op instead.
+    void AlignArrivalFacing(Unit* unit, MoveSplineInitArgs& args, bool groundMode)
+    {
+        if (!args.flags.final_angle || args.path.size() < 2)
+            return;
+
+        Vector3 const& dest = args.path.back();
+        Vector3 const& prev = args.path[args.path.size() - 2];
+        Vector3 const lastLeg = dest - prev;
+        float const legLength = lastLeg.length();
+        if (legLength < SMOOTH_MIN_SEGMENT)
+            return;
+
+        float const facing = args.facing.angle;
+        float const arrivalTurn = NormalizeAngle(std::atan2(lastLeg.y, lastLeg.x) - facing);
+        // A facing that points back at the approach would turn the last leg into a detour;
+        // leave those to the client's turn in place.
+        if (std::fabs(arrivalTurn) <= SMOOTH_MIN_TURN || std::fabs(arrivalTurn) > SMOOTH_MAX_ARRIVAL_TURN)
+            return;
+
+        float const reach = std::min(SMOOTH_ARRIVAL_KNOT, legLength * 0.5f);
+        Vector3 knot(
+            dest.x - reach * std::cos(facing),
+            dest.y - reach * std::sin(facing),
+            dest.z + (prev.z - dest.z) * (reach / legLength));
+
+        if (groundMode)
+            knot.z = SnapControlPointZ(unit, knot.x, knot.y, knot.z);
+
+        args.path.insert(args.path.end() - 1, knot);
+        args.pointFlags.insert(args.pointFlags.end() - 1, 0);
+    }
+
+    // Below roughly 0.09 yards the client stops steering facing from the tangent (squared
+    // length guard in CMovementShared::PlotUnitSplineMovement), so the model holds the
+    // previous leg's heading and then snaps to the final angle on arrival. Drop knots that
+    // would leave a final leg that short.
+    void DropTinyFinalLeg(MoveSplineInitArgs& args)
+    {
+        while (args.path.size() > 2 && (args.path.back() - args.path[args.path.size() - 2]).length() < SMOOTH_MIN_LAST_LEG)
+        {
+            args.pointFlags.erase(args.pointFlags.end() - 2);
+            args.path.erase(args.path.end() - 2);
+        }
+    }
+
     // Rewrites args.path for CatmullRom rendering:
     //  - snaps control points to the walkable surface (terrain/WMO/floors + hover offset),
     //  - inserts exactly one departure blend point (a single arc, never chained arcs),
@@ -544,6 +598,8 @@ namespace
         {
             if (groundMode)
                 DensifySteepSpans(unit, args.path, args.pointFlags);
+            DropTinyFinalLeg(args);
+            AlignArrivalFacing(unit, args, groundMode);
             // Even a blend-free mmap polygon can poke through geometry once CatmullRom rounds
             // its corners, so validate the rendered curve before committing to smoothing.
             if (!flightMode && args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode, orient))
@@ -604,6 +660,9 @@ namespace
 
         if (groundMode)
             DensifySteepSpans(unit, args.path, args.pointFlags);
+
+        DropTinyFinalLeg(args);
+        AlignArrivalFacing(unit, args, groundMode);
 
         // The rendered curve must stay inside traversable space; otherwise drop the blend
         // point first, and if the path itself still misbehaves under CatmullRom, move linearly.
