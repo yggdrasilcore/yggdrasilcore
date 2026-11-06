@@ -14200,9 +14200,9 @@
   }
  },
  "Player::RemovePet@3d526978:qwen3-5-4b": {
-  "hash": "c3a41e784209",
-  "desc": "Removes a pet from the player's inventory or temporary unsummoned state, handling specific logic for dead hunter pets and returning reagents if applicable. Side effects: May modify the pet's save mode, clear temporary unsummoned pet number, log debug information, return spell reagents to the player's inventory, and potentially send new item notifications.",
-  "raw": "{\"what\": \"Removes a pet from the player's inventory or temporary unsummoned state, handling specific logic for dead hunter pets and returning reagents if applicable.\", \"effects\": \"May modify the pet's save mode, clear temporary unsummoned pet number, log debug information, return spell reagents to the player's inventory, and potentially send new item notifications.\"}",
+  "hash": "70ccdebaecda",
+  "desc": "Removes a pet from the player's inventory and optionally returns reagents associated with the pet's summoning spell, while handling edge cases like missing pets or temporary unsummoned states. Side effects: Modifies the player's inventory by removing the pet item and potentially adding reagent items; updates internal state flags for temporary unsummoned pets.",
+  "raw": "{\"what\": \"Removes a pet from the player's inventory and optionally returns reagents associated with the pet's summoning spell, while handling edge cases like missing pets or temporary unsummoned states.\", \"effects\": \"Modifies the player's inventory by removing the pet item and potentially adding reagent items; updates internal state flags for temporary unsummoned pets.\"}",
   "entry": {
    "class": "Player",
    "name": "RemovePet",
@@ -14212,10 +14212,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 9158
+    "line": 9228
    },
-   "hash": "c3a41e784209",
-   "desc": "Removes a pet from the player's inventory or temporary unsummoned state, handling specific logic for dead hunter pets and returning reagents if applicable. Side effects: May modify the pet's save mode, clear temporary unsummoned pet number, log debug information, return spell reagents to the player's inventory, and potentially send new item notifications.",
+   "hash": "70ccdebaecda",
+   "desc": "Removes a pet from the player's inventory and optionally returns reagents associated with the pet's summoning spell, while handling edge cases like missing pets or temporary unsummoned states. Side effects: Modifies the player's inventory by removing the pet item and potentially adding reagent items; updates internal state flags for temporary unsummoned pets.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
