@@ -768,7 +768,9 @@ bool Player::IsImmuneToEnvironmentalDamage()
 
 uint32 Player::EnvironmentalDamage(EnviromentalDamage type, uint32 damage)
 {
-    if (IsImmuneToEnvironmentalDamage())
+    // DAMAGE_FALL_TO_VOID bypasses all immunities (e.g. Divine Shield) to prevent
+    // players from being stuck infinitely falling below the map
+    if (type != DAMAGE_FALL_TO_VOID && IsImmuneToEnvironmentalDamage())
         return 0;
 
     // Absorb, resist some environmental damage type
@@ -9240,13 +9242,6 @@ void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent)
 
     if (pet)
     {
-        // xinef: dont save dead pet as current, save him not in slot
-        if (!pet->IsAlive() && mode == PET_SAVE_AS_CURRENT && pet->getPetType() == HUNTER_PET)
-        {
-            mode = PET_SAVE_NOT_IN_SLOT;
-            m_temporaryUnsummonedPetNumber = 0;
-        }
-
         LOG_DEBUG("entities.pet", "RemovePet {}, {}, {}", pet->GetEntry(), mode, returnreagent);
         if (pet->m_removed)
             return;

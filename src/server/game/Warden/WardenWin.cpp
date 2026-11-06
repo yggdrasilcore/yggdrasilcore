@@ -50,7 +50,7 @@ static constexpr uint16 _interactionUnpauseEventPayloadId = 8997;
 static constexpr char _interactionUnpauseEventPayload[] = "_F:SetScript('OnEvent',function(_,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if g then p=g d=.5 end else local n=UnitGUID('npc')if n then if p and p~=n then d=0 else p=nil end g=n end end end)";
 
 static constexpr uint16 _interactionUnpauseSendPayloadId = 8996;
-static constexpr char _interactionUnpauseSendPayload[] = "l=0 _S=function()if GetTime()-l<.25 then d=.5 return end l=GetTime()if IsInGuild()then SendChatMessage('.unpause '..p,'GUILD')else SendChatMessage('.unpause '..p,'SAY')end p=nil end";
+static constexpr char _interactionUnpauseSendPayload[] = "l=0 _S=function()if GetTime()-l<.25 then d=.5 return end l=GetTime()SendChatMessage('.unpause '..p,'GUILD')p=nil end";
 
 static_assert(sizeof(_interactionUnpauseShowPayload) - 1 <= 255);
 static_assert(sizeof(_interactionUnpauseClosePayload) - 1 <= 255);

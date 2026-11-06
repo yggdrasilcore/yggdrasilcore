@@ -339,55 +339,54 @@ void WorldSessionMgr::AddSession_(WorldSession* session)
 {
     ASSERT(session);
 
-    // kick existing session with same account (if any)
-    // if character on old session is being loaded, then return
-    if (!KickSession(session->GetAccountId()))
+    uint32 accountId = session->GetAccountId();
+
+    // Only one connection per account. Kick the live session now; if a
+    // character on it is being loaded, the new session is the one that goes.
+    if (!KickSession(accountId))
     {
         session->KickPlayer("kick existing session with same account");
         delete session; // session not added yet in session list, so not listed in queue
         return;
     }
 
-    SessionMap::const_iterator old;
+    // Terminate the account's existing sessions. A character still in the
+    // world (or an offline session left over from a dropped connection) is
+    // logged out here instead of being handed over to the new connection.
+    WorldSession* oldSession = nullptr;
+    WorldSession* oldOfflineSession = nullptr;
     {
         std::shared_lock<std::shared_mutex> lock(_sessionsLock);
-        old = _sessions.find(session->GetAccountId());
+        oldSession = FindSession(accountId);
+        oldOfflineSession = FindOfflineSession(accountId);
     }
-    if (old != _sessions.end())
+
+    if (oldSession)
     {
-        WorldSession* oldSession = old->second;
-
         if (!RemoveQueuedPlayer(oldSession) && sWorld->getIntConfig(CONFIG_INTERVAL_DISCONNECT_TOLERANCE))
-            _disconnects[session->GetAccountId()] = GameTime::GetGameTime().count();
+            _disconnects[accountId] = GameTime::GetGameTime().count();
 
-        // pussywizard:
-        if (oldSession->HandleSocketClosed())
-        {
-            WorldSession* staleOffline = nullptr;
-            {
-                std::unique_lock<std::shared_mutex> lock(_sessionsLock);
-                // there should be no offline session if current one is logged onto a character
-                SessionMap::iterator iter;
-                if ((iter = _offlineSessions.find(oldSession->GetAccountId())) != _offlineSessions.end())
-                {
-                    staleOffline = iter->second;
-                    _offlineSessions.erase(iter);
-                }
-                oldSession->SetOfflineTime(GameTime::GetGameTime().count());
-                _offlineSessions[oldSession->GetAccountId()] = oldSession;
-            }
-            delete staleOffline;
-        }
-        else
-        {
-            delete oldSession;
-        }
+        if (oldSession->GetPlayer() && !oldSession->PlayerLogout())
+            oldSession->LogoutPlayer(true);
+    }
+
+    if (oldOfflineSession)
+    {
+        if (oldOfflineSession->GetPlayer() && !oldOfflineSession->PlayerLogout())
+            oldOfflineSession->LogoutPlayer(true);
     }
 
     {
         std::unique_lock<std::shared_mutex> lock(_sessionsLock);
-        _sessions[session->GetAccountId()] = session;
+        if (oldSession)
+            _sessions.erase(accountId);
+        if (oldOfflineSession)
+            _offlineSessions.erase(accountId);
+        _sessions[accountId] = session;
     }
+
+    delete oldSession;
+    delete oldOfflineSession;
 
     uint32 Sessions = GetActiveAndQueuedSessionCount();
     uint32 pLimit = GetPlayerAmountLimit();
