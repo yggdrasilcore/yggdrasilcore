@@ -488,6 +488,8 @@ void Battlefield::PlayerAcceptInviteToWar(Player* player)
     if (!IsWarTime())
         return;
 
+    sScriptMgr->OnBattlefieldPlayerJoinWar(this, player);
+
     if (AddOrSetPlayerToCorrectBfGroup(player))
     {
         player->GetSession()->SendBfEntered(m_BattleId);
