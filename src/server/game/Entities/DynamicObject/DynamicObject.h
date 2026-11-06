@@ -64,6 +64,8 @@ public:
     
     bool IsUpdateNeeded() override;
 
+    bool IsUpdateNeeded() override;
+
 protected:
     Aura* _aura;
     Aura* _removedAura;
