@@ -286,7 +286,7 @@ namespace
         return IsSegmentBlocked(unit, aL, bL, true) || IsSegmentBlocked(unit, aR, bR, true);
     }
 
-    bool IsSmoothedCurveValid(Unit* unit, PointsArray& controls, std::vector<uint8>& pointFlags, bool groundMode)
+    bool IsSmoothedCurveValid(Unit* unit, PointsArray& controls, std::vector<uint8>& pointFlags, bool groundMode, float orientation = 0.0f)
     {
         if (controls.size() < 3)
             return true;
@@ -302,7 +302,8 @@ namespace
                 Vector3 const& p1 = controls[k];
                 Vector3 const& p2 = controls[k + 1];
 
-                Vector3 startGhost = p1 + (p1 - p2);
+                // Same leading virtual point the spline builds: one yard behind the unit's facing.
+                Vector3 startGhost = p1 - Vector3{ std::cos(orientation), std::sin(orientation), 0.0f };
                 Vector3 const& p0 = (k == 0) ? startGhost : controls[k - 1];
                 std::size_t const p3Idx = (std::size_t)k + 2;
                 Vector3 const& p3 = (p3Idx < controls.size()) ? controls[p3Idx] : controls.back();
@@ -545,7 +546,7 @@ namespace
                 DensifySteepSpans(unit, args.path, args.pointFlags);
             // Even a blend-free mmap polygon can poke through geometry once CatmullRom rounds
             // its corners, so validate the rendered curve before committing to smoothing.
-            if (!flightMode && args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode))
+            if (!flightMode && args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode, orient))
                 return; // keep snapped points, but move linearly
             args.flags.EnableCatmullRom();
             return;
@@ -606,7 +607,7 @@ namespace
 
         // The rendered curve must stay inside traversable space; otherwise drop the blend
         // point first, and if the path itself still misbehaves under CatmullRom, move linearly.
-        if (!flightMode && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode))
+        if (!flightMode && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode, orient))
         {
             if (hasBlend)
             {
@@ -621,7 +622,7 @@ namespace
                 hasBlend = false;
                 LOG_DEBUG("movement", "SmoothPathForCatmullRom: blend point rejected by LoS/terrain, retrying without it");
             }
-            if (args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode))
+            if (args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode, orient))
             {
                 LOG_DEBUG("movement", "SmoothPathForCatmullRom: curve still invalid, falling back to linear spline");
                 return; // keep snapped points, but do not enable CatmullRom
