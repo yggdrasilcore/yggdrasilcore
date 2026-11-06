@@ -114,6 +114,7 @@ public:
             me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
             me->SummonCreatureGroup(1);
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
+            me->RemoveUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
         }
 
         void DoAction(int32 action) override
