@@ -11232,6 +11232,8 @@ void Unit::RemoveAllControlled(bool onDeath /*= false*/)
             {
                 target->ToTempSummon()->UnSummon();
             }
+            else
+                ++it;
         }
         else
         {
