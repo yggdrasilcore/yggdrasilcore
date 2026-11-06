@@ -250,23 +250,16 @@ namespace Movement
 
         // first and last two indexes are space for special 'virtual points'
         // these points are required for proper C_Evaluate and C_Evaluate_Derivative methtod work
+        // the leading point is one yard behind the unit's facing, cyclic or not (CGUnit_C::OnMonsterMove)
+        points[0] = controls[0] - G3D::Vector3{ std::cos(initialOrientation), std::sin(initialOrientation), 0.0f };
+
         if (cyclic)
         {
-            if (cyclic_point == 0)
-                points[0] = controls[count - 1];
-            else
-                points[0] = controls[0] - G3D::Vector3{ std::cos(initialOrientation), std::sin(initialOrientation), 0.0f };
-
             points[high_index + 1] = controls[cyclic_point];
             points[high_index + 2] = controls[cyclic_point + 1];
         }
         else
         {
-            if (m_mode == ModeCatmullrom)
-                points[0] = controls[0] - G3D::Vector3{ std::cos(initialOrientation), std::sin(initialOrientation), 0.0f };
-            else
-                points[0] = controls[0].lerp(controls[1], -1);
-
             points[high_index + 1] = controls[count - 1];
         }
 
