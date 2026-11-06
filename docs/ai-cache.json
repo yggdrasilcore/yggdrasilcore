@@ -41554,22 +41554,22 @@
   }
  },
  "Unit::SendSpellNonMeleeDamageLog@ae9a5d01:qwen3-5-4b": {
-  "hash": "3aa91d4f1026",
-  "desc": "Constructs a WorldPacket containing spell non-melee damage log data, optionally modifying the damage and absorb values if the target is a player under cheat god mode, then serializes target GUID, attacker GUID, spell ID, adjusted damage, overkill calculation, school mask, absorb amount, resist value, physical flag, unused byte, blocked status, and hit information details into the packet.",
-  "raw": "{\"what\": \"Constructs a WorldPacket containing spell non-melee damage log data, optionally modifying the damage and absorb values if the target is a player under cheat god mode, then serializes target GUID, attacker GUID, spell ID, adjusted damage, overkill calculation, school mask, absorb amount, resist value, physical flag, unused byte, blocked status, and hit information details into the packet.\", \"effects\": \"none\"}",
+  "hash": "d8079510b2cf",
+  "desc": "Constructs a WorldPacket containing spell non-melee damage log data, optionally modifying the damage and absorb values if the target is a player under cheat god mode, then serializes target GUID, attacker GUID, spell ID, adjusted damage, overkill calculation, school mask, absorb amount, resist value, physical flag, unused byte, block status, and hit information details into the packet.",
+  "raw": "{\"what\": \"Constructs a WorldPacket containing spell non-melee damage log data, optionally modifying the damage and absorb values if the target is a player under cheat god mode, then serializes target GUID, attacker GUID, spell ID, adjusted damage, overkill calculation, school mask, absorb amount, resist value, physical flag, unused byte, block status, and hit information details into the packet.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "SendSpellNonMeleeDamageLog",
    "sig": "void SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)",
    "file": "src/server/game/Entities/Unit/Unit.h",
-   "line": 1998,
+   "line": 2000,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 6411
+    "line": 6457
    },
-   "hash": "3aa91d4f1026",
-   "desc": "Constructs a WorldPacket containing spell non-melee damage log data, optionally modifying the damage and absorb values if the target is a player under cheat god mode, then serializes target GUID, attacker GUID, spell ID, adjusted damage, overkill calculation, school mask, absorb amount, resist value, physical flag, unused byte, blocked status, and hit information details into the packet.",
+   "hash": "d8079510b2cf",
+   "desc": "Constructs a WorldPacket containing spell non-melee damage log data, optionally modifying the damage and absorb values if the target is a player under cheat god mode, then serializes target GUID, attacker GUID, spell ID, adjusted damage, overkill calculation, school mask, absorb amount, resist value, physical flag, unused byte, block status, and hit information details into the packet.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -41596,22 +41596,22 @@
   }
  },
  "Unit::SendSpellNonMeleeDamageLog@9802551e:qwen3-5-4b": {
-  "hash": "ddeb2c655023",
-  "desc": "Constructs a WorldPacket containing spell non-melee damage log data for transmission to the client, including target/attacker GUIDs, spell ID, damage amount, overkill calculation, school mask, absorbed damage, resistance, physical flag, blocked status, and hit information flags.",
-  "raw": "{\"what\": \"Constructs a WorldPacket containing spell non-melee damage log data for transmission to the client, including target/attacker GUIDs, spell ID, damage amount, overkill calculation, school mask, absorbed damage, resistance, physical flag, blocked status, and hit information flags.\", \"effects\": \"none\"}",
+  "hash": "10e7a7024e8b",
+  "desc": "Constructs a WorldPacket containing spell non-melee damage log data, including target/attacker GUIDs, spell ID, damage amount, overkill calculation, school mask, absorbed damage, resistance, physical flag, blocked status, and hit information flags.",
+  "raw": "{\"what\": \"Constructs a WorldPacket containing spell non-melee damage log data, including target/attacker GUIDs, spell ID, damage amount, overkill calculation, school mask, absorbed damage, resistance, physical flag, blocked status, and hit information flags.\", \"effects\": \"none\"}",
   "entry": {
    "class": "Unit",
    "name": "SendSpellNonMeleeDamageLog",
    "sig": "void SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spellInfo, uint32 Damage, SpellSchoolMask damageSchoolMask, uint32 AbsorbedDamage, uint32 Resist, bool PhysicalDamage, uint32 Blocked, bool CriticalHit = false, bool Split = false)",
    "file": "src/server/game/Entities/Unit/Unit.h",
-   "line": 2000,
+   "line": 2002,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 6411
+    "line": 6457
    },
-   "hash": "ddeb2c655023",
-   "desc": "Constructs a WorldPacket containing spell non-melee damage log data for transmission to the client, including target/attacker GUIDs, spell ID, damage amount, overkill calculation, school mask, absorbed damage, resistance, physical flag, blocked status, and hit information flags.",
+   "hash": "10e7a7024e8b",
+   "desc": "Constructs a WorldPacket containing spell non-melee damage log data, including target/attacker GUIDs, spell ID, damage amount, overkill calculation, school mask, absorbed damage, resistance, physical flag, blocked status, and hit information flags.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
