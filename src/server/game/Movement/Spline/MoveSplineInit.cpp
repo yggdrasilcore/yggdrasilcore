@@ -42,12 +42,12 @@ namespace
     constexpr float SMOOTH_MIN_SEGMENT = 1.0f;                      // tighter knots jitter client-side
     constexpr uint32 SMOOTH_MAX_SAMPLE_SEGMENTS = 16;               // curve validation budget per MoveTo
     constexpr float SMOOTH_MAX_BLEND_T = 0.45f;                     // blend must stay clear of the target
-    constexpr float SMOOTH_ARRIVAL_KNOT = 0.5f;                     // final leg steered onto the authored facing
     constexpr float SMOOTH_MIN_LAST_LEG = 0.1f;                     // client stops steering facing below ~0.09 yd
-    constexpr float SMOOTH_MAX_ARRIVAL_TURN = float(M_PI) * 0.5f;   // beyond this the facing is a turn in place
+    constexpr float SMOOTH_MAX_FACING_LAG = 0.3f;                   // rad of trail the client's facing filter may show
 
-    // CreatureMovementInfo.dbc `field1` decoded as float (SmoothFacingChaseRate, rad/s).
-    // 0 = snap (no slew). Server copy of your DBC export: only non-zero rows listed.
+    // CreatureMovementInfo.dbc `field1` decoded as float (SmoothFacingChaseRate): the natural
+    // frequency (rad/s) of the client's critically damped facing filter, not a slew limit. A
+    // tangent turning at w leaves the model trailing by ~2w/rate. Server copy of the DBC export.
     float SlewRateForMovementId(uint32 movementId)
     {
         switch (movementId)
@@ -487,44 +487,6 @@ namespace
         }
     }
 
-    // The client takes facing from the spline tangent while the spline runs
-    // (CMovementShared::PlotUnitSplineMovement) and applies the packet's final angle in one
-    // frame on arrival (CMovement_C::CallMoveEventHandlers). With the duplicated last knot
-    // the end tangent is the last leg, so an authored facing that differs from it is a
-    // visible snap. Bending the last half yard onto the authored facing makes the assignment
-    // a no-op instead.
-    void AlignArrivalFacing(Unit* unit, MoveSplineInitArgs& args, bool groundMode)
-    {
-        if (!args.flags.final_angle || args.path.size() < 2)
-            return;
-
-        Vector3 const& dest = args.path.back();
-        Vector3 const& prev = args.path[args.path.size() - 2];
-        Vector3 const lastLeg = dest - prev;
-        float const legLength = lastLeg.length();
-        if (legLength < SMOOTH_MIN_SEGMENT)
-            return;
-
-        float const facing = args.facing.angle;
-        float const arrivalTurn = NormalizeAngle(std::atan2(lastLeg.y, lastLeg.x) - facing);
-        // A facing that points back at the approach would turn the last leg into a detour;
-        // leave those to the client's turn in place.
-        if (std::fabs(arrivalTurn) <= SMOOTH_MIN_TURN || std::fabs(arrivalTurn) > SMOOTH_MAX_ARRIVAL_TURN)
-            return;
-
-        float const reach = std::min(SMOOTH_ARRIVAL_KNOT, legLength * 0.5f);
-        Vector3 knot(
-            dest.x - reach * std::cos(facing),
-            dest.y - reach * std::sin(facing),
-            dest.z + (prev.z - dest.z) * (reach / legLength));
-
-        if (groundMode)
-            knot.z = SnapControlPointZ(unit, knot.x, knot.y, knot.z);
-
-        args.path.insert(args.path.end() - 1, knot);
-        args.pointFlags.insert(args.pointFlags.end() - 1, 0);
-    }
-
     // Below roughly 0.09 yards the client stops steering facing from the tangent (squared
     // length guard in CMovementShared::PlotUnitSplineMovement), so the model holds the
     // previous leg's heading and then snaps to the final angle on arrival. Drop knots that
@@ -599,7 +561,6 @@ namespace
             if (groundMode)
                 DensifySteepSpans(unit, args.path, args.pointFlags);
             DropTinyFinalLeg(args);
-            AlignArrivalFacing(unit, args, groundMode);
             // Even a blend-free mmap polygon can poke through geometry once CatmullRom rounds
             // its corners, so validate the rendered curve before committing to smoothing.
             if (!flightMode && args.path.size() > 2 && !IsSmoothedCurveValid(unit, args.path, args.pointFlags, groundMode, orient))
@@ -608,34 +569,41 @@ namespace
             return;
         }
 
-        // Ground-only facing slew cap: the client's tangent sweep must not outrun the
-        // DBC SmoothFacingChaseRate, or the model snaps to default and back. Rate 0
-        // means snap: no curve at all, move linearly and let facing snap at corners.
-        float const slewRate = GetFacingSlewRate(unit);
-        if (!flightMode && slewRate <= 0.01f)
+        // The client renders facing through a critically damped filter whose natural frequency
+        // is CreatureMovementInfo.dbc's rate (CGUnit_C::UpdateSmoothFacing / CSmoothAngle::Chase),
+        // so a tangent turning at w leaves the model trailing by about 2w/rate. An arc only
+        // improves on a straight path when that trail stays small and the lobe is wider than
+        // the creature; a tighter lobe is a curved crab-walk the body cannot follow.
+        float const chaseRate = GetFacingSlewRate(unit);
+        if (!flightMode && chaseRate <= 0.01f)
         {
             if (groundMode)
                 DensifySteepSpans(unit, args.path, args.pointFlags);
-            return; // linear spline, no CatmullRom
+            DropTinyFinalLeg(args);
+            return; // no DBC rate: the client's fallback filter is faster than any arc
         }
 
-        // Widen the arc so the lobe sweep (absTurn/2 traversed in reach/velocity)
-        // stays within the slew budget. If it cannot fit, go linear instead.
+        // The first blend segment (absTurn/2 traversed in minRadius/velocity) must stay inside
+        // the lag budget, and the lobe must clear the creature's own footprint.
         float const velocity = std::max(unit->GetSpeed(MOVE_RUN), 0.5f);
-        float tNeeded = 0.25f;
-        if (slewRate > 0.01f)
-            tNeeded = (std::fabs(angleDelta) * velocity) / (2.0f * slewRate * distToNext);
-        if (!flightMode && tNeeded > SMOOTH_MAX_BLEND_T)
+        float const maxTurnRate = 0.5f * SMOOTH_MAX_FACING_LAG * chaseRate;
+        float const minRadius = std::max(
+            std::fabs(angleDelta) * 0.5f * velocity / maxTurnRate,
+            unit->GetCombatReach());
+        if (!flightMode && minRadius > SMOOTH_MAX_BLEND_T * distToNext)
         {
             if (groundMode)
                 DensifySteepSpans(unit, args.path, args.pointFlags);
-            LOG_DEBUG("movement", "SmoothPathForCatmullRom: turn exceeds slew rate, falling back to linear");
+            DropTinyFinalLeg(args);
+            LOG_DEBUG("movement", "SmoothPathForCatmullRom: departure arc too tight for the facing filter, using a straight path");
             return;
         }
 
+        float const tMin = minRadius / distToNext;
+
         // Single departure arc toward the next target. Sharp reversals stay in one spline:
-        // the client's facing slew (CreatureMovementInfo rate) absorbs the visual
-        // turn, while the position curve keeps a single gentle lobe instead of a tight knot.
+        // the client's facing filter absorbs the visual turn, while the position curve keeps
+        // a single gentle lobe instead of a tight knot.
         // Track the inserted point by value: DensifySteepSpans below may shift indices.
         bool hasBlend = false;
         Vector3 blendValue = Vector3::zero();
@@ -648,7 +616,7 @@ namespace
             if (std::fabs(refTurn) > SMOOTH_MIN_TURN)
             {
                 Vector3 blend;
-                if (BuildDeparturePoint(unit, src, orient, refTarget, distRef, refTurn, groundMode, tNeeded, blend))
+                if (BuildDeparturePoint(unit, src, orient, refTarget, distRef, refTurn, groundMode, tMin, blend))
                 {
                     args.path.insert(args.path.begin() + 1, blend);
                     args.pointFlags.insert(args.pointFlags.begin() + 1, 0);
@@ -662,7 +630,6 @@ namespace
             DensifySteepSpans(unit, args.path, args.pointFlags);
 
         DropTinyFinalLeg(args);
-        AlignArrivalFacing(unit, args, groundMode);
 
         // The rendered curve must stay inside traversable space; otherwise drop the blend
         // point first, and if the path itself still misbehaves under CatmullRom, move linearly.
