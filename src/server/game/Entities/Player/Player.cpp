@@ -7572,6 +7572,10 @@ void Player::CastItemUseSpell(Item* item, SpellCastTargets const& targets, uint8
 
         if (HasSpellCooldown(spellInfo->Id))
         {
+            // Notify client so it can clean up the pending spell cast.
+            // Without this the client orphans the cast and blocks auto-attack.
+            Spell::SendCastResult(ToPlayer(), spellInfo, cast_count,
+                SPELL_FAILED_NOT_READY);
             continue;
         }
 
@@ -7624,7 +7628,11 @@ void Player::CastItemUseSpell(Item* item, SpellCastTargets const& targets, uint8
             }
 
             if (HasSpellCooldown(spellInfo->Id))
+            {
+                Spell::SendCastResult(ToPlayer(), spellInfo, cast_count,
+                    SPELL_FAILED_NOT_READY);
                 continue;
+            }
 
             Spell* spell = new Spell(this, spellInfo, (count > 0) ? TRIGGERED_FULL_MASK : TRIGGERED_NONE);
             spell->m_CastItem = item;
