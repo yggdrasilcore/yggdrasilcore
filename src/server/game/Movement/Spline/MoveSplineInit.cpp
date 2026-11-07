@@ -37,7 +37,6 @@ namespace
     // keep exactly ONE gentle curvature lobe per spline; anything sharper is split into two
     // sequential splines instead of being forced into a single tight arc.
     constexpr float SMOOTH_MIN_TURN    = float(M_PI) / 12.0f;       // 15 deg: smaller turns need no help
-    constexpr float SMOOTH_REF_TURN     = float(M_PI) * 2.0f / 3.0f; // 120 deg reference for scaling the blend distance
     constexpr float SMOOTH_MIN_DIST    = 2.0f;                      // shorter moves have no room for any arc
     constexpr float SMOOTH_MIN_SEGMENT = 1.0f;                      // tighter knots jitter client-side
     constexpr uint32 SMOOTH_MAX_SAMPLE_SEGMENTS = 16;               // curve validation budget per MoveTo
@@ -385,15 +384,13 @@ namespace
     }
 
     // Builds a single departure blend point on the angle bisector between the current facing
-    // and the bearing to the reference target. One interior point bends the same way all along
-    // (a single curvature lobe), splitting the total turn into two roughly equal halves, each
-    // of which CatmullRom renders smoothly. Returns false when there is no room for an arc.
-    bool BuildDeparturePoint(Unit* unit, Vector3 const& src, float orient, Vector3 const& refTarget, float distRef, float angleDelta, bool groundMode, float tMin, Vector3& out)
+    // and the bearing to the reference target. `reach` is the distance along that bisector, sized
+    // from the turn radius (not from the leg length). One interior point bends the same way all
+    // along (a single curvature lobe), splitting the total turn into two roughly equal halves,
+    // each of which CatmullRom renders smoothly. Returns false when there is no room for an arc.
+    bool BuildDeparturePoint(Unit* unit, Vector3 const& src, float orient, Vector3 const& refTarget, float distRef, float angleDelta, bool groundMode, float reach, Vector3& out)
     {
-        float const absTurn = std::fabs(angleDelta);
-        float t = 0.25f + 0.15f * (absTurn / SMOOTH_REF_TURN); // 0.25 .. 0.40, wider turns blend further out
-        if (t < tMin)
-            t = tMin;
+        float t = reach / distRef;
         if (t > SMOOTH_MAX_BLEND_T)
             t = SMOOTH_MAX_BLEND_T;
 
@@ -584,18 +581,27 @@ namespace
             return; // no DBC rate: the client's fallback filter is faster than any arc
         }
 
-        // The first blend segment (absTurn/2 traversed in minRadius/velocity) should stay inside
-        // the lag budget, and the lobe should clear the creature's own footprint. This widens
-        // the arc; it never cancels it. Dropping to a straight path would make the client steer
-        // facing per leg with no curve at all, and every leg would be its own unfiltered turn.
+        // Radius the client's facing filter can follow without a visible trail: half the turn
+        // traversed in radius/velocity must stay inside the lag budget, and the lobe must clear
+        // the creature's own footprint.
         float const velocity = std::max(unit->GetSpeed(MOVE_RUN), 0.5f);
         float const maxTurnRate = 0.5f * SMOOTH_MAX_FACING_LAG * chaseRate;
-        float const minRadius = std::max(
+        float const radius = std::max(
             std::fabs(angleDelta) * 0.5f * velocity / maxTurnRate,
             unit->GetCombatReach());
-        // BuildDeparturePoint clamps t to SMOOTH_MAX_BLEND_T, so a leg too short for minRadius
-        // still gets the widest arc it can carry instead of no arc.
-        float const tMin = minRadius / distToNext;
+
+        // Place the knot at the midpoint of that radius' arc. Its distance from the direct line
+        // to the target is the sagitta r*(1 - cos(delta/2)), so it no longer scales with the leg.
+        float const halfTurn = std::fabs(angleDelta) * 0.5f;
+        float const reach = radius * std::tan(halfTurn * 0.5f);
+
+        // The arc needs a tangent length r*tan(delta/2) on the outgoing leg before the path can
+        // head to the target. A turn that cannot fit would have to leave the route to round it,
+        // so no knot is inserted; CatmullRom stays on and the client's filter turns the model.
+        float const tangentLength = radius * std::fabs(std::tan(halfTurn));
+        bool const canRound = reach >= SMOOTH_MIN_SEGMENT
+            && reach <= SMOOTH_MAX_BLEND_T * distToNext
+            && tangentLength <= distToNext;
 
         // Single departure arc toward the next target. Sharp reversals stay in one spline:
         // the client's facing filter absorbs the visual turn, while the position curve keeps
@@ -609,10 +615,10 @@ namespace
         {
             float const refBearing = std::atan2((refTarget.y - src.y), (refTarget.x - src.x));
             float const refTurn = NormalizeAngle(refBearing - orient);
-            if (std::fabs(refTurn) > SMOOTH_MIN_TURN)
+            if (std::fabs(refTurn) > SMOOTH_MIN_TURN && canRound)
             {
                 Vector3 blend;
-                if (BuildDeparturePoint(unit, src, orient, refTarget, distRef, refTurn, groundMode, tMin, blend))
+                if (BuildDeparturePoint(unit, src, orient, refTarget, distRef, refTurn, groundMode, reach, blend))
                 {
                     args.path.insert(args.path.begin() + 1, blend);
                     args.pointFlags.insert(args.pointFlags.begin() + 1, 0);
