@@ -41,16 +41,16 @@ static constexpr char _luaEvalPostfix[] = ",'GUILD')end";
 static_assert((sizeof(_luaEvalPrefix)-1 + sizeof(_luaEvalMidfix)-1 + sizeof(_luaEvalPostfix)-1 + WARDEN_MAX_LUA_CHECK_LENGTH) == 255);
 
 static constexpr uint16 _interactionUnpauseShowPayloadId = 8999;
-static constexpr char _interactionUnpauseShowPayload[] = "_F=CreateFrame('Frame')_F:RegisterEvent('GOSSIP_SHOW')_F:RegisterEvent('MERCHANT_SHOW')_F:RegisterEvent('TRAINER_SHOW')_F:RegisterEvent('QUEST_GREETING')_F:RegisterEvent('QUEST_DETAIL')_F:RegisterEvent('QUEST_PROGRESS')_F:RegisterEvent('QUEST_COMPLETE')";
+static constexpr char _interactionUnpauseShowPayload[] = "local f=CreateFrame('Frame')_YGG_UNPAUSE=f for _,e in pairs{'GOSSIP_SHOW','MERCHANT_SHOW','TRAINER_SHOW','QUEST_GREETING','QUEST_DETAIL','QUEST_PROGRESS','QUEST_COMPLETE'}do f:RegisterEvent(e)end";
 
 static constexpr uint16 _interactionUnpauseClosePayloadId = 8998;
-static constexpr char _interactionUnpauseClosePayload[] = "_F:RegisterEvent('GOSSIP_CLOSED')_F:RegisterEvent('MERCHANT_CLOSED')_F:RegisterEvent('TRAINER_CLOSED')_F:RegisterEvent('QUEST_FINISHED')_F:SetScript('OnUpdate',function(_,el)if p then d=d-el if d<=0 then _S()end end end)";
+static constexpr char _interactionUnpauseClosePayload[] = "local f=_YGG_UNPAUSE for _,e in pairs{'GOSSIP_CLOSED','MERCHANT_CLOSED','TRAINER_CLOSED','QUEST_FINISHED'}do f:RegisterEvent(e)end f:SetScript('OnUpdate',function(s,el)if s.p then s.d=s.d-el if s.d<=0 then s:S()end end end)";
 
 static constexpr uint16 _interactionUnpauseEventPayloadId = 8997;
-static constexpr char _interactionUnpauseEventPayload[] = "_F:SetScript('OnEvent',function(_,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if g then p=g d=.5 end else local n=UnitGUID('npc')if n then if p and p~=n then d=0 else p=nil end g=n end end end)";
+static constexpr char _interactionUnpauseEventPayload[] = "local f=_YGG_UNPAUSE f:SetScript('OnEvent',function(s,e)if e:find('CLOSED')or e=='QUEST_FINISHED'then if s.g then s.p=s.g s.d=.5 end else local n=UnitGUID('npc')if n then if s.p and s.p~=n then s.d=0 else s.p=nil end s.g=n end end end)";
 
 static constexpr uint16 _interactionUnpauseSendPayloadId = 8996;
-static constexpr char _interactionUnpauseSendPayload[] = "l=0 _S=function()if GetTime()-l<.25 then d=.5 return end l=GetTime()SendChatMessage('.unpause '..p,'GUILD')p=nil end";
+static constexpr char _interactionUnpauseSendPayload[] = "local f=_YGG_UNPAUSE f.l=0 f.S=function(s)if GetTime()-s.l<.25 then s.d=.5 return end s.l=GetTime()SendChatMessage('.unpause '..s.p,'GUILD')s.p=nil end";
 
 static_assert(sizeof(_interactionUnpauseShowPayload) - 1 <= 255);
 static_assert(sizeof(_interactionUnpauseClosePayload) - 1 <= 255);
