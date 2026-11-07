@@ -571,9 +571,10 @@ namespace
 
         // The client renders facing through a critically damped filter whose natural frequency
         // is CreatureMovementInfo.dbc's rate (CGUnit_C::UpdateSmoothFacing / CSmoothAngle::Chase),
-        // so a tangent turning at w leaves the model trailing by about 2w/rate. An arc only
-        // improves on a straight path when that trail stays small and the lobe is wider than
-        // the creature; a tighter lobe is a curved crab-walk the body cannot follow.
+        // so a tangent turning at w leaves the model trailing by about 2w/rate. The arc below is
+        // widened to keep that trail small and to clear the creature's own footprint, but it is
+        // always kept: a straight path makes the client step facing at every leg corner with no
+        // curve in between, which reads as instant turns.
         float const chaseRate = GetFacingSlewRate(unit);
         if (!flightMode && chaseRate <= 0.01f)
         {
@@ -583,22 +584,17 @@ namespace
             return; // no DBC rate: the client's fallback filter is faster than any arc
         }
 
-        // The first blend segment (absTurn/2 traversed in minRadius/velocity) must stay inside
-        // the lag budget, and the lobe must clear the creature's own footprint.
+        // The first blend segment (absTurn/2 traversed in minRadius/velocity) should stay inside
+        // the lag budget, and the lobe should clear the creature's own footprint. This widens
+        // the arc; it never cancels it. Dropping to a straight path would make the client steer
+        // facing per leg with no curve at all, and every leg would be its own unfiltered turn.
         float const velocity = std::max(unit->GetSpeed(MOVE_RUN), 0.5f);
         float const maxTurnRate = 0.5f * SMOOTH_MAX_FACING_LAG * chaseRate;
         float const minRadius = std::max(
             std::fabs(angleDelta) * 0.5f * velocity / maxTurnRate,
             unit->GetCombatReach());
-        if (!flightMode && minRadius > SMOOTH_MAX_BLEND_T * distToNext)
-        {
-            if (groundMode)
-                DensifySteepSpans(unit, args.path, args.pointFlags);
-            DropTinyFinalLeg(args);
-            LOG_DEBUG("movement", "SmoothPathForCatmullRom: departure arc too tight for the facing filter, using a straight path");
-            return;
-        }
-
+        // BuildDeparturePoint clamps t to SMOOTH_MAX_BLEND_T, so a leg too short for minRadius
+        // still gets the widest arc it can carry instead of no arc.
         float const tMin = minRadius / distToNext;
 
         // Single departure arc toward the next target. Sharp reversals stay in one spline:
