@@ -596,6 +596,23 @@ public: /* AllCreatureScript */
     void OnBeforeCreatureSelectLevel(const CreatureTemplate* cinfo, Creature* creature, uint8& level);
     void OnCreatureSelectLevel(const CreatureTemplate* cinfo, Creature* creature);
     void OnCreatureSaveToDB(Creature* creature);
+    void OnCreatureSpawn(Creature* creature);
+    void OnCreatureMovementInform(Creature* creature, uint32 type, uint32 id);
+    void OnCreatureDamageTaken(Creature* creature, Unit* attacker, uint32& damage);
+    void OnCreatureReachedHome(Creature* creature);
+    void OnCreatureMoveInLineOfSight(Creature* creature, Unit* who);
+    void OnCreatureKilledUnit(Creature* creature, Unit* victim);
+    void OnCreaturePreCombat(Creature* creature, Unit* target);
+    void OnCreatureHitBySpell(Creature* creature, WorldObject* caster, SpellInfo const* spell);
+    void OnCreatureSpellHitTarget(Creature* creature, WorldObject* target, SpellInfo const* spell);
+    void OnCreatureSummoned(Creature* creature, WorldObject* summoner);
+    void OnCreatureJustSummoned(Creature* creature, Creature* summon);
+    void OnCreatureSummonedDespawn(Creature* creature, Creature* summon);
+    void OnCreatureSummonedDies(Creature* creature, Creature* summon, Unit* killer);
+    void OnCreatureReceiveEmote(Creature* creature, Player* player, uint32 emoteId);
+    void OnCreatureCorpseRemoved(Creature* creature, uint32& respawnDelay);
+    void OnCreatureOwnerAttackedBy(Creature* creature, Unit* attacker);
+    void OnCreatureOwnerAttacked(Creature* creature, Unit* target);
 
 public: /* AllGameobjectScript */
     void OnGameObjectSaveToDB(GameObject* go);

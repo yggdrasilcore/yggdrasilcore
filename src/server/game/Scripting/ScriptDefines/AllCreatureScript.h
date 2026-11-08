@@ -57,6 +57,91 @@ public:
     virtual void OnCreatureSaveToDB(Creature* /*creature*/) { }
 
     /**
+     * @brief This hook runs when a creature spawns or respawns.
+     */
+    virtual void OnCreatureSpawn(Creature* /*creature*/) { }
+
+    /**
+     * @brief This hook runs when a creature reaches a movement waypoint.
+     */
+    virtual void OnCreatureMovementInform(Creature* /*creature*/, uint32 /*type*/, uint32 /*id*/) { }
+
+    /**
+     * @brief This hook runs when a creature takes damage. The damage can be modified.
+     */
+    virtual void OnCreatureDamageTaken(Creature* /*creature*/, Unit* /*attacker*/, uint32& /*damage*/) { }
+
+    /**
+     * @brief This hook runs when a creature reaches its home position after evading.
+     */
+    virtual void OnCreatureReachedHome(Creature* /*creature*/) { }
+
+    /**
+     * @brief This hook runs when a creature has a unit in its line of sight.
+     */
+    virtual void OnCreatureMoveInLineOfSight(Creature* /*creature*/, Unit* /*who*/) { }
+
+    /**
+     * @brief This hook runs when a creature kills a unit.
+     */
+    virtual void OnCreatureKilledUnit(Creature* /*creature*/, Unit* /*victim*/) { }
+
+    /**
+     * @brief This hook runs before a creature starts attacking a new target.
+     */
+    virtual void OnCreaturePreCombat(Creature* /*creature*/, Unit* /*target*/) { }
+
+    /**
+     * @brief This hook runs when a creature is hit by a spell.
+     */
+    virtual void OnCreatureHitBySpell(Creature* /*creature*/, WorldObject* /*caster*/, SpellInfo const* /*spell*/) { }
+
+    /**
+     * @brief This hook runs when a creature's spell hits a target.
+     */
+    virtual void OnCreatureSpellHitTarget(Creature* /*creature*/, WorldObject* /*target*/, SpellInfo const* /*spell*/) { }
+
+    /**
+     * @brief This hook runs when a creature is summoned.
+     */
+    virtual void OnCreatureSummoned(Creature* /*creature*/, WorldObject* /*summoner*/) { }
+
+    /**
+     * @brief This hook runs when a creature summons another creature.
+     */
+    virtual void OnCreatureJustSummoned(Creature* /*creature*/, Creature* /*summon*/) { }
+
+    /**
+     * @brief This hook runs when a summoned creature despawns.
+     */
+    virtual void OnCreatureSummonedDespawn(Creature* /*creature*/, Creature* /*summon*/) { }
+
+    /**
+     * @brief This hook runs when a summoned creature dies.
+     */
+    virtual void OnCreatureSummonedDies(Creature* /*creature*/, Creature* /*summon*/, Unit* /*killer*/) { }
+
+    /**
+     * @brief This hook runs when a creature receives an emote.
+     */
+    virtual void OnCreatureReceiveEmote(Creature* /*creature*/, Player* /*player*/, uint32 /*emoteId*/) { }
+
+    /**
+     * @brief This hook runs when a creature's corpse is removed. The respawn delay can be modified.
+     */
+    virtual void OnCreatureCorpseRemoved(Creature* /*creature*/, uint32& /*respawnDelay*/) { }
+
+    /**
+     * @brief This hook runs when a creature's owner is attacked.
+     */
+    virtual void OnCreatureOwnerAttackedBy(Creature* /*creature*/, Unit* /*attacker*/) { }
+
+    /**
+     * @brief This hook runs when a creature's owner attacks a target.
+     */
+    virtual void OnCreatureOwnerAttacked(Creature* /*creature*/, Unit* /*target*/) { }
+
+    /**
      * @brief This hook called when a player opens a gossip dialog with the creature.
      *
      * @param player Contains information about the Player

@@ -2895,12 +2895,17 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         //AI functions
         if (spellHitTarget->IsCreature())
         {
+            sScriptMgr->OnCreatureHitBySpell(spellHitTarget->ToCreature(), m_caster, m_spellInfo);
             if (spellHitTarget->ToCreature()->IsAIEnabled)
                 spellHitTarget->ToCreature()->AI()->SpellHit(m_caster, m_spellInfo);
         }
 
-        if (m_caster->IsCreature() && m_caster->ToCreature()->IsAIEnabled)
-            m_caster->ToCreature()->AI()->SpellHitTarget(spellHitTarget, m_spellInfo);
+        if (m_caster->IsCreature())
+        {
+            sScriptMgr->OnCreatureSpellHitTarget(m_caster->ToCreature(), spellHitTarget, m_spellInfo);
+            if (m_caster->ToCreature()->IsAIEnabled)
+                m_caster->ToCreature()->AI()->SpellHitTarget(spellHitTarget, m_spellInfo);
+        }
 
         // Needs to be called after dealing damage/healing to not remove breaking on damage auras
         DoTriggersOnSpellHit(spellHitTarget, mask);
@@ -3773,7 +3778,10 @@ void Spell::_cast(bool skipCheck)
                 for (Unit::ControlSet::iterator itr = playerCaster->m_Controlled.begin(); itr != playerCaster->m_Controlled.end(); ++itr)
                     if (Unit* pet = *itr)
                         if (pet->IsAlive() && pet->IsCreature())
+                        {
+                            sScriptMgr->OnCreatureOwnerAttacked(pet->ToCreature(), m_targets.GetUnitTarget());
                             pet->ToCreature()->AI()->OwnerAttacked(m_targets.GetUnitTarget());
+                        }
     }
 
     SetExecutedCurrently(true);

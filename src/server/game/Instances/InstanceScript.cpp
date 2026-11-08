@@ -378,8 +378,11 @@ void InstanceScript::SetSummoner(Creature* creature)
 
     if (summonData != _summonInfo.end())
         if (Creature* summoner = GetCreature(summonData->second))
+        {
+            sScriptMgr->OnCreatureJustSummoned(summoner, creature);
             if (summoner->IsAIEnabled)
                 summoner->AI()->JustSummoned(creature);
+        }
 }
 
 bool InstanceScript::SetBossState(uint32 id, EncounterState state)
