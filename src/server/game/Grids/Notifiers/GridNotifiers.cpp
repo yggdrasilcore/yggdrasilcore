@@ -17,6 +17,7 @@
 
 #include "GridNotifiers.h"
 #include "Map.h"
+#include "ScriptMgr.h"
 #include "ObjectAccessor.h"
 #include "Transport.h"
 #include "UpdateData.h"
@@ -133,9 +134,11 @@ inline void CreatureUnitRelocationWorker(Creature* c, Unit* u)
 
     if (!c->HasUnitState(UNIT_STATE_SIGHTLESS))
     {
-        if (c->IsAIEnabled && c->CanSeeOrDetect(u, false, true))
+        if (c->CanSeeOrDetect(u, false, true))
         {
-            c->AI()->MoveInLineOfSight_Safe(u);
+            sScriptMgr->OnCreatureMoveInLineOfSight(c, u);
+            if (c->IsAIEnabled)
+                c->AI()->MoveInLineOfSight_Safe(u);
         }
         else if (u->IsPlayer() && u->HasStealthAura() && c->IsAIEnabled && c->CanSeeOrDetect(u, false, true, true))
         {

@@ -565,6 +565,7 @@ public:
                 !_unit->movespline->IsSmoothingPoint())
         {
             _unit->ToCreature()->AI()->MovementInform(ESCORT_MOTION_TYPE, _unit->movespline->currentPathIdx() - 1);
+            sScriptMgr->OnCreatureMovementInform(_unit->ToCreature(), ESCORT_MOTION_TYPE, _unit->movespline->currentPathIdx() - 1);
         }
 
         return true;
@@ -860,6 +861,9 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
             attacker->GetAI()->DamageDealt(victim, damage, damagetype, damageSchoolMask);
     }
 
+    if (victim->IsCreature())
+        sScriptMgr->OnCreatureDamageTaken(victim->ToCreature(), attacker, damage);
+
     // Hook for OnDamage Event
     sScriptMgr->OnDamage(attacker, victim, damage);
 
@@ -869,7 +873,10 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         Pet* pet = victim->ToPlayer()->GetPet();
 
         if (pet && pet->IsAlive())
+        {
+            sScriptMgr->OnCreatureOwnerAttackedBy(pet, attacker);
             pet->AI()->OwnerAttackedBy(attacker);
+        }
     }
 
     //Dont deal damage to unit if .cheat god is enable.
@@ -2727,7 +2734,10 @@ void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType /*= BASE_A
             for (Unit::ControlSet::iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
                 if (Unit* pet = *itr)
                     if (pet->IsAlive() && pet->IsCreature())
+                    {
+                        sScriptMgr->OnCreatureOwnerAttacked(pet->ToCreature(), victim);
                         pet->ToCreature()->AI()->OwnerAttacked(victim);
+                    }
     }
 }
 
@@ -10449,6 +10459,9 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     if (HasUnattackableAura())
         RemoveAurasByType(SPELL_AURA_MOD_UNATTACKABLE);
 
+    if (creature && m_attacking != victim)
+        sScriptMgr->OnCreaturePreCombat(creature, victim);
+
     if (m_attacking)
     {
         if (m_attacking == victim)
@@ -18013,7 +18026,10 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
     {
         Pet* pet = player->GetPet();
         if (pet && pet->IsAlive() && pet->isControlled())
+        {
+            sScriptMgr->OnCreatureKilledUnit(pet, victim);
             pet->AI()->KilledUnit(victim);
+        }
     }
 
     // 10% durability loss on death
@@ -18033,8 +18049,12 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
             plrVictim->SendDurabilityLoss();
         }
         // Call KilledUnit for creatures
-        if (killer && killer->IsCreature() && killer->IsAIEnabled)
-            killer->ToCreature()->AI()->KilledUnit(victim);
+        if (killer && killer->IsCreature())
+        {
+            sScriptMgr->OnCreatureKilledUnit(killer->ToCreature(), victim);
+            if (killer->IsAIEnabled)
+                killer->ToCreature()->AI()->KilledUnit(victim);
+        }
 
         // last damage from non duel opponent or opponent controlled creature
         if (plrVictim->duel)
@@ -18064,8 +18084,12 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
         }
 
         // Call KilledUnit for creatures, this needs to be called after the lootable flag is set
-        if (killer && killer->IsCreature() && killer->IsAIEnabled)
-            killer->ToCreature()->AI()->KilledUnit(victim);
+        if (killer && killer->IsCreature())
+        {
+            sScriptMgr->OnCreatureKilledUnit(killer->ToCreature(), victim);
+            if (killer->IsAIEnabled)
+                killer->ToCreature()->AI()->KilledUnit(victim);
+        }
 
         // Call creature just died function
         if (CreatureAI* ai = creature->AI())
@@ -18077,9 +18101,11 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
         {
             if (WorldObject* summoner = summon->GetSummoner())
             {
-                if (summoner->ToCreature() && summoner->ToCreature()->IsAIEnabled)
+                if (summoner->ToCreature())
                 {
-                    summoner->ToCreature()->AI()->SummonedCreatureDies(creature, killer);
+                    sScriptMgr->OnCreatureSummonedDies(summoner->ToCreature(), creature, killer);
+                    if (summoner->ToCreature()->IsAIEnabled)
+                        summoner->ToCreature()->AI()->SummonedCreatureDies(creature, killer);
                 }
                 else if (summoner->ToGameObject() && summoner->ToGameObject()->AI())
                 {

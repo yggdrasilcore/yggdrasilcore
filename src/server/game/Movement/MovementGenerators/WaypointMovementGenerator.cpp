@@ -25,6 +25,7 @@
 #include "MoveSplineInit.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "Spell.h"
 #include "Transport.h"
 #include "World.h"
@@ -325,6 +326,8 @@ bool WaypointMovementGenerator<Creature>::DoUpdate(Creature* creature, uint32 di
 
 void WaypointMovementGenerator<Creature>::MovementInform(Creature* creature)
 {
+    sScriptMgr->OnCreatureMovementInform(creature, WAYPOINT_MOTION_TYPE, i_currentNode);
+
     if (creature->AI())
         creature->AI()->MovementInform(WAYPOINT_MOTION_TYPE, i_currentNode);
 
