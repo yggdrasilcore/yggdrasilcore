@@ -26531,22 +26531,22 @@
   }
  },
  "Player::SetClientControl@d7ca35fd:qwen3-5-4b": {
-  "hash": "620a91576bb7",
-  "desc": "Attempts to grant client-side control to a target unit, checking for charmed status and sending a network packet to update the client view; optionally sets the viewpoint and movement state if not in 'packet only' mode.",
-  "raw": "{\"what\": \"Attempts to grant client-side control to a target unit, checking for charmed status and sending a network packet to update the client view; optionally sets the viewpoint and movement state if not in 'packet only' mode.\", \"effects\": \"none\"}",
+  "hash": "5991d556a5c5",
+  "desc": "Attempts to grant client control over a target unit by sending a network packet, updating the player's viewpoint and movement settings if control is allowed, while enforcing restrictions for charmed units, fleeing/confused targets, and disabled move flags. Side effects: Sends a SMSG_CLIENT_CONTROL_UPDATE packet; potentially updates viewpoint and movement state; may clear or set UNIT_STATE_ROOT depending on target flags.",
+  "raw": "{\n  \"what\": \"Attempts to grant client control over a target unit by sending a network packet, updating the player's viewpoint and movement settings if control is allowed, while enforcing restrictions for charmed units, fleeing/confused targets, and disabled move flags.\",\n  \"effects\": \"Sends a SMSG_CLIENT_CONTROL_UPDATE packet; potentially updates viewpoint and movement state; may clear or set UNIT_STATE_ROOT depending on target flags.\"\n}",
   "entry": {
    "class": "Player",
    "name": "SetClientControl",
    "sig": "void SetClientControl(Unit* target, bool allowMove, bool packetOnly = false)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 2343,
+   "line": 2344,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/Player.cpp",
-    "line": 13032
+    "line": 13064
    },
-   "hash": "620a91576bb7",
-   "desc": "Attempts to grant client-side control to a target unit, checking for charmed status and sending a network packet to update the client view; optionally sets the viewpoint and movement state if not in 'packet only' mode.",
+   "hash": "5991d556a5c5",
+   "desc": "Attempts to grant client control over a target unit by sending a network packet, updating the player's viewpoint and movement settings if control is allowed, while enforcing restrictions for charmed units, fleeing/confused targets, and disabled move flags. Side effects: Sends a SMSG_CLIENT_CONTROL_UPDATE packet; potentially updates viewpoint and movement state; may clear or set UNIT_STATE_ROOT depending on target flags.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -35945,9 +35945,9 @@
   }
  },
  "Unit::SetCharm@0e9e9a03:qwen3-5-4b": {
-  "hash": "7e90aaef6fcc",
-  "desc": "Sets whether a target unit is controlled by the player (charmed) or not. If applying charm, it adds the target to the player's charmed list, sets internal flags indicating player control and that the unit is currently charmed, updates movement state if the unit was walking before being charmed, and records the player as the charmer. If unapplying charm, it removes the target from the player's charmed list and clears related flags. Side effects: modifies the target unit's internal state (flags, GUID values), potentially changes its movement behavior, updates the player's list of charmed units, and may trigger network updates via SendMovementFlagUpdate",
-  "raw": "{\"what\": \"Sets whether a target unit is controlled by the player (charmed) or not. If applying charm, it adds the target to the player's charmed list, sets internal flags indicating player control and that the unit is currently charmed, updates movement state if the unit was walking before being charmed, and records the player as the charmer. If unapplying charm, it removes the target from the player's charmed list and clears related flags.\", \"effects\": \"modifies the target unit's internal state (flags, GUID values), potentially changes its movement behavior, updates the player's list of charmed units, and may trigger network updates via SendMovementFlagUpdate\"}",
+  "hash": "9d87cbb492bf",
+  "desc": "Sets the charm state on a target unit based on the apply flag. If applying, it handles player-specific logic (checking for existing charms, setting control flags), updates PvP/FFAPvP bytes, records the charmer GUID, manages walking state, and tracks the relationship in the internal map. If not applying, it clears the charm state. Side effects: modifies unit states (control flags, walking status), updates internal maps, sends movement flag updates, and may log fatal errors if invalid charm attempts occur.",
+  "raw": "{\"what\": \"Sets the charm state on a target unit based on the apply flag. If applying, it handles player-specific logic (checking for existing charms, setting control flags), updates PvP/FFAPvP bytes, records the charmer GUID, manages walking state, and tracks the relationship in the internal map. If not applying, it clears the charm state.\", \"effects\": \"modifies unit states (control flags, walking status), updates internal maps, sends movement flag updates, and may log fatal errors if invalid charm attempts occur.\"}",
   "entry": {
    "class": "Unit",
    "name": "SetCharm",
@@ -35957,10 +35957,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 10956
+    "line": 11021
    },
-   "hash": "7e90aaef6fcc",
-   "desc": "Sets whether a target unit is controlled by the player (charmed) or not. If applying charm, it adds the target to the player's charmed list, sets internal flags indicating player control and that the unit is currently charmed, updates movement state if the unit was walking before being charmed, and records the player as the charmer. If unapplying charm, it removes the target from the player's charmed list and clears related flags. Side effects: modifies the target unit's internal state (flags, GUID values), potentially changes its movement behavior, updates the player's list of charmed units, and may trigger network updates via SendMovementFlagUpdate",
+   "hash": "9d87cbb492bf",
+   "desc": "Sets the charm state on a target unit based on the apply flag. If applying, it handles player-specific logic (checking for existing charms, setting control flags), updates PvP/FFAPvP bytes, records the charmer GUID, manages walking state, and tracks the relationship in the internal map. If not applying, it clears the charm state. Side effects: modifies unit states (control flags, walking status), updates internal maps, sends movement flag updates, and may log fatal errors if invalid charm attempts occur.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
