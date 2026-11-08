@@ -133,7 +133,7 @@ public:
         if (!target->IsPlayer())
             return false;
 
-        if (target->HasAura(SPELL_BLOOD_MIRROR_DAMAGE))
+        if (target->HasAnyAuras(SPELL_BLOOD_MIRROR_DAMAGE, SPELL_BLOOD_MIRROR_VISUAL, SPELL_BLOOD_MIRROR_DUMMY))
             return false;
 
         if (IsVampire(target))
