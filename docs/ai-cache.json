@@ -21410,9 +21410,9 @@
   }
  },
  "Player::UpdatePvPState@50d2c2aa:qwen3-5-4b": {
-  "hash": "c8574c3cf444",
-  "desc": "Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying or taxiing to trigger PvP engagement; conversely, it checks if the player is in a friendly area and toggles off PvP if conditions are met. Side effects: May update internal PvP flags, timers, and potentially change the player's combat status based on location and flight/taxi state.",
-  "raw": "{\n  \"what\": \"Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying or taxiing to trigger PvP engagement; conversely, it checks if the player is in a friendly area and toggles off PvP if conditions are met.\",\n  \"effects\": \"May update internal PvP flags, timers, and potentially change the player's combat status based on location and flight/taxi state.\"\n}",
+  "hash": "65e178e9ad7d",
+  "desc": "Updates the player's PvP state by first refreshing the faction-based PvP status, then checking if the player is in a hostile area (outside dungeons/raids, not on flight or taxi) to automatically enable PvP if not already active, or disabling it if currently active and no flag is set. Side effects: May modify pvpInfo.EndTimer and call UpdatePvP();",
+  "raw": "{\"what\": \"Updates the player's PvP state by first refreshing the faction-based PvP status, then checking if the player is in a hostile area (outside dungeons/raids, not on flight or taxi) to automatically enable PvP if not already active, or disabling it if currently active and no flag is set.\", \"effects\": \"May modify pvpInfo.EndTimer and call UpdatePvP();\"}",
   "entry": {
    "class": "Player",
    "name": "UpdatePvPState",
@@ -21422,31 +21422,31 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 1493
+    "line": 1522
    },
-   "hash": "c8574c3cf444",
-   "desc": "Updates the Player's PvP state by first refreshing the FFAPvP state, then checking if the player is in a hostile area while not flying or taxiing to trigger PvP engagement; conversely, it checks if the player is in a friendly area and toggles off PvP if conditions are met. Side effects: May update internal PvP flags, timers, and potentially change the player's combat status based on location and flight/taxi state.",
+   "hash": "65e178e9ad7d",
+   "desc": "Updates the player's PvP state by first refreshing the faction-based PvP status, then checking if the player is in a hostile area (outside dungeons/raids, not on flight or taxi) to automatically enable PvP if not already active, or disabling it if currently active and no flag is set. Side effects: May modify pvpInfo.EndTimer and call UpdatePvP();",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "Player::UpdateFFAPvPState@7c6fc3d1:qwen3-5-4b": {
-  "hash": "7e67ab661b64",
-  "desc": "Updates the Free-for-All PvP (FFA-PvP) state for the player and their controlled units based on current area conditions or a reset flag, synchronizing flags with scripts. Side effects: Modifies unit byte flags to indicate FFA-PvP status, triggers script events on state change, resets FF-A-PvP end timers, and updates controlled units' states.",
-  "raw": "{\"what\": \"Updates the Free-for-All PvP (FFA-PvP) state for the player and their controlled units based on current area conditions or a reset flag, synchronizing flags with scripts.\", \"effects\": \"Modifies unit byte flags to indicate FFA-PvP status, triggers script events on state change, resets FF-A-PvP end timers, and updates controlled units' states.\"}",
+  "hash": "b0fc34f26182",
+  "desc": "Updates the Free-for-All Player vs Player (FFA PvP) state for the player and their controlled units based on current area conditions, realm settings, or a reset flag. It synchronizes FFA PvP flags between the player and their controlled units by setting or removing specific byte flags, notifies scripts of state changes, and manages the FFAPvP end timer. Side effects: Modifies unit byte flags (UNIT_FIELD_BYTES_2, 1), updates pvpInfo.FFAPvPEndTimer, removes controlled units from the FFA PvP state if applicable, and triggers script callbacks.",
+  "raw": "{\n  \"what\": \"Updates the Free-for-All Player vs Player (FFA PvP) state for the player and their controlled units based on current area conditions, realm settings, or a reset flag. It synchronizes FFA PvP flags between the player and their controlled units by setting or removing specific byte flags, notifies scripts of state changes, and manages the FFAPvP end timer.\",\n  \"effects\": \"Modifies unit byte flags (UNIT_FIELD_BYTES_2, 1), updates pvpInfo.FFAPvPEndTimer, removes controlled units from the FFA PvP state if applicable, and triggers script callbacks.\"\n}",
   "entry": {
    "class": "Player",
    "name": "UpdateFFAPvPState",
    "sig": "void UpdateFFAPvPState(bool reset = true)",
    "file": "src/server/game/Entities/Player/Player.h",
-   "line": 1835,
+   "line": 1838,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Player/PlayerUpdates.cpp",
-    "line": 1509
+    "line": 1540
    },
-   "hash": "7e67ab661b64",
-   "desc": "Updates the Free-for-All PvP (FFA-PvP) state for the player and their controlled units based on current area conditions or a reset flag, synchronizing flags with scripts. Side effects: Modifies unit byte flags to indicate FFA-PvP status, triggers script events on state change, resets FF-A-PvP end timers, and updates controlled units' states.",
+   "hash": "b0fc34f26182",
+   "desc": "Updates the Free-for-All Player vs Player (FFA PvP) state for the player and their controlled units based on current area conditions, realm settings, or a reset flag. It synchronizes FFA PvP flags between the player and their controlled units by setting or removing specific byte flags, notifies scripts of state changes, and manages the FFAPvP end timer. Side effects: Modifies unit byte flags (UNIT_FIELD_BYTES_2, 1), updates pvpInfo.FFAPvPEndTimer, removes controlled units from the FFA PvP state if applicable, and triggers script callbacks.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -33596,9 +33596,9 @@
   }
  },
  "Unit::CombatStartOnCast@d010c640:qwen3-5-4b": {
-  "hash": "03b9f07c7634",
-  "desc": "Initiates combat with the specified target, optionally extending leash mechanics for direct hostile casts on creatures, and manages PvP contestation status based on the caster's or owner's player state. Side effects: Sets the unit in combat with the target (and owner if applicable), potentially extends leashes, updates PvP contestation flags, removes interrupt auras, and may trigger PvP combat updates.",
-  "raw": "{\n  \"what\": \"Initiates combat with the specified target, optionally extending leash mechanics for direct hostile casts on creatures, and manages PvP contestation status based on the caster's or owner's player state.\",\n  \"effects\": \"Sets the unit in combat with the target (and owner if applicable), potentially extends leashes, updates PvP contestation flags, removes interrupt auras, and may trigger PvP combat updates.\"\n}",
+  "hash": "2e8e02c06327",
+  "desc": "Initiates combat with the specified target, optionally extending leash mechanics for direct hostile casts on creatures, and updates PvP status for players involved. Side effects: Sets combat state for caster and owner (if applicable), extends leashes on direct hits, sets contested PvP flags, and updates PvP combat status/aura interrupts for eligible players.",
+  "raw": "{\n  \"what\": \"Initiates combat with the specified target, optionally extending leash mechanics for direct hostile casts on creatures, and updates PvP status for players involved.\",\n  \"effects\": \"Sets combat state for caster and owner (if applicable), extends leashes on direct hits, sets contested PvP flags, and updates PvP combat status/aura interrupts for eligible players.\"\n}",
   "entry": {
    "class": "Unit",
    "name": "CombatStartOnCast",
@@ -33608,10 +33608,10 @@
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Unit/Unit.cpp",
-    "line": 13787
+    "line": 13858
    },
-   "hash": "03b9f07c7634",
-   "desc": "Initiates combat with the specified target, optionally extending leash mechanics for direct hostile casts on creatures, and manages PvP contestation status based on the caster's or owner's player state. Side effects: Sets the unit in combat with the target (and owner if applicable), potentially extends leashes, updates PvP contestation flags, removes interrupt auras, and may trigger PvP combat updates.",
+   "hash": "2e8e02c06327",
+   "desc": "Initiates combat with the specified target, optionally extending leash mechanics for direct hostile casts on creatures, and updates PvP status for players involved. Side effects: Sets combat state for caster and owner (if applicable), extends leashes on direct hits, sets contested PvP flags, and updates PvP combat status/aura interrupts for eligible players.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
