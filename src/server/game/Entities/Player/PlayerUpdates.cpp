@@ -1523,7 +1523,8 @@ void Player::UpdatePvPState()
 {
     UpdateFFAPvPState();
 
-    if (pvpInfo.IsHostile && !IsInFlight() && !m_taxi.empty()) // in hostile area, not on a taxi
+    // Never auto-flag for PvP inside dungeon or raid instances
+    if (!GetMap()->IsDungeon() && pvpInfo.IsHostile && !IsInFlight() && !m_taxi.empty()) // in hostile area, not on a taxi
     {
         if (!IsPvP() || pvpInfo.EndTimer != 0)
             UpdatePvP(true, true);
