@@ -181,6 +181,8 @@ public:
 
             me->SetCanFly(false);
             me->SetDisableGravity(false);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
 
             // Gate Blood Queen behind Blood Prince Council: unattackable + untargetable until princes are DONE
             if (instance->GetBossState(DATA_BLOOD_PRINCE_COUNCIL) != DONE)
@@ -599,6 +601,8 @@ public:
             // clear flight state before the evade home movement runs, otherwise it can keep flying flags
             me->SetCanFly(false);
             me->SetDisableGravity(false);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
 
             BossAI::EnterEvadeMode();
         }
