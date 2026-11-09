@@ -1,6 +1,6 @@
 -- Sets hover on all Chimaeras without special air pathing (e.g., Nuramoc), dragons, and Proto-Whelps
-UPDATE `creature_template` SET `HoverHeight` = 1 WHERE `entry` IN (2726, 10321, 20142, 23688,12801,21033,10807,7448,7449,6167,12802,12800,7447,4031,12803,8764,8763,33504,8660,11497,21879,4032);
-UPDATE `creature_template` SET `HoverHeight` = 5 WHERE `entry` IN (26322, 23164, 14388, 12496, 12497, 12498, 12899, 12900, 10662, 10663, 10664, 10202, 4339, 5312, 5718, 7044, 7045, 8197, 8976);
+UPDATE `creature_template` SET `HoverHeight` = 1 WHERE `entry` IN (26322, 2726, 10321, 20142, 23688,12801,21033,10807,7448,7449,6167,12802,12800,7447,4031,12803,8764,8763,8660,11497,21879,4032);
+UPDATE `creature_template` SET `HoverHeight` = 5 WHERE `entry` IN (23164, 14388, 12496, 12497, 12498, 12899, 12900, 10662, 10663, 10664, 10202, 4339, 5312, 5718, 7044, 7045, 8197, 8976);
 REPLACE INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`) VALUES
 (23688,2,0,0,0,0,0,NULL),
 (4031,2,0,0,0,0,0,NULL),
@@ -19,7 +19,6 @@ REPLACE INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flig
 (8764,2,0,0,0,0,0,NULL),
 (8763,2,0,0,0,0,0,NULL),
 (2726,2,0,0,0,0,0,NULL),
-(33504,2,0,0,0,0,0,NULL),
 (8660,2,0,0,0,0,0,NULL),
 (20142,2,0,0,0,0,0,NULL),
 (11497,2,0,0,0,0,0,NULL),
