@@ -1,3 +1,22 @@
-UPDATE `creature_template` SET `HoverHeight` = 1 WHERE `entry` IN (23688);
+UPDATE `creature_template` SET `HoverHeight` = 1 WHERE `entry` IN (23688,12801,21033,10807,7448,7449,6167,12802,12800,7447,4031,12803,8764,8763,33504,8660,11497,21879,4032);
 REPLACE INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, `InteractionPauseTimer`) VALUES
-('23688','2','0','0','0','0','0',NULL);
+('23688','2','0','0','0','0','0',NULL),
+(4031,2,0,0,0,0,0,NULL),
+(4032,2,0,0,0,0,0,NULL),
+(6167,2,0,0,0,0,0,NULL),
+(7447,2,0,0,0,0,0,NULL),
+(7448,2,0,0,0,0,0,NULL),
+(7449,2,0,0,0,0,0,NULL),
+(10807,2,0,0,0,0,0,NULL),
+(21033,2,1,1,0,0,0,NULL),
+(21879,2,1,1,0,0,0,NULL),
+(12802,2,0,0,0,0,0,NULL),
+(12800,2,0,0,0,0,0,NULL),
+(12803,2,0,0,0,0,0,NULL),
+(8764,2,0,0,0,0,0,NULL),
+(8763,2,0,0,0,0,0,NULL),
+(33504,2,0,0,0,0,0,NULL),
+(8660,2,0,0,0,0,0,NULL),
+(11497,2,0,0,0,0,0,NULL),
+(12801,2,0,0,0,0,0,NULL);
+
