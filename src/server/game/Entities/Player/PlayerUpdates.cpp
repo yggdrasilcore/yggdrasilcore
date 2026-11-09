@@ -1542,7 +1542,7 @@ void Player::UpdateFFAPvPState(bool reset /*= true*/)
     /// @todo: should we always synchronize UNIT_FIELD_BYTES_2, 1 of controller
     // and controlled? no, we shouldn't, those are checked for affecting player
     // by client
-    if (!pvpInfo.IsInNoPvPArea && !IsGameMaster() &&
+    if (!pvpInfo.IsInNoPvPArea && !IsGameMaster() && !GetMap()->IsDungeon() &&
         (pvpInfo.IsInFFAPvPArea || sWorld->IsFFAPvPRealm()))
     {
         if (!IsFFAPvP())

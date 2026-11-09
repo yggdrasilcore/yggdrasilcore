@@ -13848,7 +13848,7 @@ void Unit::CombatStart(Unit* victim, bool initialAggro)
         SetContestedPvP(who->ToPlayer());
 
     Player* player = GetCharmerOrOwnerPlayerOrPlayerItself();
-    if (player && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
+    if (player && !player->GetMap()->IsDungeon() && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
     {
         player->UpdatePvP(true);
         player->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_ENTER_PVP_COMBAT);
@@ -13879,7 +13879,7 @@ void Unit::CombatStartOnCast(Unit* target, bool initialAggro, uint32 duration)
         SetContestedPvP(who->ToPlayer());
 
     Player* player = GetCharmerOrOwnerPlayerOrPlayerItself();
-    if (player && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
+    if (player && !player->GetMap()->IsDungeon() && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
     {
         player->UpdatePvP(true);
         player->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_ENTER_PVP_COMBAT);
