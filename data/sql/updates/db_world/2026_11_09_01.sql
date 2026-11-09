@@ -70,4 +70,4 @@ UPDATE creature SET wander_distance = 5, MovementType = 1 WHERE id1 = 10663;
 replace into `creature` (`guid`, `id1`, `id2`, `id3`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`) values('108330','27530','0','0','571','0','0','1','1','0','3776','750.696','58.0335','2.30279','300','5','0','102820','0','1','0','0','0','','0','0',NULL);
 
 -- Fix Unmount of Proto-Drake Handler with Enslaved Proto Drake
-DELETE from ycore_world.vehicle_template_accessory where entry=24083;
+DELETE from vehicle_template_accessory where entry=24083;
