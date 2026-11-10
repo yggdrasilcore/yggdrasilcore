@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "AllCreatureScript.h"
 #include "AreaDefines.h"
 #include "CreatureScript.h"
 #include "PassiveAI.h"
@@ -2175,8 +2176,260 @@ class spell_soul_deflection : public AuraScript
     }
 };
 
+/*######
+## Quest 11957 - Saragosa's End
+######*/
+
+enum SaragosaEnd
+{
+    NPC_SARAGOSA                    = 26231,
+    NPC_SARAGOSA_WEAKENED           = 26232,
+    NPC_POWER_FOCUS_INVISMAN        = 26265,
+
+    SPELL_ACTIVATE_POWER_FOCUS      = 46793,
+    SPELL_BLUE_POWER_FOCUS          = 46789,
+    SPELL_VISUAL_KIT_FROST_BREATH   = 9795,
+
+    POINT_SARAGOSA_LAND             = 1,
+
+    EVENT_SARAGOSA_FROST_BREATH     = 1,
+    EVENT_CRYSTAL_SHRINK_TICK       = 2,
+    EVENT_DRAGON_SHRINK_TICK        = 3,
+
+    SARAGOSA_FROST_BREATHS          = 3,
+    SHRINK_TICKS                    = 25
+};
+
+static Position const SaragosaLandingPos(4050.19f, 7329.25f, 635.97f, 3.34f);
+static Position const SaragosaStartPos(4148.90f, 7344.10f, 685.97f, 3.34f);
+
+// The crystal is a spell visual attached to the invisible power focus unit.
+class npc_saragosa_end_invismanAI : public ScriptedAI
+{
+public:
+    npc_saragosa_end_invismanAI(Creature* creature) : ScriptedAI(creature), _baseScale(creature->GetObjectScale()) { }
+
+    void Reset() override
+    {
+        me->SetReactState(REACT_PASSIVE);
+        RestoreCrystal();
+        _sequenceRunning = false;
+    }
+
+    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+    {
+        if (spell->Id != SPELL_ACTIVATE_POWER_FOCUS || _sequenceRunning)
+            return;
+
+        if (me->FindNearestCreature(NPC_SARAGOSA, 40.0f) || me->FindNearestCreature(NPC_SARAGOSA_WEAKENED, 40.0f))
+            return;
+
+        _sequenceRunning = true;
+        me->SetObjectScale(_baseScale);
+        DoCastSelf(SPELL_BLUE_POWER_FOCUS, true);
+
+        if (!me->SummonCreature(NPC_SARAGOSA, SaragosaStartPos, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000))
+        {
+            _sequenceRunning = false;
+            RestoreCrystal();
+        }
+    }
+
+    void SummonedCreatureDespawn(Creature* summon) override
+    {
+        if (summon->GetEntry() != NPC_SARAGOSA)
+            return;
+
+        RestoreCrystal();
+        _sequenceRunning = false;
+    }
+
+private:
+    void RestoreCrystal()
+    {
+        me->RemoveAura(SPELL_BLUE_POWER_FOCUS);
+        me->SetObjectScale(_baseScale);
+    }
+
+    float _baseScale;
+    bool _sequenceRunning = false;
+};
+
+class npc_saragosa_end_cinematicAI : public ScriptedAI
+{
+public:
+    npc_saragosa_end_cinematicAI(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        _events.Reset();
+        me->SetReactState(REACT_PASSIVE);
+
+        if (_started)
+            return;
+
+        _started = true;
+        me->SetCanFly(true);
+        me->SetDisableGravity(true);
+        me->SetHover(true);
+        me->SetByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_ALWAYS_STAND | UNIT_BYTE1_FLAG_HOVER);
+        me->SendMovementFlagUpdate();
+        me->SetHomePosition(SaragosaLandingPos);
+
+        // Delay the spline until the client has processed the create packet and
+        // the flying state, otherwise the creature briefly walks through the air.
+        me->m_Events.AddEventAtOffset([creature = me]()
+        {
+            if (!creature->IsInWorld() || !creature->IsAlive())
+                return;
+
+            creature->GetMotionMaster()->MoveLand(POINT_SARAGOSA_LAND, SaragosaLandingPos, 18.0f);
+        }, 500ms);
+    }
+
+    void MovementInform(uint32 type, uint32 id) override
+    {
+        if (type != EFFECT_MOTION_TYPE || id != POINT_SARAGOSA_LAND)
+            return;
+
+        me->SetCanFly(false);
+        me->SetDisableGravity(false);
+        me->SetHover(false);
+        me->RemoveByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_ALWAYS_STAND | UNIT_BYTE1_FLAG_HOVER);
+        me->SendMovementFlagUpdate();
+
+        if (TempSummon* summon = me->ToTempSummon())
+        {
+            if (Unit* summoner = summon->GetSummonerUnit())
+                _crystalGUID = summoner->GetGUID();
+        }
+
+        if (!_crystalGUID)
+        {
+            if (Creature* invisman = me->FindNearestCreature(NPC_POWER_FOCUS_INVISMAN, 60.0f))
+                _crystalGUID = invisman->GetGUID();
+        }
+
+        if (Creature* crystal = GetCrystal())
+            me->SetFacingToObject(crystal);
+
+        _events.ScheduleEvent(EVENT_SARAGOSA_FROST_BREATH, 800ms);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        _events.Update(diff);
+
+        while (uint32 eventId = _events.ExecuteEvent())
+        {
+            switch (eventId)
+            {
+                case EVENT_SARAGOSA_FROST_BREATH:
+                    if (Creature* crystal = GetCrystal())
+                        me->SetFacingToObject(crystal);
+                    me->SendPlaySpellVisual(SPELL_VISUAL_KIT_FROST_BREATH);
+
+                    if (++_breaths < SARAGOSA_FROST_BREATHS)
+                        _events.ScheduleEvent(EVENT_SARAGOSA_FROST_BREATH, 1200ms);
+                    else
+                        _events.ScheduleEvent(EVENT_CRYSTAL_SHRINK_TICK, 1200ms);
+                    break;
+                case EVENT_CRYSTAL_SHRINK_TICK:
+                {
+                    Creature* crystal = GetCrystal();
+                    if (!crystal)
+                    {
+                        StartDragonShrink();
+                        break;
+                    }
+
+                    if (!_shrinkStep)
+                        _crystalBaseScale = crystal->GetObjectScale();
+
+                    float progress = std::min(1.0f, float(++_shrinkStep) / SHRINK_TICKS);
+                    crystal->SetObjectScale(_crystalBaseScale * (1.0f - 0.95f * progress));
+
+                    if (progress >= 1.0f)
+                    {
+                        crystal->RemoveAura(SPELL_BLUE_POWER_FOCUS);
+                        crystal->SetObjectScale(_crystalBaseScale);
+                        StartDragonShrink();
+                    }
+                    else
+                        _events.ScheduleEvent(EVENT_CRYSTAL_SHRINK_TICK, 100ms);
+                    break;
+                }
+                case EVENT_DRAGON_SHRINK_TICK:
+                {
+                    float progress = std::min(1.0f, float(++_shrinkStep) / SHRINK_TICKS);
+                    me->SetObjectScale(_dragonBaseScale * (1.0f - 0.95f * progress));
+
+                    if (progress >= 1.0f)
+                    {
+                        me->SummonCreature(NPC_SARAGOSA_WEAKENED, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation(), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000);
+                        me->DespawnOrUnsummon();
+                    }
+                    else
+                        _events.ScheduleEvent(EVENT_DRAGON_SHRINK_TICK, 100ms);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+
+private:
+    Creature* GetCrystal() const
+    {
+        if (!_crystalGUID)
+            return nullptr;
+
+        return ObjectAccessor::GetCreature(*me, _crystalGUID);
+    }
+
+    void StartDragonShrink()
+    {
+        _shrinkStep = 0;
+        _dragonBaseScale = me->GetObjectScale();
+        _events.ScheduleEvent(EVENT_DRAGON_SHRINK_TICK, 500ms);
+    }
+
+    EventMap _events;
+    ObjectGuid _crystalGUID;
+    float _crystalBaseScale = 1.0f;
+    float _dragonBaseScale = 1.0f;
+    uint8 _breaths = 0;
+    uint32 _shrinkStep = 0;
+    bool _started = false;
+};
+
+class SaragosaEndCreatureScript : public AllCreatureScript
+{
+public:
+    SaragosaEndCreatureScript() : AllCreatureScript("SaragosaEndCreatureScript") { }
+
+    CreatureAI* GetCreatureAI(Creature* creature) const override
+    {
+        switch (creature->GetEntry())
+        {
+            case NPC_POWER_FOCUS_INVISMAN:
+                return new npc_saragosa_end_invismanAI(creature);
+            case NPC_SARAGOSA:
+                // The pre-existing world spawn keeps its SmartAI; only the
+                // creature summoned by the Power Focus plays the cinematic.
+                if (!creature->IsSummon())
+                    return nullptr;
+                return new npc_saragosa_end_cinematicAI(creature);
+            default:
+                return nullptr;
+        }
+    }
+};
+
 void AddSC_borean_tundra()
 {
+    new SaragosaEndCreatureScript();
     RegisterSpellScript(spell_q11919_q11940_drake_hunt_aura);
     new npc_thassarian();
     new npc_thassarian2();
