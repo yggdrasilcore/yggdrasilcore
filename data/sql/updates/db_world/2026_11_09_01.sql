@@ -72,7 +72,7 @@ replace into `creature` (`guid`, `id1`, `id2`, `id3`, `map`, `zoneId`, `areaId`,
 -- Fix Unmount of Proto-Drake Handler with Enslaved Proto Drake
 DELETE from vehicle_template_accessory where entry=24083;
 
--- Add spawn of Njorndar Spear-Sister
+-- Add spawn of Njorndar Proto-Drake 
 REPLACE INTO creature (guid,id1,id2,id3,map,zoneId,areaId,spawnMask,phaseMask,equipment_id,position_x,position_y,position_z,orientation,spawntimesecs,wander_distance,currentwaypoint,curhealth,curmana,MovementType,npcflag,unit_flags,dynamicflags,ScriptName,VerifiedBuild,CreateObject,Comment) VALUES
 (15001862,30272,0,0,571,0,0,1,1,0,7793.9,3736.35,654.095,1.9553,300,0.0,0,37800,0,0,0,0,0,'',NULL,0,NULL),
 (15001863,30272,0,0,571,0,0,1,1,0,7819.02,3733.21,653.442,1.27122,300,0.0,0,37800,0,0,0,0,0,'',NULL,0,NULL);
