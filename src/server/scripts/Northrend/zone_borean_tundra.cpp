@@ -2328,6 +2328,10 @@ public:
                     me->CastSpell(me, SPELL_FROST_BREATH, true);
                     me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 468);
                     _events.ScheduleEvent(EVENT_SARAGOSA_CLEAR_EMOTE, 2000ms);
+
+                    if (Creature* crystal = GetCrystal())
+                        crystal->SetObjectScale(0.1f);
+
                     _events.ScheduleEvent(EVENT_SARAGOSA_END_CINEMATIC, 4400ms);
                     break;
                 case EVENT_SARAGOSA_CLEAR_EMOTE:
