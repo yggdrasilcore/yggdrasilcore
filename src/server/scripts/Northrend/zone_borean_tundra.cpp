@@ -2310,7 +2310,7 @@ public:
         if (Creature* crystal = GetCrystal())
             me->SetFacingToObject(crystal);
 
-        _events.ScheduleEvent(EVENT_SARAGOSA_FROST_BREATH, 800ms);
+        _events.ScheduleEvent(EVENT_SARAGOSA_FROST_BREATH, 2000ms);
     }
 
     void UpdateAI(uint32 diff) override
