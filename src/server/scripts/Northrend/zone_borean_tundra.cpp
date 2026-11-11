@@ -2193,7 +2193,8 @@ enum SaragosaEnd
     POINT_SARAGOSA_LAND             = 1,
 
     EVENT_SARAGOSA_FROST_BREATH     = 1,
-    EVENT_SARAGOSA_END_CINEMATIC    = 2
+    EVENT_SARAGOSA_END_CINEMATIC    = 2,
+    EVENT_SARAGOSA_SHRINK_DONE      = 3
 };
 
 static Position const SaragosaLandingPos(4026.5896f, 7295.404f, 635.91567f, 1.3289019f);
@@ -2332,6 +2333,10 @@ public:
 
                     StartDragonShrink();
                     break;
+                case EVENT_SARAGOSA_SHRINK_DONE:
+                    me->SummonCreature(NPC_SARAGOSA_WEAKENED, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation(), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000);
+                    me->DespawnOrUnsummon();
+                    break;
                 default:
                     break;
             }
@@ -2350,8 +2355,7 @@ private:
     void StartDragonShrink()
     {
         me->SetObjectScale(0.1f);
-        me->SummonCreature(NPC_SARAGOSA_WEAKENED, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation(), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000);
-        me->DespawnOrUnsummon();
+        _events.ScheduleEvent(EVENT_SARAGOSA_SHRINK_DONE, 2500ms);
     }
 
     EventMap _events;
