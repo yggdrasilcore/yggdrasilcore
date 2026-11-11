@@ -56,13 +56,23 @@ WORKDIR /yggdrasilcore
 # them are needed to build the core.
 FROM skeleton AS build-toolchain
 
+# The development packages of every build variant are installed here, in front
+# of the source copy. A layer behind the source copy is invalidated by every
+# source change, so installing the packages per variant would run
+# "apt-get update" and "apt-get install" again on every rebuild.
+#
+#   - readline and ncurses: the worldserver links them directly (see the
+#     LINK_FLAGS in src/server/apps/CMakeLists.txt)
+#   - zlib and bzip2: the map libraries pull them in
+#   - lld: links the big binaries considerably faster than GNU ld
 RUN apt-get update                                                     \
     && apt-get install -y --no-install-recommends                         \
-        build-essential ccache cmake ninja-build clang git                  \
+        build-essential ccache cmake ninja-build clang lld git            \
         default-libmysqlclient-dev libssl-dev libdw-dev                   \
         libboost-dev                                                      \
         libboost-filesystem-dev libboost-program-options-dev              \
         libboost-iostreams-dev libboost-regex-dev libboost-thread-dev      \
+        libreadline-dev libncurses5-dev zlib1g-dev libbz2-dev             \
     && dpkg -s libmysqlclient-dev | grep '^Version' | cut -d' ' -f2 > /mysql-client-version \
     && rm -rf /var/lib/apt/lists/*
 
@@ -155,20 +165,21 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
     && cmake /yggdrasilcore \
        -G Ninja \
        -DCMAKE_INSTALL_PREFIX="/yggdrasilcore/env/dist"  \
-       -DAPPS_BUILD="auth-only"                           \
-       -DTOOLS_BUILD="none"                                \
-       -DSCRIPTS="none"                                    \
-       -DMODULES="none"                                    \
-       -DWITH_WARNINGS="$CWITH_WARNINGS"                   \
-       -DCMAKE_BUILD_TYPE="$CTYPE"                         \
-       -DCMAKE_CXX_COMPILER="clang++"                      \
-       -DCMAKE_C_COMPILER="clang"                          \
-       -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"             \
-       -DCMAKE_C_COMPILER_LAUNCHER="ccache"               \
-       -DBoost_USE_STATIC_LIBS="ON"                        \
-       -DLUA_VERSION="luajit"                              \
-       -DCMAKE_C_FLAGS="-gdwarf-aranges"                  \
-       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"                \
+       -DAPPS_BUILD="auth-only"                          \
+       -DTOOLS_BUILD="none"                              \
+       -DSCRIPTS="none"                                  \
+       -DMODULES="none"                                  \
+       -DWITH_WARNINGS="$CWITH_WARNINGS"                 \
+       -DCMAKE_BUILD_TYPE="$CTYPE"                       \
+       -DCMAKE_CXX_COMPILER="clang++"                    \
+       -DCMAKE_C_COMPILER="clang"                        \
+       -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"           \
+       -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"            \
+       -DCMAKE_C_COMPILER_LAUNCHER="ccache"              \
+       -DBoost_USE_STATIC_LIBS="ON"                      \
+       -DLUA_VERSION="luajit"                            \
+       -DCMAKE_C_FLAGS="-gdwarf-aranges"                 \
+       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"               \
        $CMAKE_EXTRA_OPTIONS                                \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
@@ -180,33 +191,27 @@ ARG CTYPE
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
-# The worldserver links readline and ncurses directly (see the LINK_FLAGS in
-# src/server/apps/CMakeLists.txt), and the map libraries pull in zlib.
-RUN apt-get update                                                      \
-    && apt-get install -y --no-install-recommends                         \
-        libreadline-dev libncurses5-dev zlib1g-dev                       \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
     --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=shared \
     git config --global --add safe.directory /yggdrasilcore \
     && cmake /yggdrasilcore \
        -G Ninja \
        -DCMAKE_INSTALL_PREFIX="/yggdrasilcore/env/dist"  \
-       -DAPPS_BUILD="world-only"                          \
-       -DTOOLS_BUILD="db-only"                            \
-       -DSCRIPTS="static"                                 \
-       -DMODULES="static"                                 \
-       -DWITH_WARNINGS="$CWITH_WARNINGS"                   \
-       -DCMAKE_BUILD_TYPE="$CTYPE"                         \
-       -DCMAKE_CXX_COMPILER="clang++"                      \
-       -DCMAKE_C_COMPILER="clang"                          \
-       -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"             \
-       -DCMAKE_C_COMPILER_LAUNCHER="ccache"               \
-       -DBoost_USE_STATIC_LIBS="ON"                        \
-       -DLUA_VERSION="luajit"                              \
-       -DCMAKE_C_FLAGS="-gdwarf-aranges"                  \
-       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"                \
+       -DAPPS_BUILD="world-only"                         \
+       -DTOOLS_BUILD="db-only"                           \
+       -DSCRIPTS="static"                                \
+       -DMODULES="static"                                \
+       -DWITH_WARNINGS="$CWITH_WARNINGS"                 \
+       -DCMAKE_BUILD_TYPE="$CTYPE"                       \
+       -DCMAKE_CXX_COMPILER="clang++"                    \
+       -DCMAKE_C_COMPILER="clang"                        \
+       -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"           \
+       -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"            \
+       -DCMAKE_C_COMPILER_LAUNCHER="ccache"              \
+       -DBoost_USE_STATIC_LIBS="ON"                      \
+       -DLUA_VERSION="luajit"                            \
+       -DCMAKE_C_FLAGS="-gdwarf-aranges"                 \
+       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"               \
        $CMAKE_EXTRA_OPTIONS                                \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
@@ -218,30 +223,25 @@ ARG CTYPE
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
-# The map tools link zlib and bzip2.
-RUN apt-get update                                                      \
-    && apt-get install -y --no-install-recommends                         \
-        zlib1g-dev libbz2-dev                                           \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
     --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=shared \
     git config --global --add safe.directory /yggdrasilcore \
     && cmake /yggdrasilcore \
-       -G Ninja \
+       -G Ninja                                          \
        -DCMAKE_INSTALL_PREFIX="/yggdrasilcore/env/dist"  \
-       -DAPPS_BUILD="none"                                \
-       -DTOOLS_BUILD="maps-only"                          \
-       -DSCRIPTS="none"                                   \
-       -DMODULES="none"                                   \
-       -DWITH_WARNINGS="$CWITH_WARNINGS"                  \
-       -DCMAKE_BUILD_TYPE="$CTYPE"                        \
-       -DCMAKE_CXX_COMPILER="clang++"                     \
-       -DCMAKE_C_COMPILER="clang"                         \
+       -DAPPS_BUILD="none"                               \
+       -DTOOLS_BUILD="maps-only"                         \
+       -DSCRIPTS="none"                                  \
+       -DMODULES="none"                                  \
+       -DWITH_WARNINGS="$CWITH_WARNINGS"                 \
+       -DCMAKE_BUILD_TYPE="$CTYPE"                       \
+       -DCMAKE_CXX_COMPILER="clang++"                    \
+       -DCMAKE_C_COMPILER="clang"                        \
+       -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"           \
        -DCMAKE_CXX_COMPILER_LAUNCHER="ccache"            \
        -DCMAKE_C_COMPILER_LAUNCHER="ccache"              \
-       -DBoost_USE_STATIC_LIBS="ON"                       \
-       -DLUA_VERSION="luajit"                             \
+       -DBoost_USE_STATIC_LIBS="ON"                      \
+       -DLUA_VERSION="luajit"                            \
        -DCMAKE_C_FLAGS="-gdwarf-aranges"                 \
        -DCMAKE_CXX_FLAGS="-gdwarf-aranges"               \
        $CMAKE_EXTRA_OPTIONS                               \
@@ -490,15 +490,14 @@ RUN apt-get update && \
       libssl3 libdw1 zlib1g libbz2-1.0 && \
     rm -rf /var/lib/apt/lists/*
 
+# The map tools have no configuration of their own, so the reference
+# configuration directory stays empty.
 RUN mkdir -pv /yggdrasilcore/env/dist/Cameras \
               /yggdrasilcore/env/dist/dbc     \
               /yggdrasilcore/env/dist/maps    \
               /yggdrasilcore/env/dist/mmaps   \
-              /yggdrasilcore/env/dist/vmaps
-
-# The map tools have no configuration of their own, so there is no reference
-# configuration directory for them.
-RUN mkdir -p /yggdrasilcore/env/ref/etc
+              /yggdrasilcore/env/dist/vmaps \
+              /yggdrasilcore/env/ref/etc
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER --from=build-tools \
   /yggdrasilcore/env/dist/bin/map_extractor /yggdrasilcore/env/dist/bin/map_extractor
