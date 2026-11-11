@@ -422,10 +422,14 @@ LABEL description="YggdrasilCore Database Import tool"
 
 ENV YCORE_COMPONENT=dbimport
 
+# The database updater applies the SQL files with the mysql client, it spawns
+# the executable (see the StartProcess call in DBUpdater.h), so the client has
+# to be in the image.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       libssl3 libdw1 zlib1g \
-      libmysqlclient21=$(cat /mysql-client-version) && \
+      libmysqlclient21=$(cat /mysql-client-version) \
+      default-mysql-client && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --chown=$DOCKER_USER:$DOCKER_USER \
