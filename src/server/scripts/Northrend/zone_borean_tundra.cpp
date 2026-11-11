@@ -2188,20 +2188,16 @@ enum SaragosaEnd
 
     SPELL_ACTIVATE_POWER_FOCUS      = 46793,
     SPELL_BLUE_POWER_FOCUS          = 46789,
-    SPELL_VISUAL_KIT_FROST_BREATH   = 9795,
+    SPELL_FROST_BREATH              = 46802,
 
     POINT_SARAGOSA_LAND             = 1,
 
     EVENT_SARAGOSA_FROST_BREATH     = 1,
-    EVENT_CRYSTAL_SHRINK_TICK       = 2,
-    EVENT_DRAGON_SHRINK_TICK        = 3,
-
-    SARAGOSA_FROST_BREATHS          = 3,
-    SHRINK_TICKS                    = 25
+    EVENT_SARAGOSA_END_CINEMATIC    = 2
 };
 
-static Position const SaragosaLandingPos(4050.19f, 7329.25f, 635.97f, 3.34f);
-static Position const SaragosaStartPos(4148.90f, 7344.10f, 685.97f, 3.34f);
+static Position const SaragosaLandingPos(4026.5896f, 7295.404f, 635.91567f, 1.3289019f);
+static Position const SaragosaStartPos(3996.542f, 7224.922f, 668.13257f, 1.0367f);
 
 // The crystal is a spell visual attached to the invisible power focus unit.
 class npc_saragosa_end_invismanAI : public ScriptedAI
@@ -2327,52 +2323,15 @@ public:
                 case EVENT_SARAGOSA_FROST_BREATH:
                     if (Creature* crystal = GetCrystal())
                         me->SetFacingToObject(crystal);
-                    me->SendPlaySpellVisual(SPELL_VISUAL_KIT_FROST_BREATH);
-
-                    if (++_breaths < SARAGOSA_FROST_BREATHS)
-                        _events.ScheduleEvent(EVENT_SARAGOSA_FROST_BREATH, 1200ms);
-                    else
-                        _events.ScheduleEvent(EVENT_CRYSTAL_SHRINK_TICK, 1200ms);
+                    me->CastSpell(me, SPELL_FROST_BREATH, true);
+                    _events.ScheduleEvent(EVENT_SARAGOSA_END_CINEMATIC, 4400ms);
                     break;
-                case EVENT_CRYSTAL_SHRINK_TICK:
-                {
-                    Creature* crystal = GetCrystal();
-                    if (!crystal)
-                    {
-                        StartDragonShrink();
-                        break;
-                    }
-
-                    if (!_shrinkStep)
-                        _crystalBaseScale = crystal->GetObjectScale();
-
-                    float progress = std::min(1.0f, float(++_shrinkStep) / SHRINK_TICKS);
-                    crystal->SetObjectScale(_crystalBaseScale * (1.0f - 0.95f * progress));
-
-                    if (progress >= 1.0f)
-                    {
+                case EVENT_SARAGOSA_END_CINEMATIC:
+                    if (Creature* crystal = GetCrystal())
                         crystal->RemoveAura(SPELL_BLUE_POWER_FOCUS);
-                        crystal->SetObjectScale(_crystalBaseScale);
-                        StartDragonShrink();
-                    }
-                    else
-                        _events.ScheduleEvent(EVENT_CRYSTAL_SHRINK_TICK, 100ms);
-                    break;
-                }
-                case EVENT_DRAGON_SHRINK_TICK:
-                {
-                    float progress = std::min(1.0f, float(++_shrinkStep) / SHRINK_TICKS);
-                    me->SetObjectScale(_dragonBaseScale * (1.0f - 0.95f * progress));
 
-                    if (progress >= 1.0f)
-                    {
-                        me->SummonCreature(NPC_SARAGOSA_WEAKENED, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation(), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000);
-                        me->DespawnOrUnsummon();
-                    }
-                    else
-                        _events.ScheduleEvent(EVENT_DRAGON_SHRINK_TICK, 100ms);
+                    StartDragonShrink();
                     break;
-                }
                 default:
                     break;
             }
@@ -2390,17 +2349,13 @@ private:
 
     void StartDragonShrink()
     {
-        _shrinkStep = 0;
-        _dragonBaseScale = me->GetObjectScale();
-        _events.ScheduleEvent(EVENT_DRAGON_SHRINK_TICK, 500ms);
+        me->SetObjectScale(0.1f);
+        me->SummonCreature(NPC_SARAGOSA_WEAKENED, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation(), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 120000);
+        me->DespawnOrUnsummon();
     }
 
     EventMap _events;
     ObjectGuid _crystalGUID;
-    float _crystalBaseScale = 1.0f;
-    float _dragonBaseScale = 1.0f;
-    uint8 _breaths = 0;
-    uint32 _shrinkStep = 0;
     bool _started = false;
 };
 
