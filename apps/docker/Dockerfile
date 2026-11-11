@@ -163,9 +163,16 @@ ARG CTYPE
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
+# The root CMakeLists adds the directories of the modules whatever the scope of
+# the build is. The module of mod-yla builds the luajit and installs the
+# directory it builds into, and that directory is only built when the
+# worldserver links the luajit. The install of the variants that do not build
+# the worldserver would fail on the missing directory, and the authserver does
+# not use the modules.
 RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
     --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=shared \
     git config --global --add safe.directory /yggdrasilcore \
+    && DISABLED_MODULES=$(ls -1 /yggdrasilcore/modules | sed 's/$/;/' | tr -d '\n') \
     && cmake /yggdrasilcore \
        -G Ninja \
        -DCMAKE_INSTALL_PREFIX="/yggdrasilcore/env/dist"  \
@@ -173,6 +180,7 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
        -DTOOLS_BUILD="none"                              \
        -DSCRIPTS="none"                                  \
        -DMODULES="none"                                  \
+       -DDISABLED_YC_MODULES="$DISABLED_MODULES"         \
        -DWITH_WARNINGS="$CWITH_WARNINGS"                 \
        -DCMAKE_BUILD_TYPE="$CTYPE"                       \
        -DCMAKE_CXX_COMPILER="clang++"                    \
@@ -227,9 +235,13 @@ ARG CTYPE
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
+# The map tools do not use the modules, and the module of mod-yla installs the
+# directory of the luajit it builds, which is only built when the worldserver
+# links the luajit.
 RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
     --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=shared \
     git config --global --add safe.directory /yggdrasilcore \
+    && DISABLED_MODULES=$(ls -1 /yggdrasilcore/modules | sed 's/$/;/' | tr -d '\n') \
     && cmake /yggdrasilcore \
        -G Ninja                                          \
        -DCMAKE_INSTALL_PREFIX="/yggdrasilcore/env/dist"  \
@@ -237,6 +249,7 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
        -DTOOLS_BUILD="maps-only"                         \
        -DSCRIPTS="none"                                  \
        -DMODULES="none"                                  \
+       -DDISABLED_YC_MODULES="$DISABLED_MODULES"         \
        -DWITH_WARNINGS="$CWITH_WARNINGS"                 \
        -DCMAKE_BUILD_TYPE="$CTYPE"                       \
        -DCMAKE_CXX_COMPILER="clang++"                    \
