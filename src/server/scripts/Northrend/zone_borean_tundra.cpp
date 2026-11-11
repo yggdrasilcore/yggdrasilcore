@@ -2194,7 +2194,8 @@ enum SaragosaEnd
 
     EVENT_SARAGOSA_FROST_BREATH     = 1,
     EVENT_SARAGOSA_END_CINEMATIC    = 2,
-    EVENT_SARAGOSA_SHRINK_DONE      = 3
+    EVENT_SARAGOSA_SHRINK_DONE      = 3,
+    EVENT_SARAGOSA_CLEAR_EMOTE      = 4
 };
 
 static Position const SaragosaLandingPos(4026.5896f, 7295.404f, 635.91567f, 1.3289019f);
@@ -2325,7 +2326,12 @@ public:
                     if (Creature* crystal = GetCrystal())
                         me->SetFacingToObject(crystal);
                     me->CastSpell(me, SPELL_FROST_BREATH, true);
+                    me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 468);
+                    _events.ScheduleEvent(EVENT_SARAGOSA_CLEAR_EMOTE, 2000ms);
                     _events.ScheduleEvent(EVENT_SARAGOSA_END_CINEMATIC, 4400ms);
+                    break;
+                case EVENT_SARAGOSA_CLEAR_EMOTE:
+                    me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
                     break;
                 case EVENT_SARAGOSA_END_CINEMATIC:
                     if (Creature* crystal = GetCrystal())
