@@ -65,10 +65,14 @@ FROM skeleton AS build-toolchain
 #     LINK_FLAGS in src/server/apps/CMakeLists.txt)
 #   - zlib and bzip2: the map libraries pull them in
 #   - lld: links the big binaries considerably faster than GNU ld
+#   - mysql-client-core: the path of the mysql client is found at build time
+#     and baked into the binaries, the database updater spawns it by that
+#     path, so the client has to exist where it is looked up
 RUN apt-get update                                                     \
     && apt-get install -y --no-install-recommends                         \
         build-essential ccache cmake ninja-build clang lld git            \
-        default-libmysqlclient-dev libssl-dev libdw-dev                   \
+        default-libmysqlclient-dev mysql-client-core-8.0                  \
+        libssl-dev libdw-dev                                            \
         libboost-dev                                                      \
         libboost-filesystem-dev libboost-program-options-dev              \
         libboost-iostreams-dev libboost-regex-dev libboost-thread-dev      \
