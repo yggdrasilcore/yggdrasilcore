@@ -1,12 +1,19 @@
 # CI-only overlay: keep the build lean enough for a GitHub-hosted runner.
-# The default Dockerfile builds every tool in RelWithDebInfo with warnings on;
+# The default Dockerfile builds every image in RelWithDebInfo with warnings on;
 # the smoke test only needs the servers and dbimport.
+#
+# The scope of each build is fixed per image (see the build variants in the
+# Dockerfile), so there is no scope argument to pass here anymore. Only the
+# build type and the warning level are still tunable.
+#
+# The debug information flags are not affected by CTYPE: the crash handler
+# needs the DWARF information to symbolize a backtrace, so the images carry it
+# in every build type.
 services:
   yggdrasilcore-db-import:
     build:
       args:
         CTYPE: Release
-        CTOOLS_BUILD: db-only
         CWITH_WARNINGS: "OFF"
       cache_from:
         - type=gha,scope=yggdrasilcore-build
@@ -15,7 +22,6 @@ services:
     build:
       args:
         CTYPE: Release
-        CTOOLS_BUILD: db-only
         CWITH_WARNINGS: "OFF"
       cache_from:
         - type=gha,scope=yggdrasilcore-build
@@ -24,7 +30,6 @@ services:
     build:
       args:
         CTYPE: Release
-        CTOOLS_BUILD: db-only
         CWITH_WARNINGS: "OFF"
       cache_from:
         - type=gha,scope=yggdrasilcore-build
