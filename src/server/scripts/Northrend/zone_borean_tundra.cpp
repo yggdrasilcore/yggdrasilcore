@@ -2269,8 +2269,7 @@ public:
         _started = true;
         me->SetCanFly(true);
         me->SetDisableGravity(true);
-        me->SetHover(true);
-        me->SetByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_ALWAYS_STAND | UNIT_BYTE1_FLAG_HOVER);
+        me->SetByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_FLY);
         me->SendMovementFlagUpdate();
         me->SetHomePosition(SaragosaLandingPos);
 
@@ -2292,8 +2291,7 @@ public:
 
         me->SetCanFly(false);
         me->SetDisableGravity(false);
-        me->SetHover(false);
-        me->RemoveByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_ALWAYS_STAND | UNIT_BYTE1_FLAG_HOVER);
+        me->RemoveByteFlag(UNIT_FIELD_BYTES_1, 3, UNIT_BYTE1_FLAG_FLY);
         me->SendMovementFlagUpdate();
 
         if (TempSummon* summon = me->ToTempSummon())
