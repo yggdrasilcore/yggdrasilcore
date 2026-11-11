@@ -4,16 +4,11 @@
 #
 # The scope of each build is fixed per image (see the build variants in the
 # Dockerfile), so there is no scope argument to pass here anymore. Only the
-# build type and the warning level are still tunable.
-#
-# The debug information flags are not affected by CTYPE: the crash handler
-# needs the DWARF information to symbolize a backtrace, so the images carry it
-# in every build type.
+# warning level is still tunable.
 services:
   yggdrasilcore-db-import:
     build:
       args:
-        CTYPE: Release
         CWITH_WARNINGS: "OFF"
       cache_from:
         - type=gha,scope=yggdrasilcore-build
@@ -21,7 +16,6 @@ services:
   yggdrasilcore-authserver:
     build:
       args:
-        CTYPE: Release
         CWITH_WARNINGS: "OFF"
       cache_from:
         - type=gha,scope=yggdrasilcore-build
@@ -29,7 +23,6 @@ services:
   yggdrasilcore-worldserver:
     build:
       args:
-        CTYPE: Release
         CWITH_WARNINGS: "OFF"
       cache_from:
         - type=gha,scope=yggdrasilcore-build

@@ -1,19 +1,7 @@
 ARG UBUNTU_VERSION=22.04 # lts
 
-# Build type. RelWithDebInfo carries the -g flag the crash handler needs to
-# symbolize a backtrace, so it is the default for the images we ship.
+# Build type.
 ARG CTYPE="RelWithDebInfo"
-# Debug information flags.
-#
-# The crash handler (src/common/Debugging/CrashHandler.cpp) and the deadlock
-# detector need DWARF debug information to symbolize a backtrace:
-#   - "-g", so that the binary carries debug information at all,
-#   - "-gdwarf-aranges", because clang does not emit the .debug_aranges
-#     section on its own (gcc does), and the handler needs it to look up the
-#     scopes of a frame.
-# Both are passed explicitly so the crash report does not depend on the build
-# type providing -g.
-ARG CDEBUG="-g -gdwarf-aranges"
 ARG CWITH_WARNINGS="ON"
 ARG CMAKE_EXTRA_OPTIONS=""
 
@@ -158,7 +146,6 @@ RUN --mount=type=bind,source=.git,target=/git-seed \
 FROM build-seed AS build-auth
 
 ARG CTYPE
-ARG CDEBUG
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
@@ -180,8 +167,8 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
        -DCMAKE_C_COMPILER_LAUNCHER="ccache"               \
        -DBoost_USE_STATIC_LIBS="ON"                        \
        -DLUA_VERSION="luajit"                              \
-       -DCMAKE_C_FLAGS="$CDEBUG"                           \
-       -DCMAKE_CXX_FLAGS="$CDEBUG"                         \
+       -DCMAKE_C_FLAGS="-gdwarf-aranges"                  \
+       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"                \
        $CMAKE_EXTRA_OPTIONS                                \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
@@ -190,7 +177,6 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
 FROM build-seed AS build-world
 
 ARG CTYPE
-ARG CDEBUG
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
@@ -219,8 +205,8 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
        -DCMAKE_C_COMPILER_LAUNCHER="ccache"               \
        -DBoost_USE_STATIC_LIBS="ON"                        \
        -DLUA_VERSION="luajit"                              \
-       -DCMAKE_C_FLAGS="$CDEBUG"                           \
-       -DCMAKE_CXX_FLAGS="$CDEBUG"                         \
+       -DCMAKE_C_FLAGS="-gdwarf-aranges"                  \
+       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"                \
        $CMAKE_EXTRA_OPTIONS                                \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
@@ -229,7 +215,6 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
 FROM build-seed AS build-tools
 
 ARG CTYPE
-ARG CDEBUG
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
@@ -257,8 +242,8 @@ RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
        -DCMAKE_C_COMPILER_LAUNCHER="ccache"              \
        -DBoost_USE_STATIC_LIBS="ON"                       \
        -DLUA_VERSION="luajit"                             \
-       -DCMAKE_C_FLAGS="$CDEBUG"                          \
-       -DCMAKE_CXX_FLAGS="$CDEBUG"                        \
+       -DCMAKE_C_FLAGS="-gdwarf-aranges"                 \
+       -DCMAKE_CXX_FLAGS="-gdwarf-aranges"               \
        $CMAKE_EXTRA_OPTIONS                               \
     && cmake --build . --config "$CTYPE" -j $(($(nproc) + 1)) \
     && cmake --install . --config "$CTYPE"
