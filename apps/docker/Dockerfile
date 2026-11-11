@@ -78,6 +78,29 @@ RUN apt-get update                                                     \
     && dpkg -s libmysqlclient-dev | grep '^Version' | cut -d' ' -f2 > /mysql-client-version \
     && rm -rf /var/lib/apt/lists/*
 
+# The compiler cache.
+#
+# CCACHE_DIR has to point at the cache mount, otherwise ccache stores the
+# objects in /root/.cache/ccache, outside of the mount, and both the mount and
+# the ccache-export stage stay empty.
+#
+# The other settings are what make the cache usable in a container: the
+# checkout gives every source file a new mtime on every build, so without
+# include_file_mtime every entry would be invalidated, and the precompiled
+# headers are regenerated with every build, so without pch_defines every
+# translation unit that uses them would be invalidated.
+ARG CCACHE_DIR="/ccache"
+ARG CCACHE_MAXSIZE="1000MB"
+ARG CCACHE_COMPILERCHECK="content"
+ARG CCACHE_SLOPPINESS="pch_defines,time_macros,include_file_mtime"
+ARG CCACHE_COMPRESS="1"
+
+ENV CCACHE_DIR="${CCACHE_DIR}"                     \
+    CCACHE_MAXSIZE="${CCACHE_MAXSIZE}"             \
+    CCACHE_COMPILERCHECK="${CCACHE_COMPILERCHECK}" \
+    CCACHE_SLOPPINESS="${CCACHE_SLOPPINESS}"       \
+    CCACHE_COMPRESS="${CCACHE_COMPRESS}"
+
 ###################################
 # Source tree                     #
 ###################################
