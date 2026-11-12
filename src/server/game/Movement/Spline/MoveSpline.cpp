@@ -18,6 +18,7 @@
 #include "MoveSpline.h"
 #include "Creature.h"
 #include "Log.h"
+#include <algorithm>
 #include <sstream>
 
 namespace Movement
@@ -63,6 +64,38 @@ namespace Movement
                 c.orientation = -c.orientation;
         }
         return c;
+    }
+
+    void MoveSpline::SetVelocity(float velocity)
+    {
+        if (!Initialized() || Finalized() || velocity <= 0.0f)
+            return;
+
+        // Keep the travelled fraction of the current segment, the path itself is unchanged.
+        float u = 1.0f;
+        int32 const segDuration = spline.length(point_Idx, point_Idx + 1);
+        if (segDuration > 0)
+            u = std::clamp(float(time_passed - spline.length(point_Idx)) / float(segDuration), 0.0f, 1.0f);
+
+        if (splineflags.falling)
+        {
+            FallInitializer init(spline.getPoint(spline.first()).z);
+            spline.initLengths(init);
+        }
+        else
+        {
+            CommonInitializer init(velocity);
+            spline.initLengths(init);
+        }
+
+        if (spline.length() < minimal_duration)
+            spline.set_length(spline.last(), spline.isCyclic() ? 1000 : 1);
+
+        time_passed = spline.length(point_Idx) + int32(u * float(spline.length(point_Idx, point_Idx + 1)));
+
+        // Effect start moves with the new duration; vertical_acceleration keeps its old amplitude.
+        if (splineflags.parabolic || splineflags.animation)
+            effect_start_time = Duration() * _time_perc;
     }
 
     void MoveSpline::computeParabolicElevation(float& el) const
@@ -167,6 +200,8 @@ namespace Movement
         time_passed = 0;
         vertical_acceleration = 0.f;
         effect_start_time = 0;
+        _velocity = args.velocity;
+        _time_perc = args.time_perc;
 
         // Check if its a stop spline
         if (args.flags.done)
@@ -192,7 +227,7 @@ namespace Movement
 
     MoveSpline::MoveSpline() : m_Id(0), time_passed(0),
         vertical_acceleration(0.f), initialOrientation(0.f), effect_start_time(0), point_Idx(0), point_Idx_offset(0),
-        onTransport(false)
+        _velocity(0.f), _time_perc(0.f), onTransport(false)
     {
         splineflags.done = true;
     }

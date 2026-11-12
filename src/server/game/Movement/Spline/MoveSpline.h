@@ -68,6 +68,9 @@ namespace Movement
         int32           point_Idx;
         int32           point_Idx_offset;
 
+        float           _velocity;
+        float           _time_perc;
+
         // Parallel to the control points: 0 marks a smoothing midpoint.
         std::vector<uint8> pointFlags;
 
@@ -114,6 +117,11 @@ namespace Movement
         }
 
         [[nodiscard]] Location ComputePosition() const;
+
+        /** Re-times the running spline to a new velocity, keeping the path and the current position. */
+        void SetVelocity(float velocity);
+
+        [[nodiscard]] MoveSplineFlag const& GetFlags() const { return splineflags; }
 
         [[nodiscard]] uint32 GetId() const { return m_Id; }
         [[nodiscard]] bool Finalized() const { return splineflags.done; }

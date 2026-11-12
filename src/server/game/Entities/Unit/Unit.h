@@ -1693,6 +1693,7 @@ public:
     void JumpTo(WorldObject* obj, float speedZ);
 
     void  UpdateSpeed(UnitMoveType mtype, bool forced);
+    void  RetimeSplineForSpeedChange(UnitMoveType mtype, float oldSpeed);
     [[nodiscard]] float GetSpeed(UnitMoveType mtype) const;
     [[nodiscard]] float GetSpeedRate(UnitMoveType mtype) const { return m_speed_rate[mtype]; }
     void SetSpeed(UnitMoveType mtype, float rate, bool forced = false);
