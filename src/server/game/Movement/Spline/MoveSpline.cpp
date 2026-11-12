@@ -66,38 +66,6 @@ namespace Movement
         return c;
     }
 
-    void MoveSpline::SetVelocity(float velocity)
-    {
-        if (!Initialized() || Finalized() || velocity <= 0.0f)
-            return;
-
-        // Keep the travelled fraction of the current segment, the path itself is unchanged.
-        float u = 1.0f;
-        int32 const segDuration = spline.length(point_Idx, point_Idx + 1);
-        if (segDuration > 0)
-            u = std::clamp(float(time_passed - spline.length(point_Idx)) / float(segDuration), 0.0f, 1.0f);
-
-        if (splineflags.falling)
-        {
-            FallInitializer init(spline.getPoint(spline.first()).z);
-            spline.initLengths(init);
-        }
-        else
-        {
-            CommonInitializer init(velocity);
-            spline.initLengths(init);
-        }
-
-        if (spline.length() < minimal_duration)
-            spline.set_length(spline.last(), spline.isCyclic() ? 1000 : 1);
-
-        time_passed = spline.length(point_Idx) + int32(u * float(spline.length(point_Idx, point_Idx + 1)));
-
-        // Effect start moves with the new duration; vertical_acceleration keeps its old amplitude.
-        if (splineflags.parabolic || splineflags.animation)
-            effect_start_time = Duration() * _time_perc;
-    }
-
     void MoveSpline::computeParabolicElevation(float& el) const
     {
         if (time_passed > effect_start_time)
@@ -151,6 +119,38 @@ namespace Movement
         float velocityInv;
         int32 _time;
     };
+
+    void MoveSpline::SetVelocity(float velocity)
+    {
+        if (!Initialized() || Finalized() || velocity <= 0.0f)
+            return;
+
+        // Keep the travelled fraction of the current segment, the path itself is unchanged.
+        float u = 1.0f;
+        int32 const segDuration = spline.length(point_Idx, point_Idx + 1);
+        if (segDuration > 0)
+            u = std::clamp(float(time_passed - spline.length(point_Idx)) / float(segDuration), 0.0f, 1.0f);
+
+        if (splineflags.falling)
+        {
+            FallInitializer init(spline.getPoint(spline.first()).z);
+            spline.initLengths(init);
+        }
+        else
+        {
+            CommonInitializer init(velocity);
+            spline.initLengths(init);
+        }
+
+        if (spline.length() < minimal_duration)
+            spline.set_length(spline.last(), spline.isCyclic() ? 1000 : 1);
+
+        time_passed = spline.length(point_Idx) + int32(u * float(spline.length(point_Idx, point_Idx + 1)));
+
+        // Effect start moves with the new duration; vertical_acceleration keeps its old amplitude.
+        if (splineflags.parabolic || splineflags.animation)
+            effect_start_time = Duration() * _time_perc;
+    }
 
     void MoveSpline::init_spline(const MoveSplineInitArgs& args)
     {
