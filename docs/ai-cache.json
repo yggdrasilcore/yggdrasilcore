@@ -43443,5 +43443,26 @@
    "ai": true,
    "model": "qwen3.5:4b"
   }
+ },
+ "Unit::RetimeSplineForSpeedChange@d616a5f0:qwen3-5-4b": {
+  "hash": "fa5ea79c1be5",
+  "desc": "Retries the movement spline for a unit to adjust its speed based on the new speed value",
+  "raw": "{\"what\": \"Retries the movement spline for a unit to adjust its speed based on the new speed value\", \"effects\": \"none\"}",
+  "entry": {
+   "class": "Unit",
+   "name": "RetimeSplineForSpeedChange",
+   "sig": "void RetimeSplineForSpeedChange(UnitMoveType mtype, float oldSpeed)",
+   "file": "src/server/game/Entities/Unit/Unit.h",
+   "line": 1696,
+   "access": "public",
+   "impl": {
+    "file": "src/server/game/Entities/Unit/Unit.cpp",
+    "line": 14591
+   },
+   "hash": "fa5ea79c1be5",
+   "desc": "Retries the movement spline for a unit to adjust its speed based on the new speed value",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
  }
 }
