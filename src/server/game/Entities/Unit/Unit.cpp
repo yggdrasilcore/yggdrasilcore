@@ -14579,7 +14579,60 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced)
             speed = min_speed;
     }
 
+    float const oldSpeed = GetSpeed(mtype);
     SetSpeed(mtype, speed, forced);
+    RetimeSplineForSpeedChange(mtype, oldSpeed);
+}
+
+// A creature spline carries its own duration, so a speed change stored in m_speed_rate never
+// reaches a move that is already running: the leg keeps the speed it was launched with, and the
+// next leg picks up whatever the aura state is at launch time. Re-issue the remaining path with
+// the new speed and the current position as origin.
+void Unit::RetimeSplineForSpeedChange(UnitMoveType mtype, float oldSpeed)
+{
+    Creature* creature = ToCreature();
+    if (!creature || mtype != MOVE_RUN || IsPet() || IsControlledByPlayer())
+        return;
+    if (!movespline || !movespline->Initialized() || movespline->Finalized() || movespline->isFalling())
+        return;
+    if (!creature->GetMap() || creature->GetTransport() || movespline->onTransport)
+        return;
+    if (creature->IsMovementPreventedByCasting() || HasUnitState(UNIT_STATE_ROOT))
+        return;
+
+    float const newSpeed = GetSpeed(mtype);
+    if (std::fabs(newSpeed - oldSpeed) < 0.01f)
+        return;
+
+    float const velocity = GetSpeed(movespline->isWalking() ? MOVE_WALK : MOVE_RUN);
+    if (velocity <= 0.01f)
+        return;
+
+    // Rebuild from the spline itself: origin is where the unit is now, the knots are the ones
+    // still ahead. No re-pathing and no new arc, the geometry is unchanged.
+    Movement::PointsArray const& points = movespline->_Spline().getPoints();
+    int32 const last = movespline->_Spline().last();
+    Movement::PointsArray path;
+    path.push_back(movespline->ComputePosition());
+    for (int32 i = movespline->_currentSplineIdx() + 1; i <= last; ++i)
+        path.push_back(points[i]);
+
+    bool const cyclic = movespline->isCyclic();
+    bool const walking = movespline->isWalking();
+    bool const smooth = movespline->isSmooth();
+    bool const flying = movespline->isFlying();
+
+    Movement::MoveSplineInit init(creature);
+    init.MovebyPath(path, 0);
+    if (cyclic)
+        init.SetCyclic();
+    init.SetWalk(walking);
+    if (smooth)
+        init.SetSmooth();
+    if (flying)
+        init.SetFly();
+    init.SetVelocity(velocity);
+    init.Launch();
 }
 
 float Unit::GetSpeed(UnitMoveType mtype) const
