@@ -47,27 +47,14 @@ WORKDIR /yggdrasilcore
 ###################################
 # Compiler toolchain              #
 ###################################
-# boost: only the five components the core links against (filesystem,
-# program_options, iostreams, regex, thread). libboost-all-dev additionally
-# pulls in mpi, python, serialization and wave, none of which are referenced.
+# The packages of all build variants are installed here, in front of the source
+# copy: a layer behind it is reinstalled on every source change.
 #
-# No libmysql++-dev: the core talks to MySQL through libmysqlclient directly.
-# No mysql client CLI, openssl CLI, lsb-base, curl, unzip or libtool: none of
-# them are needed to build the core.
+# boost: only the five components the core links. mysql-client-core: the path
+# of the client is looked up here and baked into the binaries, the database
+# updater spawns the client by that path.
 FROM skeleton AS build-toolchain
 
-# The development packages of every build variant are installed here, in front
-# of the source copy. A layer behind the source copy is invalidated by every
-# source change, so installing the packages per variant would run
-# "apt-get update" and "apt-get install" again on every rebuild.
-#
-#   - readline and ncurses: the worldserver links them directly (see the
-#     LINK_FLAGS in src/server/apps/CMakeLists.txt)
-#   - zlib and bzip2: the map libraries pull them in
-#   - lld: links the big binaries considerably faster than GNU ld
-#   - mysql-client-core: the path of the mysql client is found at build time
-#     and baked into the binaries, the database updater spawns it by that
-#     path, so the client has to exist where it is looked up
 RUN apt-get update                                                     \
     && apt-get install -y --no-install-recommends                         \
         build-essential ccache cmake ninja-build clang lld git            \
@@ -80,17 +67,11 @@ RUN apt-get update                                                     \
     && dpkg -s libmysqlclient-dev | grep '^Version' | cut -d' ' -f2 > /mysql-client-version \
     && rm -rf /var/lib/apt/lists/*
 
-# The compiler cache.
+# The cache has to be written to the mount, otherwise ccache stores it in
+# /root/.cache/ccache and the ccache-export stage exports nothing.
 #
-# CCACHE_DIR has to point at the cache mount, otherwise ccache stores the
-# objects in /root/.cache/ccache, outside of the mount, and both the mount and
-# the ccache-export stage stay empty.
-#
-# The other settings are what make the cache usable in a container: the
-# checkout gives every source file a new mtime on every build, so without
-# include_file_mtime every entry would be invalidated, and the precompiled
-# headers are regenerated with every build, so without pch_defines every
-# translation unit that uses them would be invalidated.
+# include_file_mtime and pch_defines keep the entries valid: the checkout gives
+# every source file a new mtime and the precompiled headers are rebuilt.
 ARG CCACHE_DIR="/ccache"
 ARG CCACHE_MAXSIZE="1000MB"
 ARG CCACHE_COMPILERCHECK="content"
@@ -124,9 +105,6 @@ WORKDIR /yggdrasilcore/build
 # first (this writes nothing to the image), then compile with only cache mounts
 # attached. Cache mounts are excluded from the cache key and persist between
 # builds, so an unchanged revision reuses the compile layer instead of rebuilding.
-#
-# Both cache mounts are shared by the build variants below, so a source file is
-# only ever compiled once, no matter which image is being built.
 FROM build-source AS build-seed
 
 ARG CACHEBUST=1
@@ -145,16 +123,13 @@ RUN --mount=type=bind,source=.git,target=/git-seed \
 ###################################
 # Every image compiles only the code it ships:
 #
-#   authserver  -> the shared/common/database libraries and the authserver
-#                  executable. It uses neither the game, the script nor the
-#                  module code.
-#   worldserver -> the game/script/module code and the worldserver executable,
-#                  plus dbimport, which links those very same libraries.
-#   tools       -> only the map extraction tools.
+#   authserver  -> the authserver only
+#   worldserver -> the worldserver and dbimport, which link the same game,
+#                  script and module libraries
+#   tools       -> the map extraction tools only
 #
-# The scopes are fixed per variant: dbimport links the game, script and module
-# libraries, so it cannot be built without them, and one build argument
-# changing the scope of a variant would break the others.
+# The scope is fixed per variant: dbimport cannot be built without the game,
+# script and module libraries.
 
 # -- Authserver ------------------------------------------------------------
 FROM build-seed AS build-auth
@@ -163,12 +138,10 @@ ARG CTYPE
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
-# The root CMakeLists adds the directories of the modules whatever the scope of
-# the build is. The module of mod-yla builds the luajit and installs the
-# directory it builds into, and that directory is only built when the
-# worldserver links the luajit. The install of the variants that do not build
-# the worldserver would fail on the missing directory, and the authserver does
-# not use the modules.
+# The root CMakeLists adds the module directories whatever the scope is. The
+# module of mod-yla installs the directory of the luajit it builds, and that
+# directory is only built when the worldserver links the luajit. The authserver
+# does not use the modules.
 RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
     --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=shared \
     git config --global --add safe.directory /yggdrasilcore \
@@ -235,9 +208,7 @@ ARG CTYPE
 ARG CWITH_WARNINGS
 ARG CMAKE_EXTRA_OPTIONS
 
-# The map tools do not use the modules, and the module of mod-yla installs the
-# directory of the luajit it builds, which is only built when the worldserver
-# links the luajit.
+# The map tools do not use the modules, see the authserver variant.
 RUN --mount=type=cache,target=/ccache,id=yggdrasilcore-ccache,sharing=shared \
     --mount=type=cache,target=/yggdrasilcore/.git,id=yggdrasilcore-git,sharing=shared \
     git config --global --add safe.directory /yggdrasilcore \
@@ -284,13 +255,10 @@ RUN --mount=type=bind,source=var/docker/ccache,target=/ccache-seed \
 #############################
 # Base runtime for services #
 #############################
-# Only the C++ runtime is shared by every service binary. The rest is added by
-# the image that needs it:
-#   - libssl3  : the core links OpenSSL.
-#   - libdw1   : the DWARF reader of the crash handler and the deadlock
-#                detector. It is linked into the common library, so every
-#                binary that links it needs it at runtime.
-#   - libmysqlclient21 : the database layer.
+# Only the C++ runtime is shared by every service binary. The rest is installed
+# by the image that needs it: libssl3, libdw1 (the DWARF reader of the crash
+# handler, linked into the common library), libmysqlclient21, zlib1g,
+# libreadline8, libncurses6 and libbz2-1.0.
 FROM skeleton AS runtime
 
 ARG USER_ID=1000
@@ -299,8 +267,7 @@ ARG DOCKER_USER=ycore
 
 ENV YCORE_COMPONENT=undefined
 
-# The version of the MySQL client library the binaries were linked against, so
-# the runtime library matches the one from the build stage.
+# The version of the MySQL client library the binaries were linked against.
 COPY --from=build-toolchain /mysql-client-version /mysql-client-version
 
 RUN apt-get update && \
@@ -351,11 +318,9 @@ COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --from=build-auth \
      /yggdrasilcore/env/dist/bin/authserver /yggdrasilcore/env/dist/bin/authserver
 
-# The crash handler prints the source lines around the crash address. It reads
-# them from the paths recorded in the DWARF information, which are the paths
-# the sources were compiled under, so the sources have to be present at the
-# very same location at runtime. Only the trees the authserver is built from
-# are needed.
+# The crash handler reads the source lines from the paths recorded in the DWARF
+# information, so the sources have to be present at the same location at
+# runtime. Only the trees the authserver is built from are needed.
 COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --from=build-auth \
      /yggdrasilcore/src/common /yggdrasilcore/src/common
@@ -407,10 +372,9 @@ COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --from=build-world \
      /yggdrasilcore/env/dist/bin/worldserver /yggdrasilcore/env/dist/bin/worldserver
 
-# The crash handler prints the source lines around the crash address. It reads
-# them from the paths recorded in the DWARF information, which are the paths
-# the sources were compiled under, so the sources have to be present at the
-# very same location at runtime.
+# The crash handler reads the source lines from the paths recorded in the DWARF
+# information, so the sources have to be present at the same location at
+# runtime.
 COPY --chown=$DOCKER_USER:$DOCKER_USER \
      --from=build-world \
      /yggdrasilcore/src /yggdrasilcore/src
@@ -432,16 +396,15 @@ CMD ["worldserver"]
 # DB Import #
 #############
 # Shares the game/script/module libraries with the worldserver, so it is built
-# from the same variant and needs the same libraries. It does not install the
-# crash handler, so it needs none of the crash report sources.
+# from the same variant and needs the same libraries. It installs no crash
+# handler, so it needs no crash report sources.
 FROM runtime AS db-import
 LABEL description="YggdrasilCore Database Import tool"
 
 ENV YCORE_COMPONENT=dbimport
 
 # The database updater applies the SQL files with the mysql client, it spawns
-# the executable (see the StartProcess call in DBUpdater.h), so the client has
-# to be in the image.
+# the executable (see the StartProcess call in DBUpdater.h).
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       libssl3 libdw1 zlib1g \
@@ -465,8 +428,7 @@ CMD [ "/yggdrasilcore/env/dist/bin/dbimport" ]
 ###############
 # Client Data #
 ###############
-# This image only downloads the client data, it runs no part of the core, so
-# it carries neither the C++ runtime nor any of the core libraries.
+# This image only downloads the client data, it runs no part of the core.
 FROM skeleton AS client-data
 
 ARG USER_ID=1000
@@ -497,10 +459,9 @@ CMD ["bash", "/yggdrasilcore/apps/docker/download-client-data.sh" ]
 ##################
 # Map Extractors #
 ##################
-# The map tools do not talk to the database, so they need neither the MySQL
-# client library nor the server side libraries. They do link the common
-# library, which pulls in OpenSSL and the DWARF reader, and the mpq library,
-# which pulls in zlib and bzip2.
+# The map tools do not talk to the database. They link the common library,
+# which pulls in OpenSSL and the DWARF reader, and the mpq library, which
+# pulls in zlib and bzip2.
 FROM runtime AS tools
 LABEL description="YggdrasilCore Tools"
 
