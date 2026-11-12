@@ -121,13 +121,14 @@ namespace Movement
         /** Re-times the running spline to a new velocity, keeping the path and the current position. */
         void SetVelocity(float velocity);
 
-        [[nodiscard]] MoveSplineFlag const& GetFlags() const { return splineflags; }
 
         [[nodiscard]] uint32 GetId() const { return m_Id; }
         [[nodiscard]] bool Finalized() const { return splineflags.done; }
         [[nodiscard]] bool isCyclic() const { return splineflags.cyclic; }
         [[nodiscard]] bool isFalling() const { return splineflags.falling; }
         [[nodiscard]] bool isWalking() const { return splineflags.walkmode; }
+        [[nodiscard]] bool isFlying() const { return splineflags.flying; }
+        [[nodiscard]] bool isSmooth() const { return splineflags.isSmooth(); }
         [[nodiscard]] Vector3 FinalDestination() const { return Initialized() ? spline.getPoint(spline.last()) : Vector3(); }
         [[nodiscard]] Vector3 CurrentDestination() const { return Initialized() ? spline.getPoint(point_Idx + 1) : Vector3(); }
         [[nodiscard]] int32 currentPathIdx() const;

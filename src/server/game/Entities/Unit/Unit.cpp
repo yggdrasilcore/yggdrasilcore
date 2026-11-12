@@ -14617,18 +14617,19 @@ void Unit::RetimeSplineForSpeedChange(UnitMoveType mtype, float oldSpeed)
     for (int32 i = movespline->_currentSplineIdx() + 1; i <= last; ++i)
         path.push_back(points[i]);
 
-    MoveSplineFlag const flags = movespline->GetFlags();
     bool const cyclic = movespline->isCyclic();
     bool const walking = movespline->isWalking();
+    bool const smooth = movespline->isSmooth();
+    bool const flying = movespline->isFlying();
 
     Movement::MoveSplineInit init(creature);
     init.MovebyPath(path, 0);
     if (cyclic)
         init.SetCyclic();
     init.SetWalk(walking);
-    if (flags.isSmooth())
+    if (smooth)
         init.SetSmooth();
-    if (flags.flying)
+    if (flying)
         init.SetFly();
     init.SetVelocity(velocity);
     init.Launch();
