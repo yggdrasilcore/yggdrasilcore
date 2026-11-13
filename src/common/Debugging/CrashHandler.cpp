@@ -257,7 +257,7 @@ namespace
 
         if (count <= firstFrame)
         {
-            Report("  <no frames captured>\n");
+            Report("  <no frames captured, the unwinder returned nothing>\n");
             return;
         }
 
@@ -737,7 +737,14 @@ namespace
     void HandleFatalSignal(int signalNumber, siginfo_t* info, void* context)
     {
         if (g_inHandler)
+        {
+            // A second fatal signal means something the first one broke is still broken, so
+            // the interrupted dump would be lost silently. Say so before dying.
+            static char const reentered[] = "\n===== crash handler faulted while writing the report =====\n";
+            WriteAll(g_outputDescriptors[0], reentered, sizeof(reentered) - 1);
+            WriteAll(g_outputDescriptors[1], reentered, sizeof(reentered) - 1);
             _exit(128 + signalNumber);
+        }
 
         g_inHandler = 1;
 
@@ -757,8 +764,9 @@ namespace
         char processName[64] = {};
         GetProcessName(processName, sizeof(processName));
 
-        WriteHeader(signalNumber, info, timestamp, processName);
-
+        // Unwind and emit the machine readable part before anything that can fail on its
+        // own. Symbolization opens DWARF section files and allocates, and a fault in there
+        // used to leave nothing but the header behind, which is no evidence at all.
         void* frames[MaxFrames] = {};
         int frameCount = ::backtrace(frames, MaxFrames);
 
@@ -786,6 +794,8 @@ namespace
 
         g_faultContext = context;
         g_faultAddress = info ? reinterpret_cast<std::uintptr_t>(info->si_addr) : 0;
+
+        WriteHeader(signalNumber, info, timestamp, processName);
 
         WriteRawTrace(frames, firstFrame, frameCount);
         WriteSymbolizedTrace(frames, firstFrame, frameCount);
