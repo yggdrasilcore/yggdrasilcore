@@ -104,6 +104,7 @@ namespace
     std::uintptr_t g_faultAddress = 0;
     bool g_haveSourceLocations = false;
     bool g_sourceNoteShown = false;
+    int g_signalNumber = 0;
 
     volatile sig_atomic_t g_inHandler = 0;
     volatile sig_atomic_t g_inEmergency = 0;
@@ -275,6 +276,8 @@ namespace
 
     void WriteHeader(int signalNumber, siginfo_t const* info, char const* timestamp, char const* processName)
     {
+        g_signalNumber = signalNumber;
+
         Report("\n===== YggdrasilCore crash report =====\n");
         Report("Time:     %s\n", timestamp);
         Report("Signal:   %s (%d)\n", SignalName(signalNumber), signalNumber);
@@ -556,6 +559,18 @@ namespace
     }
 #endif
 
+    /// True for the frames of the signal delivery path that leads to abort(). The frames
+    /// below them are the ones that actually describe the crash.
+    bool IsAbortMachinery(char const* symbol)
+    {
+        return symbol
+            && (std::strcmp(symbol, "abort") == 0
+                || std::strcmp(symbol, "raise") == 0
+                || std::strcmp(symbol, "gsignal") == 0
+                || std::strcmp(symbol, "kill") == 0
+                || std::strncmp(symbol, "pthread_kill", 12) == 0);
+    }
+
     void WriteSymbolizedTrace(void* const* frames, int firstFrame, int count)
     {
         Report("Symbolized stack:\n");
@@ -583,6 +598,8 @@ namespace
 
             return;
         }
+
+        int described = 0;
 
         for (int index = firstFrame; index < count; ++index)
         {
@@ -631,9 +648,16 @@ namespace
                         static_cast<unsigned long long>(address), location);
             }
 
-            if (index - firstFrame < 2)
-                std::snprintf(g_frameDescription[index - firstFrame], sizeof(g_frameDescription[0]), "%s%s",
-                    demangled ? demangled : (symbol ? symbol : "??"), location);
+            if (described < 2)
+            {
+                char const* frameSymbol = demangled ? demangled : (symbol ? symbol : "??");
+
+                if (g_signalNumber != SIGABRT || !IsAbortMachinery(frameSymbol))
+                {
+                    std::snprintf(g_frameDescription[described], sizeof(g_frameDescription[0]), "%s%s", frameSymbol, location);
+                    ++described;
+                }
+            }
 
             if (module)
                 WriteFrameDetails(module, lookup, index == firstFrame, file, lineNumber, index - firstFrame < SourceContextFrames);
