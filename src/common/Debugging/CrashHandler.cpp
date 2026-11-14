@@ -658,8 +658,9 @@ namespace
 #endif
     }
 
-    /// Writes the interrupted instruction and stack pointer before any unwinding. This is
-    /// the only reliably available location when backtrace() cannot walk the stack.
+    /// Writes the interrupted instruction, stack pointer and a raw stack snapshot before
+    /// any unwinding. backtrace() is the risky part of the handler: on a corrupted stack it
+    /// can fault or abort, so the data below is already on disk if that happens.
     void WriteInterruptedLocation(void* context)
     {
         std::uintptr_t const programCounter = GetInterruptedProgramCounter(context);
@@ -670,6 +671,31 @@ namespace
 
         if (stackPointer)
             Report("Interrupted SP: 0x%llx\n", static_cast<unsigned long long>(stackPointer));
+
+#if defined(__linux__) && defined(__aarch64__)
+        if (context)
+        {
+            ucontext_t const* interrupt = static_cast<ucontext_t const*>(context);
+            Report("Interrupted FP: 0x%llx\n", static_cast<unsigned long long>(interrupt->uc_mcontext.regs[29]));
+            Report("Interrupted LR: 0x%llx\n", static_cast<unsigned long long>(interrupt->uc_mcontext.regs[30]));
+        }
+#elif defined(__linux__) && defined(__x86_64__)
+        if (context)
+        {
+            ucontext_t const* interrupt = static_cast<ucontext_t const*>(context);
+            Report("Interrupted FP: 0x%llx\n", static_cast<unsigned long long>(interrupt->uc_mcontext.gregs[REG_RBP]));
+        }
+#endif
+
+        if (!stackPointer)
+            return;
+
+        Report("Raw stack from SP:\n");
+
+        std::uintptr_t const* words = reinterpret_cast<std::uintptr_t const*>(stackPointer);
+        for (int index = 0; index < 64; ++index)
+            Report("  [sp+0x%03x] 0x%016llx\n", index * static_cast<int>(sizeof(std::uintptr_t)),
+                static_cast<unsigned long long>(words[index]));
     }
 
     void WriteAnalysis(int signalNumber, siginfo_t const* info)
