@@ -50,6 +50,7 @@ namespace Ycore
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unwind.h>
 #include <unistd.h>
 
 #include <filesystem>
@@ -910,10 +911,70 @@ namespace
         return false;
     }
 
+    struct UnwindState
+    {
+        void** frames;
+        int count;
+        int maxFrames;
+        ProcessMaps const* maps;
+    };
+
+    /// Callback for the DWARF unwinder. It stops before following a return address that
+    /// the corruption overwrote: libgcc faults while looking up unwind information for a
+    /// garbage address, which is what truncates the report when the frame pointer walk
+    /// cannot start (for example a crash inside a libc built without frame pointers).
+    _Unwind_Reason_Code CollectUnwoundFrame(_Unwind_Context* context, void* argument)
+    {
+        UnwindState* state = static_cast<UnwindState*>(argument);
+
+        std::uintptr_t const programCounter = static_cast<std::uintptr_t>(_Unwind_GetIP(context));
+        if (programCounter && state->count < state->maxFrames)
+            state->frames[state->count++] = reinterpret_cast<void*>(programCounter);
+
+        if (!state->maps->haveStack)
+            return _URC_NO_REASON;
+
+#if defined(__x86_64__)
+        constexpr int framePointerRegister = 6;
+#elif defined(__aarch64__)
+        constexpr int framePointerRegister = 29;
+#else
+        constexpr int framePointerRegister = -1;
+#endif
+        if (framePointerRegister < 0)
+            return _URC_NO_REASON;
+
+        // [fp] holds the caller's frame pointer and [fp + 8] its return address. The CFA is
+        // the caller's stack pointer, so the current frame's own return address is not
+        // reachable from it; only the frame pointer register identifies the caller.
+        std::uintptr_t const framePointer = static_cast<std::uintptr_t>(_Unwind_GetGR(context, framePointerRegister));
+        if (framePointer < state->maps->stack.begin
+            || framePointer > state->maps->stack.end - 2 * sizeof(std::uintptr_t)
+            || (framePointer & (sizeof(std::uintptr_t) - 1)) != 0)
+        {
+            return _URC_NO_REASON;
+        }
+
+        std::uintptr_t returnAddress = 0;
+        std::memcpy(&returnAddress, reinterpret_cast<void const*>(framePointer + sizeof(std::uintptr_t)), sizeof(returnAddress));
+
+        return IsCodeAddress(*state->maps, returnAddress) ? _URC_NO_REASON : _URC_END_OF_STACK;
+    }
+
+    int UnwindStack(ProcessMaps const& maps, void** frames, int maxFrames)
+    {
+        UnwindState state = { frames, 0, maxFrames, &maps };
+        _Unwind_Backtrace(&CollectUnwoundFrame, &state);
+        return state.count;
+    }
+
     struct FrameWalk
     {
         int count;
         bool corrupted;
+        // True when the interrupted frame pointer addresses this stack. On builds that omit
+        // frame pointers the register holds an arbitrary value instead.
+        bool hasFramePointer;
     };
 
     /// Follows the saved frame records ("[fp] = caller frame, [fp+8] = return address" on
@@ -923,13 +984,24 @@ namespace
     /// ever read.
     FrameWalk WalkFramePointers(void* context, ProcessMaps const& maps, void** frames, int maxFrames)
     {
-        FrameWalk walk = { 0, false };
+        FrameWalk walk = { 0, false, false };
 
         std::uintptr_t const stackPointer = GetInterruptedStackPointer(context);
         std::uintptr_t framePointer = GetInterruptedFramePointer(context);
 
         if (!stackPointer || !maps.haveStack || !framePointer)
             return walk;
+
+        if (framePointer < stackPointer
+            || framePointer < maps.stack.begin
+            || framePointer > maps.stack.end - 2 * sizeof(std::uintptr_t)
+            || (framePointer & (sizeof(std::uintptr_t) - 1)) != 0)
+        {
+            walk.corrupted = true;
+            return walk;
+        }
+
+        walk.hasFramePointer = true;
 
         std::uintptr_t previous = 0;
 
@@ -1118,7 +1190,7 @@ namespace
             WriteRawTrace(frames, 0, frameCount);
             WriteSymbolizedTrace(frames, 0, frameCount);
         }
-        else if (walk.corrupted)
+        else if (walk.hasFramePointer)
         {
             // The frame pointer chain is invalid at the interrupted frame. Calling the
             // unwinder here is what turns the report into a truncated one: it follows the
@@ -1128,9 +1200,9 @@ namespace
         }
         else
         {
-            // No frame pointer chain at all (for example a binary built without frame
-            // pointers): fall back to the unwinder.
-            frameCount = ::backtrace(frames, MaxFrames);
+            // No frame pointer chain at all (for example a crash inside a libc built
+            // without frame pointers): fall back to the DWARF unwinder.
+            frameCount = UnwindStack(maps, frames, MaxFrames);
 
             int firstFrame = 1;
             bool foundInterruptedFrame = false;
