@@ -567,7 +567,7 @@ static void ClearGunshipHullRespawnTimes(Transport* transport)
 class ResetEncounterEvent : public BasicEvent
 {
 public:
-    ResetEncounterEvent(Unit* owner, uint32 spellId, ObjectGuid casterTransport, ObjectGuid otherTransport) : _owner(owner), _spellId(spellId), _casterTransport(casterTransport), _otherTransport(otherTransport) { }
+    ResetEncounterEvent(Unit* owner, uint32 spellId) : _owner(owner), _spellId(spellId) { }
 
     bool Execute(uint64, uint32) override
     {
@@ -576,8 +576,8 @@ public:
 
         Map* map = _owner->GetMap();
 
-        if (InstanceScript* instance = _owner->GetInstanceScript())
-            DisengageGunshipEncounterFrames(instance);
+        InstanceScript* instance = _owner->GetInstanceScript();
+        DisengageGunshipEncounterFrames(instance);
 
         map->DoForAllPlayers([](Player* player)
         {
@@ -587,29 +587,33 @@ public:
 
         _owner->CastSpell(_owner, _spellId, true);
 
-        Transport* casterTransport = map->GetTransport(_casterTransport);
-        Transport* otherTransport = map->GetTransport(_otherTransport);
+        // Look the ships up on the instance instead of taking them from the
+        // creature that scheduled the reset: that creature's transport link can
+        // be gone by the time the reset runs, which used to leave our own ship
+        // in the air and the encounter stuck in FAIL.
+        Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
+        Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
 
-        ClearGunshipHullRespawnTimes(casterTransport);
-        ClearGunshipHullRespawnTimes(otherTransport);
+        ClearGunshipHullRespawnTimes(friendlyTransport);
+        ClearGunshipHullRespawnTimes(enemyTransport);
 
-        if (casterTransport)
+        if (friendlyTransport)
         {
-            if (MotionTransport* mt = casterTransport->ToMotionTransport())
+            if (MotionTransport* mt = friendlyTransport->ToMotionTransport())
                 mt->UnloadNonStaticPassengers();
         }
 
-        if (otherTransport)
+        if (enemyTransport)
         {
-            if (MotionTransport* mt = otherTransport->ToMotionTransport())
+            if (MotionTransport* mt = enemyTransport->ToMotionTransport())
                 mt->UnloadNonStaticPassengers();
         }
 
-        if (casterTransport)
-            casterTransport->AddObjectToRemoveList();
+        if (friendlyTransport)
+            friendlyTransport->AddObjectToRemoveList();
 
-        if (otherTransport)
-            otherTransport->AddObjectToRemoveList();
+        if (enemyTransport)
+            enemyTransport->AddObjectToRemoveList();
 
         return true;
     }
@@ -617,8 +621,6 @@ public:
 private:
     Unit* _owner;
     uint32 _spellId;
-    ObjectGuid _casterTransport;
-    ObjectGuid _otherTransport;
 };
 
 class VictoryTeleportEvent : public BasicEvent
@@ -826,9 +828,7 @@ public:
                 Unit* resetOwner = me;
                 if (Creature* enemyShip = _instance->GetCreature(DATA_ENEMY_GUNSHIP))
                     resetOwner = enemyShip;
-                // Use the stored transport GUID; the transport may already be
-                // unloaded while this creature is still being removed.
-                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, transportGuid, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
+                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId), 8s);
             }
         }
 
@@ -1084,9 +1084,7 @@ public:
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId,
-                        me->GetTransport() ? me->GetTransport()->GetGUID() : ObjectGuid::Empty,
-                        _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
 					
                     return;
 				}
@@ -1457,9 +1455,7 @@ public:
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H  : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId,
-                        me->GetTransport() ? me->GetTransport()->GetGUID() : ObjectGuid::Empty,
-                        _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
                         
 					return;
 				}
