@@ -934,6 +934,16 @@ namespace
         if (!state->maps->haveStack)
             return _URC_NO_REASON;
 
+        // Only the frames of the interrupted thread are validated: the handler runs on the
+        // alternate signal stack, where the frame pointer register is not meaningful.
+        // The canonical frame address is the stack pointer the caller had before the call,
+        // so the return address the unwinder will follow next sits right below it. If the
+        // corruption overwrote that slot, following it faults inside libgcc's unwind
+        // information lookup, which truncates the report.
+        std::uintptr_t const frameAddress = static_cast<std::uintptr_t>(_Unwind_GetCFA(context));
+        if (frameAddress < state->maps->stack.begin || frameAddress > state->maps->stack.end)
+            return _URC_NO_REASON;
+
 #if defined(__x86_64__)
         constexpr int framePointerRegister = 6;
 #elif defined(__aarch64__)
@@ -944,9 +954,6 @@ namespace
         if (framePointerRegister < 0)
             return _URC_NO_REASON;
 
-        // [fp] holds the caller's frame pointer and [fp + 8] its return address. The CFA is
-        // the caller's stack pointer, so the current frame's own return address is not
-        // reachable from it; only the frame pointer register identifies the caller.
         std::uintptr_t const framePointer = static_cast<std::uintptr_t>(_Unwind_GetGR(context, framePointerRegister));
         if (framePointer < state->maps->stack.begin
             || framePointer > state->maps->stack.end - 2 * sizeof(std::uintptr_t)
