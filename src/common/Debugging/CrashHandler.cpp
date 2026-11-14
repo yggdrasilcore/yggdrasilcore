@@ -88,7 +88,10 @@ namespace
 
     char g_crashLogDirectory[PATH_MAX] = {};
     char g_crashLogPath[PATH_MAX] = {};
-    char g_alternateStack[512 * 1024] = {};
+    // libdw's line table reader stack-allocates a few thousand entries per call, which is
+    // several hundred kilobytes on its own. 512 KiB overflows on AArch64, so leave plenty
+    // of headroom. The array is only virtual memory until it is actually used.
+    char g_alternateStack[8 * 1024 * 1024] = {};
 
     // stderr first, crash log file second (if it could be opened).
     int g_outputDescriptors[2] = { STDERR_FILENO, -1 };
@@ -104,6 +107,8 @@ namespace
     volatile sig_atomic_t g_inHandler = 0;
     volatile sig_atomic_t g_inEmergency = 0;
     bool g_installed = false;
+
+    std::uintptr_t GetInterruptedProgramCounter(void* context);
 
 #if defined(YC_HAVE_LIBDW) && defined(__linux__)
     char* g_debugInfoPath = nullptr;
@@ -191,12 +196,38 @@ namespace
         }
     }
 
-    void EmergencyReportSignal(int signalNumber)
+    void EmergencyReportAddress(std::uintptr_t value)
+    {
+        char buffer[2 + 2 * sizeof(std::uintptr_t) + 1];
+        char* cursor = buffer + sizeof(buffer) - 1;
+        *cursor = '\0';
+
+        do
+        {
+            unsigned digit = static_cast<unsigned>(value & 0xf);
+            *--cursor = static_cast<char>(digit < 10 ? '0' + digit : 'a' + digit - 10);
+            value >>= 4;
+        } while (value != 0);
+
+        *--cursor = 'x';
+        *--cursor = '0';
+        EmergencyReport(cursor);
+    }
+
+    void EmergencyReportSignal(int signalNumber, void* context)
     {
         EmergencyReport("\n===== YggdrasilCore crash handler re-entered, report is incomplete =====\n");
         EmergencyReport("Second signal: ");
         EmergencyReport(SignalName(signalNumber));
         EmergencyReport("\n");
+
+        std::uintptr_t const programCounter = GetInterruptedProgramCounter(context);
+        if (programCounter)
+        {
+            EmergencyReport("Second PC: ");
+            EmergencyReportAddress(programCounter);
+            EmergencyReport("\n");
+        }
     }
 
     void GetProcessName(char* buffer, size_t size)
@@ -1037,7 +1068,7 @@ namespace
             if (!g_inEmergency)
             {
                 g_inEmergency = 1;
-                EmergencyReportSignal(signalNumber);
+                EmergencyReportSignal(signalNumber, context);
             }
 
             _exit(128 + signalNumber);
