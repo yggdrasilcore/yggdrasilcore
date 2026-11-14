@@ -160,6 +160,7 @@ public:
             { "spell_proc",                    HandleReloadSpellProcsCommand,                 SEC_ADMINISTRATOR, Console::Yes },
             { "spell_scripts",                 HandleReloadSpellScriptsCommand,               SEC_ADMINISTRATOR, Console::Yes },
             { "spell_target_position",         HandleReloadSpellTargetPositionCommand,        SEC_ADMINISTRATOR, Console::Yes },
+            { "spell_cone",                    HandleReloadSpellConeCommand,                  SEC_ADMINISTRATOR, Console::Yes },
             { "spell_threats",                 HandleReloadSpellThreatsCommand,               SEC_ADMINISTRATOR, Console::Yes },
             { "spell_group_stack_rules",       HandleReloadSpellGroupStackRulesCommand,       SEC_ADMINISTRATOR, Console::Yes },
             { "player_loot_template",          HandleReloadLootTemplatesPlayerCommand,        SEC_ADMINISTRATOR, Console::Yes },
@@ -922,6 +923,14 @@ public:
         LOG_INFO("server.loading", "Reloading Spell target coordinates...");
         sSpellMgr->LoadSpellTargetPositions();
         handler->SendGlobalGMSysMessage("DB table `spell_target_position` (destination coordinates for spell targets) reloaded.");
+        return true;
+    }
+
+    static bool HandleReloadSpellConeCommand(ChatHandler* handler)
+    {
+        LOG_INFO("server.loading", "Reloading Spell cone definitions...");
+        sSpellMgr->LoadSpellCones();
+        handler->SendGlobalGMSysMessage("DB table `spell_cone` (spell cone definitions) reloaded.");
         return true;
     }
 

@@ -666,6 +666,17 @@ SpellTargetPosition const* SpellMgr::GetSpellTargetPosition(uint32 spell_id, Spe
     return nullptr;
 }
 
+SpellCone const* SpellMgr::GetSpellCone(uint32 spell_id) const
+{
+    std::lock_guard<std::recursive_mutex> spellLock(_spellLock);
+    spell_id = GetFirstSpellInChain(spell_id);
+    auto itr = mSpellCones.find(spell_id);
+    if (itr != mSpellCones.end())
+        return &itr->second;
+
+    return nullptr;
+}
+
 SpellGroupStackFlags SpellMgr::GetGroupStackFlags(uint32 groupid) const
 {
     std::lock_guard<std::recursive_mutex> spellLock(_spellLock);
@@ -1668,6 +1679,94 @@ void SpellMgr::LoadSpellTargetPositions()
     }*/
 
     LOG_INFO("server.loading", ">> Loaded {} Spell Teleport Coordinates in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
+    LOG_INFO("server.loading", " ");
+}
+
+void SpellMgr::LoadSpellCones()
+{
+    std::lock_guard<std::recursive_mutex> spellLock(_spellLock);
+    uint32 oldMSTime = getMSTime();
+
+    mSpellCones.clear(); // need for reload case
+
+    // 0      1
+    QueryResult result = WorldDatabase.Query("SELECT ID, ConeDegrees FROM spell_cone");
+
+    if (!result)
+    {
+        LOG_WARN("server.loading", ">> Loaded 0 spell cone definitions. DB table `spell_cone` is empty.");
+        LOG_INFO("server.loading", " ");
+        return;
+    }
+
+    uint32 count = 0;
+    do
+    {
+        Field* fields = result->Fetch();
+
+        uint32 spellId = fields[0].Get<uint32>();
+        int16 coneDeg = fields[1].Get<int16>();
+
+        SpellInfo const* spellInfo = GetSpellInfo(spellId);
+        if (!spellInfo)
+        {
+            LOG_ERROR("sql.sql", "Spell (ID:{}) listed in `spell_cone` does not exist.", spellId);
+            continue;
+        }
+
+        if (coneDeg < -360 || coneDeg > 360)
+        {
+            LOG_ERROR("sql.sql", "Spell (Id: {}) cone degrees {} out of range (-360..360).", spellId, coneDeg);
+            continue;
+        }
+
+        uint32 firstRankId = GetFirstSpellInChain(spellId);
+        SpellInfo const* firstSpellInfo = GetSpellInfo(firstRankId);
+
+        SpellInfo const* checkInfo = firstSpellInfo ? firstSpellInfo : spellInfo;
+
+        bool hasCone = false;
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+        {
+            if (checkInfo->Effects[i].TargetA.GetSelectionCategory() == TARGET_SELECT_CATEGORY_CONE ||
+                checkInfo->Effects[i].TargetB.GetSelectionCategory() == TARGET_SELECT_CATEGORY_CONE)
+            {
+                hasCone = true;
+                break;
+            }
+        }
+
+        if (!hasCone)
+        {
+            LOG_ERROR("sql.sql", "Spell (ID:{}) listed in `spell_cone` does not have a cone implicit target.", spellId);
+            continue;
+        }
+
+        if (firstRankId != spellId)
+            LOG_INFO("server.loading", "Spell (ID:{}) listed in `spell_cone` is not first rank; mapping to first rank {}.", spellId, firstRankId);
+
+        SpellCone sc{};
+        sc.cone_degrees = coneDeg;
+
+        // Avoid overwriting an existing first-rank entry with conflicting values
+        auto itr = mSpellCones.find(firstRankId);
+        if (itr != mSpellCones.end())
+        {
+            if (itr->second.cone_degrees != sc.cone_degrees)
+                LOG_ERROR("sql.sql",
+                    "Conflicting `spell_cone` entries for first-rank spell ID {}: {} vs {}. Keeping first value.",
+                    firstRankId,
+                    itr->second.cone_degrees,
+                    sc.cone_degrees);
+        }
+        else
+        {
+            mSpellCones[firstRankId] = sc;
+            ++count;
+        }
+    } while (result->NextRow());
+
+    LOG_INFO("server.loading", ">> Loaded {} Spell Cone definitions in {} ms", count, GetMSTimeDiffToNow(oldMSTime));
     LOG_INFO("server.loading", " ");
 }
 
@@ -3289,15 +3388,10 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
             case 73788: // Pain and Suffering
             case 73789: // Pain and Suffering
             case 73790: // Pain and Suffering
-            case 63293: // Mimiron - spinning damage
             case 68873: // Wailing Souls
             case 70324: // Wailing Souls
             case 64619: // Ulduar, Mimiron, Emergency Fire Bot, Water Spray
                 spellInfo->AttributesCu |= SPELL_ATTR0_CU_CONE_LINE;
-                break;
-            case 58690: // Cyanigosa, Tail Sweep
-            case 59283: // Cyanigosa, Tail Sweep
-                spellInfo->AttributesCu |= SPELL_ATTR0_CU_CONE_BACK;
                 break;
             case 24340: // Meteor
             case 26558: // Meteor
