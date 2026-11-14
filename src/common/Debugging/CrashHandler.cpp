@@ -29,6 +29,14 @@ namespace Ycore
     void ReportDeadlock(char const*, ThreadTrace const*, std::size_t)
     {
     }
+
+    void StartThreadSampler()
+    {
+    }
+
+    void RegisterForThreadSampling()
+    {
+    }
 }
 
 #else
@@ -55,6 +63,7 @@ namespace Ycore
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <thread>
 
 #if defined(__linux__)
 #include <sys/syscall.h>
@@ -734,6 +743,152 @@ namespace
         }
     }
 
+    // ---- Thread sampling -------------------------------------------------------------
+    //
+    // A fatal signal only runs on the thread that received it. When a different thread calls
+    // abort(), the report would show whichever thread got the signal, which is usually a
+    // parked one. The sampler periodically walks every other thread's stack and keeps the
+    // last sample, so the report can show the whole process instead of one thread.
+
+    constexpr std::size_t MaxSampledThreads = 96;
+    constexpr std::size_t SampledFrames = 48;
+
+#if defined(__linux__)
+    // glibc reserves SIGRTMIN and SIGRTMIN + 1. The deadlock detector uses + 2.
+    int const SampleSignal = SIGRTMIN + 3;
+
+    struct SampledThread
+    {
+        std::atomic<long> tid{ 0 };
+        std::atomic<bool> captured{ false };
+        std::atomic<int> frameCount{ 0 };
+        void* frames[SampledFrames] = {};
+    };
+
+    SampledThread g_sampled[MaxSampledThreads];
+    std::atomic<std::size_t> g_sampledCount{ 0 };
+    std::atomic<bool> g_samplerStarted{ false };
+    thread_local std::size_t t_sampledSlot = MaxSampledThreads;
+
+    void SampleHandler(int, siginfo_t*, void*)
+    {
+        std::size_t slot = t_sampledSlot;
+        if (slot >= MaxSampledThreads)
+            return;
+
+        SampledThread& sampled = g_sampled[slot];
+
+        void* frames[SampledFrames] = {};
+        int count = ::backtrace(frames, static_cast<int>(SampledFrames));
+
+        // The handler's own frames come first; drop them.
+        int first = 0;
+        for (int index = 0; index < count; ++index)
+        {
+            Dl_info info = {};
+            if (::dladdr(frames[index], &info) == 0 || !info.dli_sname || std::strcmp(info.dli_sname, "SampleHandler") != 0)
+            {
+                first = index;
+                break;
+            }
+        }
+
+        if (first >= count)
+            first = 0;
+
+        std::memcpy(sampled.frames, frames + first, sizeof(void*) * static_cast<std::size_t>(count - first));
+        sampled.frameCount.store(count - first, std::memory_order_release);
+        sampled.captured.store(true, std::memory_order_release);
+    }
+
+    void SampleThread(SampledThread& sampled)
+    {
+        sampled.captured.store(false, std::memory_order_relaxed);
+        sampled.frameCount.store(0, std::memory_order_relaxed);
+
+        long tid = sampled.tid.load(std::memory_order_acquire);
+        if (tid <= 0)
+            return;
+
+        ::syscall(SYS_tgkill, static_cast<pid_t>(::getpid()), static_cast<pid_t>(tid), SampleSignal);
+
+        for (int attempt = 0; attempt < 50; ++attempt)
+        {
+            if (sampled.captured.load(std::memory_order_acquire))
+                return;
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+
+    void SamplerThread()
+    {
+        for (;;)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+            std::size_t count = g_sampledCount.load(std::memory_order_acquire);
+            for (std::size_t index = 0; index < count; ++index)
+                SampleThread(g_sampled[index]);
+        }
+    }
+
+    /// Registers the calling thread with the sampler.
+    void RegisterSamplingThread()
+    {
+        if (t_sampledSlot < MaxSampledThreads)
+            return;
+
+        std::size_t slot = g_sampledCount.load(std::memory_order_acquire);
+        if (slot >= MaxSampledThreads)
+            return;
+
+        t_sampledSlot = slot;
+        g_sampled[slot].tid.store(static_cast<long>(::syscall(SYS_gettid)), std::memory_order_release);
+        g_sampledCount.store(slot + 1, std::memory_order_release);
+    }
+#endif
+
+    /// Writes the last sample of every thread other than the one that received the signal.
+    /// This is where a thread that called abort() but was not the one interrupted shows up.
+    void WriteSampledThreads(long signalThread)
+    {
+#if defined(__linux__)
+        std::size_t count = g_sampledCount.load(std::memory_order_acquire);
+        if (count == 0)
+            return;
+
+        Report("Other threads (most recent sample):\n");
+
+        bool wroteAny = false;
+        for (std::size_t index = 0; index < count; ++index)
+        {
+            SampledThread& sampled = g_sampled[index];
+
+            long tid = sampled.tid.load(std::memory_order_acquire);
+            if (tid <= 0 || tid == signalThread)
+                continue;
+
+            int frameCount = sampled.frameCount.load(std::memory_order_acquire);
+            if (frameCount <= 0)
+            {
+                Report("  Thread tid %ld: <no sample>\n", tid);
+                continue;
+            }
+
+            wroteAny = true;
+            Report("  Thread tid %ld:\n", tid);
+            WriteRawTrace(sampled.frames, 0, frameCount);
+            WriteSymbolizedTrace(sampled.frames, 0, frameCount);
+        }
+
+        if (!wroteAny)
+            Report("  <no samples recorded>\n");
+#else
+        (void)signalThread;
+#endif
+    }
+
     void HandleFatalSignal(int signalNumber, siginfo_t* info, void* context)
     {
         if (g_inHandler)
@@ -800,6 +955,8 @@ namespace
         WriteRawTrace(frames, firstFrame, frameCount);
         WriteSymbolizedTrace(frames, firstFrame, frameCount);
         WriteAnalysis(signalNumber, info);
+
+        WriteSampledThreads(static_cast<long>(::syscall(SYS_gettid)));
 
         Report("===== end of crash report =====\n");
 
@@ -929,6 +1086,36 @@ void Ycore::InstallCrashHandler()
         std::fprintf(stderr, "Crash report directory %s is not usable: %s\n", g_crashLogDirectory, error.message().c_str());
     else
         std::fprintf(stderr, "Crash reports will be written to %s\n", g_crashLogDirectory);
+}
+
+void Ycore::StartThreadSampler()
+{
+#if defined(__linux__)
+    if (g_samplerStarted.exchange(true))
+        return;
+
+    struct sigaction action = {};
+    action.sa_sigaction = &SampleHandler;
+    action.sa_flags = SA_SIGINFO | SA_RESTART;
+    ::sigemptyset(&action.sa_mask);
+    ::sigaction(SampleSignal, &action, nullptr);
+
+    // Warm up the unwinder on the sampler thread, and reserve the slot that the caller
+    // occupies, so registration from other threads never races with the walker.
+    void* warmup[2] = {};
+    ::backtrace(warmup, 2);
+
+    RegisterSamplingThread();
+
+    std::thread(SamplerThread).detach();
+#endif
+}
+
+void Ycore::RegisterForThreadSampling()
+{
+#if defined(__linux__)
+    RegisterSamplingThread();
+#endif
 }
 
 #endif

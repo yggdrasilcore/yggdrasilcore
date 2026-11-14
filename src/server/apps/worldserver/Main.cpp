@@ -395,6 +395,10 @@ int main(int argc, char** argv)
         LOG_INFO("server.worldserver", "Starting up deadlock logging ({} seconds max operation time)...", deadlockLogTime);
     }
 
+    // Sample every thread, so a crash report shows the threads that did not receive the signal.
+    // A fatal signal only interrupts one thread, which is often not the one that aborted.
+    Ycore::StartThreadSampler();
+
     LOG_INFO("server.worldserver", "{} (worldserver-daemon) ready...", GitRevision::GetFullVersion());
 
     sScriptMgr->OnStartup();
@@ -575,6 +579,8 @@ void ShutdownCLIThread(std::thread* cliThread)
 
 void WorldUpdateLoop()
 {
+    Ycore::RegisterForThreadSampling();
+
     uint32 minUpdateDiff = uint32(sConfigMgr->GetOption<int32>("MinWorldUpdateTime", 1));
     uint32 realCurrTime = 0;
     uint32 realPrevTime = getMSTime();

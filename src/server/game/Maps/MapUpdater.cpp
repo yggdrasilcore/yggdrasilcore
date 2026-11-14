@@ -16,6 +16,7 @@
  */
 
 #include "MapUpdater.h"
+#include "CrashHandler.h"
 #include "DatabaseEnv.h"
 #include "DeadlockDetector.h"
 #include "LFGMgr.h"
@@ -172,6 +173,8 @@ void MapUpdater::update_finished()
 
 void MapUpdater::WorkerThread(std::size_t index)
 {
+    Ycore::RegisterForThreadSampling();
+
     LoginDatabase.WarnAboutSyncQueries(true);
     CharacterDatabase.WarnAboutSyncQueries(true);
     WorldDatabase.WarnAboutSyncQueries(true);

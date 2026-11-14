@@ -45,6 +45,29 @@ namespace Ycore
     YC_COMMON_API void ReportDeadlock(char const* reason, ThreadTrace const* threads, std::size_t count);
 
     /**
+     * @brief Starts sampling the stacks of every thread in a background thread.
+     *
+     * A fatal signal interrupts only the thread that received it, so the crashing thread in
+     * a crash report is often not the one that called abort(). The sampler periodically walks
+     * every registered thread's stack and keeps the most recent sample, which the report
+     * writes after the crashing thread.
+     *
+     * Only threads that call RegisterForThreadSampling are walked: the ones that run game
+     * code are the interesting ones, and unwinding a thread parked in the io pool adds noise.
+     *
+     * On Linux the walk uses a signal handler on the target thread. On other platforms this
+     * is a no-op.
+     */
+    YC_COMMON_API void StartThreadSampler();
+
+    /**
+     * @brief Registers the calling thread with the sampler.
+     *
+     * Call this from the thread body. Safe to call when the sampler is not running.
+     */
+    YC_COMMON_API void RegisterForThreadSampling();
+
+    /**
      * @brief Installs handlers for fatal signals (SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL).
      *
      * When one of them is raised, a symbolized backtrace of the crashing thread is written to
