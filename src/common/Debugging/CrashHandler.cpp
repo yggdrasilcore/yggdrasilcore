@@ -1207,7 +1207,7 @@ namespace
             int firstFrame = 1;
             bool foundInterruptedFrame = false;
 
-            for (int index = 1; index < frameCount; ++index)
+            for (int index = 0; index < frameCount; ++index)
             {
                 if (reinterpret_cast<std::uintptr_t>(frames[index]) == programCounter)
                 {
