@@ -658,13 +658,46 @@ namespace
 #endif
     }
 
-    /// Writes the interrupted instruction, stack pointer and a raw stack snapshot before
-    /// any unwinding. backtrace() is the risky part of the handler: on a corrupted stack it
-    /// can fault or abort, so the data below is already on disk if that happens.
+    std::uintptr_t GetInterruptedFramePointer(void* context)
+    {
+#if defined(__linux__) && defined(__x86_64__)
+        if (!context)
+            return 0;
+
+        return static_cast<std::uintptr_t>(static_cast<ucontext_t*>(context)->uc_mcontext.gregs[REG_RBP]);
+#elif defined(__linux__) && defined(__aarch64__)
+        if (!context)
+            return 0;
+
+        return static_cast<std::uintptr_t>(static_cast<ucontext_t*>(context)->uc_mcontext.regs[29]);
+#else
+        (void)context;
+        return 0;
+#endif
+    }
+
+    std::uintptr_t GetInterruptedLinkRegister(void* context)
+    {
+#if defined(__linux__) && defined(__aarch64__)
+        if (!context)
+            return 0;
+
+        return static_cast<std::uintptr_t>(static_cast<ucontext_t*>(context)->uc_mcontext.regs[30]);
+#else
+        (void)context;
+        return 0;
+#endif
+    }
+
+    /// Writes the interrupted instruction and registers before any unwinding. The frame
+    /// pointer walk and backtrace() both come later, because they are the risky part of the
+    /// handler: on a corrupted stack they can fault or abort.
     void WriteInterruptedLocation(void* context)
     {
         std::uintptr_t const programCounter = GetInterruptedProgramCounter(context);
         std::uintptr_t const stackPointer = GetInterruptedStackPointer(context);
+        std::uintptr_t const framePointer = GetInterruptedFramePointer(context);
+        std::uintptr_t const linkRegister = GetInterruptedLinkRegister(context);
 
         if (programCounter)
             Report("Interrupted PC: 0x%llx\n", static_cast<unsigned long long>(programCounter));
@@ -672,30 +705,231 @@ namespace
         if (stackPointer)
             Report("Interrupted SP: 0x%llx\n", static_cast<unsigned long long>(stackPointer));
 
-#if defined(__linux__) && defined(__aarch64__)
-        if (context)
-        {
-            ucontext_t const* interrupt = static_cast<ucontext_t const*>(context);
-            Report("Interrupted FP: 0x%llx\n", static_cast<unsigned long long>(interrupt->uc_mcontext.regs[29]));
-            Report("Interrupted LR: 0x%llx\n", static_cast<unsigned long long>(interrupt->uc_mcontext.regs[30]));
-        }
-#elif defined(__linux__) && defined(__x86_64__)
-        if (context)
-        {
-            ucontext_t const* interrupt = static_cast<ucontext_t const*>(context);
-            Report("Interrupted FP: 0x%llx\n", static_cast<unsigned long long>(interrupt->uc_mcontext.gregs[REG_RBP]));
-        }
-#endif
+        if (framePointer)
+            Report("Interrupted FP: 0x%llx\n", static_cast<unsigned long long>(framePointer));
 
-        if (!stackPointer)
+        if (linkRegister)
+            Report("Interrupted LR: 0x%llx\n", static_cast<unsigned long long>(linkRegister));
+    }
+
+    /// A mapping from /proc/self/maps. Pointers are validated against these ranges before
+    /// they are dereferenced inside the signal handler.
+    struct MemoryRegion
+    {
+        std::uintptr_t begin;
+        std::uintptr_t end;
+    };
+
+    constexpr int MaxCodeRegions = 256;
+
+    struct ProcessMaps
+    {
+        MemoryRegion stack;
+        bool haveStack;
+        MemoryRegion code[MaxCodeRegions];
+        int codeCount;
+        bool codeOverflow;
+    };
+
+    bool ParseHexAddress(char const*& cursor, char const* limit, std::uintptr_t* value)
+    {
+        std::uintptr_t result = 0;
+        char const* start = cursor;
+
+        while (cursor < limit)
+        {
+            char character = *cursor;
+            int digit;
+
+            if (character >= '0' && character <= '9')
+                digit = character - '0';
+            else if (character >= 'a' && character <= 'f')
+                digit = character - 'a' + 10;
+            else if (character >= 'A' && character <= 'F')
+                digit = character - 'A' + 10;
+            else
+                break;
+
+            result = (result << 4) | static_cast<std::uintptr_t>(digit);
+            ++cursor;
+        }
+
+        if (cursor == start)
+            return false;
+
+        *value = result;
+        return true;
+    }
+
+    /// Parses one /proc/self/maps line: "begin-end perms offset dev inode path".
+    bool ParseMappingLine(char const* line, std::size_t length, MemoryRegion* region, bool* readable, bool* executable)
+    {
+        char const* cursor = line;
+        char const* limit = line + length;
+
+        if (!ParseHexAddress(cursor, limit, &region->begin))
+            return false;
+
+        if (cursor >= limit || *cursor != '-')
+            return false;
+
+        ++cursor;
+
+        if (!ParseHexAddress(cursor, limit, &region->end))
+            return false;
+
+        if (cursor + 4 > limit || *cursor != ' ')
+            return false;
+
+        ++cursor;
+        *readable = cursor[0] == 'r';
+        *executable = cursor[2] == 'x';
+        return true;
+    }
+
+    void AddMappingLine(char const* line, std::size_t length, ProcessMaps* maps, std::uintptr_t stackPointer)
+    {
+        MemoryRegion region = {};
+        bool readable = false;
+        bool executable = false;
+
+        if (!ParseMappingLine(line, length, &region, &readable, &executable))
             return;
 
-        Report("Raw stack from SP:\n");
+        if (readable && stackPointer && !maps->haveStack
+            && stackPointer >= region.begin && stackPointer < region.end)
+        {
+            maps->stack = region;
+            maps->haveStack = true;
+        }
 
-        std::uintptr_t const* words = reinterpret_cast<std::uintptr_t const*>(stackPointer);
-        for (int index = 0; index < 64; ++index)
-            Report("  [sp+0x%03x] 0x%016llx\n", index * static_cast<int>(sizeof(std::uintptr_t)),
-                static_cast<unsigned long long>(words[index]));
+        if (executable)
+        {
+            if (maps->codeCount < MaxCodeRegions)
+                maps->code[maps->codeCount++] = region;
+            else
+                maps->codeOverflow = true;
+        }
+    }
+
+    /// Reads the mappings once, so the frame pointer walk can check every pointer it
+    /// touches. A fault inside the handler is much worse than a truncated stack.
+    void ReadProcessMaps(ProcessMaps* maps, std::uintptr_t stackPointer)
+    {
+        maps->haveStack = false;
+        maps->codeCount = 0;
+        maps->codeOverflow = false;
+
+        int descriptor = ::open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
+        if (descriptor < 0)
+            return;
+
+        char chunk[4096];
+        char line[512];
+        std::size_t lineLength = 0;
+
+        while (true)
+        {
+            ssize_t received = ::read(descriptor, chunk, sizeof(chunk));
+            if (received < 0)
+            {
+                if (errno == EINTR)
+                    continue;
+
+                break;
+            }
+
+            if (received == 0)
+                break;
+
+            for (ssize_t index = 0; index < received; ++index)
+            {
+                char character = chunk[index];
+                if (character != '\n')
+                {
+                    if (lineLength + 1 < sizeof(line))
+                        line[lineLength++] = character;
+
+                    continue;
+                }
+
+                AddMappingLine(line, lineLength, maps, stackPointer);
+                lineLength = 0;
+            }
+        }
+
+        if (lineLength > 0)
+            AddMappingLine(line, lineLength, maps, stackPointer);
+
+        ::close(descriptor);
+    }
+
+    bool IsCodeAddress(ProcessMaps const& maps, std::uintptr_t address)
+    {
+        // If the table overflowed, accept the address instead of losing the stack.
+        if (maps.codeOverflow)
+            return address != 0;
+
+        for (int index = 0; index < maps.codeCount; ++index)
+        {
+            if (address >= maps.code[index].begin && address < maps.code[index].end)
+                return true;
+        }
+
+        return false;
+    }
+
+    struct FrameWalk
+    {
+        int count;
+        bool corrupted;
+    };
+
+    /// Follows the saved frame records ("[fp] = caller frame, [fp+8] = return address" on
+    /// both x86-64 and AArch64) from the interrupted frame pointer. This does not use the
+    /// unwinder, so it still produces a stack when unwinding a corrupted stack would fault.
+    /// Every frame pointer and return address is validated first, so nothing unmapped is
+    /// ever read.
+    FrameWalk WalkFramePointers(void* context, ProcessMaps const& maps, void** frames, int maxFrames)
+    {
+        FrameWalk walk = { 0, false };
+
+        std::uintptr_t const stackPointer = GetInterruptedStackPointer(context);
+        std::uintptr_t framePointer = GetInterruptedFramePointer(context);
+
+        if (!stackPointer || !maps.haveStack || !framePointer)
+            return walk;
+
+        std::uintptr_t previous = 0;
+
+        while (walk.count < maxFrames)
+        {
+            if (framePointer < stackPointer
+                || framePointer < maps.stack.begin
+                || framePointer > maps.stack.end - 2 * sizeof(std::uintptr_t)
+                || (framePointer & (sizeof(std::uintptr_t) - 1)) != 0
+                || framePointer <= previous)
+            {
+                walk.corrupted = framePointer != 0;
+                break;
+            }
+
+            std::uintptr_t record[2];
+            std::memcpy(record, reinterpret_cast<void const*>(framePointer), sizeof(record));
+
+            if (!IsCodeAddress(maps, record[1]))
+            {
+                walk.corrupted = true;
+                break;
+            }
+
+            frames[walk.count++] = reinterpret_cast<void*>(record[1]);
+
+            previous = framePointer;
+            framePointer = record[0];
+        }
+
+        return walk;
     }
 
     void WriteAnalysis(int signalNumber, siginfo_t const* info)
@@ -828,32 +1062,70 @@ namespace
         Report("Capturing stack...\n");
 
         void* frames[MaxFrames] = {};
-        int frameCount = ::backtrace(frames, MaxFrames);
+        int frameCount = 0;
 
-        std::uintptr_t programCounter = GetInterruptedProgramCounter(context);
-        int firstFrame = 1;
-        bool foundInterruptedFrame = false;
-
-        for (int index = 1; index < frameCount; ++index)
-        {
-            if (reinterpret_cast<std::uintptr_t>(frames[index]) == programCounter)
-            {
-                firstFrame = index;
-                foundInterruptedFrame = true;
-                break;
-            }
-        }
-
-        if (!foundInterruptedFrame && programCounter != 0 && frameCount < MaxFrames)
-        {
-            // The unwinder could not reach the interrupted frame; report it ourselves so the
-            // faulting instruction is never lost.
+        std::uintptr_t const programCounter = GetInterruptedProgramCounter(context);
+        if (programCounter)
             frames[frameCount++] = reinterpret_cast<void*>(programCounter);
-            firstFrame = frameCount - 1;
+
+        // The frame pointer walk runs before anything that can unwind. It reads the saved
+        // frame records directly, so a corrupted stack that kills the unwinder still leaves
+        // a symbolized stack on disk.
+        ProcessMaps maps = {};
+        ReadProcessMaps(&maps, GetInterruptedStackPointer(context));
+
+        FrameWalk walk = WalkFramePointers(context, maps, frames + frameCount, MaxFrames - frameCount);
+        frameCount += walk.count;
+
+        if (walk.count > 0)
+        {
+            if (walk.corrupted)
+                Report("Stack (frame pointer walk, the chain stops at a corrupted frame record):\n");
+            else
+                Report("Stack (frame pointer walk):\n");
+
+            WriteRawTrace(frames, 0, frameCount);
+            WriteSymbolizedTrace(frames, 0, frameCount);
+        }
+        else if (walk.corrupted)
+        {
+            // The frame pointer chain is invalid at the interrupted frame. Calling the
+            // unwinder here is what turns the report into a truncated one: it follows the
+            // same corrupted records and faults, so only the lines above survive.
+            Report("Stack (frame pointer walk):\n");
+            Report("  <the frame chain is corrupted at the interrupted frame, the unwinder cannot recover it>\n");
+        }
+        else
+        {
+            // No frame pointer chain at all (for example a binary built without frame
+            // pointers): fall back to the unwinder.
+            frameCount = ::backtrace(frames, MaxFrames);
+
+            int firstFrame = 1;
+            bool foundInterruptedFrame = false;
+
+            for (int index = 1; index < frameCount; ++index)
+            {
+                if (reinterpret_cast<std::uintptr_t>(frames[index]) == programCounter)
+                {
+                    firstFrame = index;
+                    foundInterruptedFrame = true;
+                    break;
+                }
+            }
+
+            if (!foundInterruptedFrame && programCounter != 0 && frameCount < MaxFrames)
+            {
+                // The unwinder could not reach the interrupted frame; report it ourselves so
+                // the faulting instruction is never lost.
+                frames[frameCount++] = reinterpret_cast<void*>(programCounter);
+                firstFrame = frameCount - 1;
+            }
+
+            WriteRawTrace(frames, firstFrame, frameCount);
+            WriteSymbolizedTrace(frames, firstFrame, frameCount);
         }
 
-        WriteRawTrace(frames, firstFrame, frameCount);
-        WriteSymbolizedTrace(frames, firstFrame, frameCount);
         WriteAnalysis(signalNumber, info);
 
         Report("===== end of crash report =====\n");
@@ -982,11 +1254,18 @@ void Ycore::InstallCrashHandler()
 
     struct sigaction action = {};
     action.sa_sigaction = &HandleFatalSignal;
-    action.sa_flags = SA_SIGINFO | SA_ONSTACK;
+    action.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_NODEFER;
     ::sigfillset(&action.sa_mask);
 
+    // Do not block the fatal signals while the report is written. A synchronous fault whose
+    // signal is blocked is forced to the default action, which kills the process silently in
+    // the middle of the report. Leaving them unblocked lets the handler re-enter and write
+    // the emergency note instead.
     for (int signalNumber : { SIGSEGV, SIGABRT, SIGBUS, SIGFPE, SIGILL })
+    {
+        ::sigdelset(&action.sa_mask, signalNumber);
         ::sigaction(signalNumber, &action, nullptr);
+    }
 
     if (error)
         std::fprintf(stderr, "Crash report directory %s is not usable: %s\n", g_crashLogDirectory, error.message().c_str());
