@@ -48,7 +48,7 @@ REPLACE INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flig
 UPDATE creature SET position_z = 181.3 WHERE guid = 34503;
 
 -- Add missing Blink Dragon spawn re Wowhead data 
-insert into `creature` (`guid`, `id1`, `id2`, `id3`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`) values('15001858','3815','0','0','1','0','0','1','1','0','1854.09','-1729.31','60.585','5.63287','300','0','0','788','0','0','0','0','0','',NULL,'0',NULL);
+replace into `creature` (`guid`, `id1`, `id2`, `id3`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`, `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `VerifiedBuild`, `CreateObject`, `Comment`) values('15001858','3815','0','0','1','0','0','1','1','0','1854.09','-1729.31','60.585','5.63287','300','0','0','788','0','0','0','0','0','',NULL,'0',NULL);
 
 -- Re Wowhead data, Blink Dragons in the wild move slightly, set wanderdistance 5
 UPDATE creature SET wander_distance = 5, MovementType = 1 WHERE guid IN (34503, 15001858);
