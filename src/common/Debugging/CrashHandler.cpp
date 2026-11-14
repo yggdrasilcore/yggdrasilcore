@@ -102,6 +102,7 @@ namespace
     bool g_sourceNoteShown = false;
 
     volatile sig_atomic_t g_inHandler = 0;
+    volatile sig_atomic_t g_inEmergency = 0;
     bool g_installed = false;
 
 #if defined(YC_HAVE_LIBDW) && defined(__linux__)
@@ -773,18 +774,16 @@ namespace
     {
         if (g_inHandler)
         {
-            EmergencyReportSignal(signalNumber);
+            if (!g_inEmergency)
+            {
+                g_inEmergency = 1;
+                EmergencyReportSignal(signalNumber);
+            }
+
             _exit(128 + signalNumber);
         }
 
         g_inHandler = 1;
-
-        // Reset the disposition immediately, so a fault inside the handler kills the
-        // process instead of re-entering it.
-        struct sigaction defaultAction = {};
-        defaultAction.sa_handler = SIG_DFL;
-        ::sigemptyset(&defaultAction.sa_mask);
-        ::sigaction(signalNumber, &defaultAction, nullptr);
 
         char timestamp[32] = {};
         CurrentTimestamp(timestamp, sizeof(timestamp));
@@ -838,6 +837,14 @@ namespace
             ::close(g_outputDescriptors[1]);
             g_outputDescriptors[1] = -1;
         }
+
+        // Reset the disposition now, so the re-raise below terminates the process with the
+        // original signal instead of re-entering this handler. Until this point the handler
+        // stays installed so a fault inside it is still reported.
+        struct sigaction defaultAction = {};
+        defaultAction.sa_handler = SIG_DFL;
+        ::sigemptyset(&defaultAction.sa_mask);
+        ::sigaction(signalNumber, &defaultAction, nullptr);
 
         // Die from the original signal so the exit status (and any enabled core dump)
         // reflects the real failure.
