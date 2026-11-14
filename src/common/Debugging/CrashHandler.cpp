@@ -177,6 +177,27 @@ namespace
         }
     }
 
+    /// Minimal writer for the re-entry path. The main handler may have already faulted, so
+    /// this only uses write() and fixed strings instead of the formatting helpers.
+    void EmergencyReport(char const* text)
+    {
+        size_t const length = std::strlen(text);
+
+        for (int descriptor : g_outputDescriptors)
+        {
+            if (descriptor >= 0)
+                WriteAll(descriptor, text, length);
+        }
+    }
+
+    void EmergencyReportSignal(int signalNumber)
+    {
+        EmergencyReport("\n===== YggdrasilCore crash handler re-entered, report is incomplete =====\n");
+        EmergencyReport("Second signal: ");
+        EmergencyReport(SignalName(signalNumber));
+        EmergencyReport("\n");
+    }
+
     void GetProcessName(char* buffer, size_t size)
     {
         buffer[0] = '\0';
@@ -636,6 +657,20 @@ namespace
 #endif
     }
 
+    /// Writes the interrupted instruction and stack pointer before any unwinding. This is
+    /// the only reliably available location when backtrace() cannot walk the stack.
+    void WriteInterruptedLocation(void* context)
+    {
+        std::uintptr_t const programCounter = GetInterruptedProgramCounter(context);
+        std::uintptr_t const stackPointer = GetInterruptedStackPointer(context);
+
+        if (programCounter)
+            Report("Interrupted PC: 0x%llx\n", static_cast<unsigned long long>(programCounter));
+
+        if (stackPointer)
+            Report("Interrupted SP: 0x%llx\n", static_cast<unsigned long long>(stackPointer));
+    }
+
     void WriteAnalysis(int signalNumber, siginfo_t const* info)
     {
         Report("Analysis:\n");
@@ -737,7 +772,10 @@ namespace
     void HandleFatalSignal(int signalNumber, siginfo_t* info, void* context)
     {
         if (g_inHandler)
+        {
+            EmergencyReportSignal(signalNumber);
             _exit(128 + signalNumber);
+        }
 
         g_inHandler = 1;
 
@@ -754,10 +792,15 @@ namespace
         g_outputDescriptors[0] = STDERR_FILENO;
         OpenCrashLogFile(timestamp);
 
+        g_faultContext = context;
+        g_faultAddress = info ? reinterpret_cast<std::uintptr_t>(info->si_addr) : 0;
+
         char processName[64] = {};
         GetProcessName(processName, sizeof(processName));
 
         WriteHeader(signalNumber, info, timestamp, processName);
+        WriteInterruptedLocation(context);
+        Report("Capturing stack...\n");
 
         void* frames[MaxFrames] = {};
         int frameCount = ::backtrace(frames, MaxFrames);
@@ -783,9 +826,6 @@ namespace
             frames[frameCount++] = reinterpret_cast<void*>(programCounter);
             firstFrame = frameCount - 1;
         }
-
-        g_faultContext = context;
-        g_faultAddress = info ? reinterpret_cast<std::uintptr_t>(info->si_addr) : 0;
 
         WriteRawTrace(frames, firstFrame, frameCount);
         WriteSymbolizedTrace(frames, firstFrame, frameCount);
