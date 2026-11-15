@@ -21,6 +21,7 @@
 #include "ScriptedCreature.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedGossip.h"
+#include "SmartAI.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
 
@@ -457,6 +458,241 @@ class spell_hawk_hunting : public SpellScript
     }
 };
 
+enum ShoveltuskStag
+{
+    NPC_SHOVELTUSK_STAG             = 23691,
+    SHOVELTUSK_SPAR_SEARCH_DIST     = 15,
+    SHOVELTUSK_SPAR_FACE_OFF_MS     = 1500,
+    SHOVELTUSK_SPAR_DURATION_MS     = 8000
+};
+
+constexpr float SHOVELTUSK_SPAR_MIN_HEALTH_PCT = 60.0f;
+
+/// Male Shoveltusk Stags periodically challenge each other over territory or mates.
+/// They square off, then ram their antlers together. The melee swing is the stag's
+/// headbutt animation. creature_sparring keeps the mock fight from ever killing them.
+class npc_shoveltusk_stag : public SmartAI
+{
+public:
+    npc_shoveltusk_stag(Creature* creature) : SmartAI(creature), _nextSparCheck(urand(30, 120) * IN_MILLISECONDS) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (_sparring)
+        {
+            UpdateSparring(diff);
+            return;
+        }
+
+        SmartAI::UpdateAI(diff);
+
+        if (_nextSparCheck <= diff)
+        {
+            _nextSparCheck = urand(60, 180) * IN_MILLISECONDS;
+            TryStartSparring();
+        }
+        else
+            _nextSparCheck -= diff;
+    }
+
+    void JustEngagedWith(Unit* who) override
+    {
+        // The sparring opener also enters combat; don't run the regular aggro
+        // behaviour (Shoveltusk Charge) for it.
+        if (_sparring && who && who->GetGUID() == _partnerGuid)
+            return;
+
+        SmartAI::JustEngagedWith(who);
+    }
+
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType damageType, SpellSchoolMask damageSchoolMask) override
+    {
+        if (_sparring && (!attacker || attacker->GetGUID() != _partnerGuid))
+        {
+            StopSparring(false);
+
+            if (attacker && me->IsValidAttackTarget(attacker))
+                me->Attack(attacker, true);
+        }
+
+        SmartAI::DamageTaken(attacker, damage, damageType, damageSchoolMask);
+    }
+
+    void OnCalculateMeleeDamageReceived(uint32& damage, Unit* attacker) override
+    {
+        // A territorial display, not a fight to the death: the tusks only
+        // inflict minor damage on a sparring partner. This hook runs before
+        // the damage packet is sent, so the client sees the reduced value.
+        if (_sparring && attacker && attacker->GetGUID() == _partnerGuid)
+            damage = std::max<uint32>(1, damage / 4);
+    }
+
+    void EnterEvadeMode(EvadeReason why) override
+    {
+        if (_sparring)
+            StopSparring(false);
+
+        SmartAI::EnterEvadeMode(why);
+    }
+
+    void JustDied(Unit* killer) override
+    {
+        if (_sparring)
+            StopSparring(false);
+
+        SmartAI::JustDied(killer);
+    }
+
+private:
+    void TryStartSparring()
+    {
+        if (!me->IsAlive() || me->IsInCombat() || me->IsInEvadeMode() || me->IsCharmedOwnedByPlayerOrPlayer()
+            || me->GetHealthPct() < SHOVELTUSK_SPAR_MIN_HEALTH_PCT)
+            return;
+
+        std::list<Creature*> stags;
+        me->GetCreatureListWithEntryInGrid(stags, NPC_SHOVELTUSK_STAG, SHOVELTUSK_SPAR_SEARCH_DIST);
+
+        Creature* partner = nullptr;
+        float bestDistance = SHOVELTUSK_SPAR_SEARCH_DIST;
+
+        for (Creature* stag : stags)
+        {
+            if (stag == me || !stag->IsAlive() || stag->IsInCombat() || stag->IsInEvadeMode()
+                || stag->IsCharmedOwnedByPlayerOrPlayer() || stag->GetHealthPct() < SHOVELTUSK_SPAR_MIN_HEALTH_PCT)
+                continue;
+
+            if (!me->InSamePhase(stag) || !me->IsWithinLOSInMap(stag))
+                continue;
+
+            npc_shoveltusk_stag* stagAI = dynamic_cast<npc_shoveltusk_stag*>(stag->AI());
+            if (!stagAI || stagAI->_sparring)
+                continue;
+
+            float distance = me->GetDistance(stag);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                partner = stag;
+            }
+        }
+
+        if (partner)
+            StartSparring(partner);
+    }
+
+    void StartSparring(Creature* partner)
+    {
+        npc_shoveltusk_stag* partnerAI = dynamic_cast<npc_shoveltusk_stag*>(partner->AI());
+        if (!partnerAI)
+            return;
+
+        _sparring = true;
+        _partnerGuid = partner->GetGUID();
+        _sparTimer = 0;
+        _faceOffTimer = SHOVELTUSK_SPAR_FACE_OFF_MS;
+
+        partnerAI->_sparring = true;
+        partnerAI->_partnerGuid = me->GetGUID();
+        partnerAI->_sparTimer = 0;
+        partnerAI->_faceOffTimer = SHOVELTUSK_SPAR_FACE_OFF_MS;
+
+        // Prevent the herd from joining the sparring match.
+        me->SetNoCallAssistance(true);
+        partner->SetNoCallAssistance(true);
+
+        me->SetFacingToObject(partner);
+        partner->SetFacingToObject(me);
+
+        me->Attack(partner, true);
+        partner->Attack(me, true);
+
+        // Unit::Attack arms the periodic assistance timer, which Creature::Update
+        // would otherwise use to re-enable CallAssistance() while we spar.
+        me->SetAssistanceTimer(0);
+        partner->SetAssistanceTimer(0);
+
+        me->GetMotionMaster()->MoveChase(partner);
+        partner->GetMotionMaster()->MoveChase(me);
+    }
+
+    void UpdateSparring(uint32 diff)
+    {
+        Creature* partner = ObjectAccessor::GetCreature(*me, _partnerGuid);
+        if (!partner || !partner->IsAlive() || !me->IsAlive() || !me->IsWithinLOSInMap(partner)
+            || me->GetDistance(partner) > SHOVELTUSK_SPAR_SEARCH_DIST * 2)
+        {
+            StopSparring(true);
+            return;
+        }
+
+        _sparTimer += diff;
+        if (_sparTimer >= SHOVELTUSK_SPAR_DURATION_MS)
+        {
+            StopSparring(true);
+            return;
+        }
+
+        if (_faceOffTimer > diff)
+        {
+            _faceOffTimer -= diff;
+            return;
+        }
+
+        _faceOffTimer = 0;
+
+        // Let the normal melee swing play the headbutt animation. Even when
+        // creature_sparring caps the damage, the client still receives the
+        // fake-damage hit and plays the attack animation.
+        DoMeleeAttackIfReady();
+    }
+
+    void StopSparring(bool returnHome)
+    {
+        if (!_sparring)
+            return;
+
+        Creature* partner = ObjectAccessor::GetCreature(*me, _partnerGuid);
+
+        _sparring = false;
+        _partnerGuid.Clear();
+        _sparTimer = 0;
+        _faceOffTimer = 0;
+        _nextSparCheck = urand(60, 180) * IN_MILLISECONDS;
+
+        me->AttackStop();
+        if (partner)
+            me->GetThreatMgr().ClearThreat(partner);
+
+        if (me->GetThreatMgr().isThreatListEmpty())
+            me->CombatStop(true);
+
+        if (me->IsAlive())
+        {
+            if (returnHome)
+                me->GetMotionMaster()->MoveTargetedHome();
+            else
+            {
+                me->GetMotionMaster()->Clear();
+                me->GetMotionMaster()->MoveIdle();
+            }
+        }
+
+        if (partner && partner->IsAlive())
+        {
+            if (npc_shoveltusk_stag* partnerAI = dynamic_cast<npc_shoveltusk_stag*>(partner->AI()))
+                if (partnerAI->_sparring && partnerAI->_partnerGuid == me->GetGUID())
+                    partnerAI->StopSparring(returnHome);
+        }
+    }
+
+    ObjectGuid _partnerGuid;
+    uint32 _nextSparCheck;
+    uint32 _sparTimer = 0;
+    uint32 _faceOffTimer = 0;
+    bool _sparring = false;
+};
+
 void AddSC_howling_fjord()
 {
     new npc_attracted_reef_bull();
@@ -465,5 +701,6 @@ void AddSC_howling_fjord()
     new npc_plaguehound_tracker();
     new npc_razael_and_lyana();
     RegisterCreatureAI(npc_rodin_lightning_enabler);
+    RegisterCreatureAI(npc_shoveltusk_stag);
     RegisterSpellScript(spell_hawk_hunting);
 }
