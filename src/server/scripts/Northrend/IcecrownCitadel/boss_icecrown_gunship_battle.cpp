@@ -708,9 +708,9 @@ public:
                 return;
             _died = true;
             
-            // The deck hull that fell is the ship that lost: the enemy's hull means we won.
+            // This hull creature belongs to the losing ship: the enemy's hull means we won.
             bool const isVictory = me->GetEntry() == uint32(_teamIdInInstance == TEAM_HORDE ? NPC_THE_SKYBREAKER : NPC_ORGRIMS_HAMMER);
-            Transport* fallenShip = _instance->instance->GetTransport(_instance->GetGuidData(isVictory ? DATA_ENEMY_GUNSHIP : DATA_ICECROWN_GUNSHIP_BATTLE));
+            Transport* defeatedShip = _instance->instance->GetTransport(_instance->GetGuidData(isVictory ? DATA_ENEMY_GUNSHIP : DATA_ICECROWN_GUNSHIP_BATTLE));
             _instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, isVictory ? DONE : FAIL);
             me->GetMap()->SetZoneMusic(AREA_ICECROWN_CITADEL, 0);
 
@@ -725,7 +725,7 @@ public:
                 a->SetDuration(0);
 
             uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
-            if (MotionTransport* t = (fallenShip ? fallenShip->ToMotionTransport() : nullptr))
+            if (MotionTransport* t = (defeatedShip ? defeatedShip->ToMotionTransport() : nullptr))
             {
                 Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
                 for (ObjectGuid const& guid : passengers)
