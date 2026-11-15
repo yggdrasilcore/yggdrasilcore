@@ -690,8 +690,8 @@ public:
             if (_summonedFirstMage)
                 return;
 
-            Transport* transport = me->GetMap()->GetTransport(me->m_movementInfo.transport.guid);
-            if (!transport || transport->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? GO_THE_SKYBREAKER_H : GO_ORGRIMS_HAMMER_A))
+            // Only the enemy ship's deck hull asks for the first mage.
+            if (me->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? NPC_THE_SKYBREAKER : NPC_ORGRIMS_HAMMER))
                 return;
 
             if (!me->HealthBelowPctDamaged(90, damage))
@@ -708,9 +708,9 @@ public:
                 return;
             _died = true;
             
-            ObjectGuid transportGuid = me->m_movementInfo.transport.guid;
-            Transport* transport = me->GetMap()->GetTransport(transportGuid);
-            bool isVictory = transport && (transport->GetEntry() == GO_THE_SKYBREAKER_H || transport->GetEntry() == GO_ORGRIMS_HAMMER_A);
+            // The deck hull that fell is the ship that lost: the enemy's hull means we won.
+            bool const isVictory = me->GetEntry() == uint32(_teamIdInInstance == TEAM_HORDE ? NPC_THE_SKYBREAKER : NPC_ORGRIMS_HAMMER);
+            Transport* fallenShip = _instance->instance->GetTransport(_instance->GetGuidData(isVictory ? DATA_ENEMY_GUNSHIP : DATA_ICECROWN_GUNSHIP_BATTLE));
             _instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, isVictory ? DONE : FAIL);
             me->GetMap()->SetZoneMusic(AREA_ICECROWN_CITADEL, 0);
 
@@ -725,7 +725,7 @@ public:
                 a->SetDuration(0);
 
             uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
-            if (MotionTransport* t = (transport ? transport->ToMotionTransport() : nullptr))
+            if (MotionTransport* t = (fallenShip ? fallenShip->ToMotionTransport() : nullptr))
             {
                 Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
                 for (ObjectGuid const& guid : passengers)
@@ -771,11 +771,13 @@ public:
 
             if (isVictory)
             {
-                if (Transport * transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
-                    if (MotionTransport* otherTransport = transport->ToMotionTransport())
-                        otherTransport->EnableMovement(true);
+                // Unpark both ships: the enemy one flies off and is removed by its path
+                // event, ours carries the raid to the end position.
+                if (Transport* transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
+                    if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                        motionTransport->EnableMovement(true);
 
-                if (transport)
+                if (Transport* transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ENEMY_GUNSHIP)))
                     if (MotionTransport* motionTransport = transport->ToMotionTransport())
                         motionTransport->EnableMovement(true);
 
@@ -821,10 +823,7 @@ public:
             else
             {
                 uint32 teleportSpellId = _teamIdInInstance == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
-                Unit* resetOwner = me;
-                if (Creature* enemyShip = _instance->GetCreature(DATA_ENEMY_GUNSHIP))
-                    resetOwner = enemyShip;
-                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId), 8s);
+                me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 8s);
             }
         }
 
