@@ -544,9 +544,13 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 }
 
-static void RestoreGunshipHull(Transport* transport)
+static void RestoreGunshipPassengers(Transport* transport)
 {
     if (!transport)
+        return;
+
+    Map* map = transport->GetMap();
+    if (!map)
         return;
 
     if (MotionTransport* mt = transport->ToMotionTransport())
@@ -557,14 +561,16 @@ static void RestoreGunshipHull(Transport* transport)
             WorldObject* passenger = mt->GetPassenger(guid);
             if (!passenger || !mt->HasStaticPassenger(guid))
                 continue;
-            Creature* hull = passenger->ToCreature();
-            if (!hull || (hull->GetEntry() != NPC_THE_SKYBREAKER && hull->GetEntry() != NPC_ORGRIMS_HAMMER))
+            Creature* creature = passenger->ToCreature();
+            if (!creature)
                 continue;
 
-            transport->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
-            if (!hull->IsAlive())
-                hull->setDeathState(DeathState::Alive);
-            hull->SetFullHealth();
+            // Everything on the deck comes back with the ship: a stale death timer
+            // would otherwise respawn the replacement already dead.
+            map->RemoveCreatureRespawnTime(creature->GetSpawnId());
+            if (!creature->IsAlive())
+                creature->setDeathState(DeathState::Alive);
+            creature->SetFullHealth();
         }
     }
 }
@@ -595,8 +601,8 @@ public:
         Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
         Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
 
-        RestoreGunshipHull(friendlyTransport);
-        RestoreGunshipHull(enemyTransport);
+        RestoreGunshipPassengers(friendlyTransport);
+        RestoreGunshipPassengers(enemyTransport);
 
         if (friendlyTransport)
         {
