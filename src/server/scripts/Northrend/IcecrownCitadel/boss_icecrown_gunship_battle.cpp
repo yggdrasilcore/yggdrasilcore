@@ -544,7 +544,7 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 }
 
-static void ClearGunshipHullRespawnTimes(Transport* transport)
+static void RestoreGunshipHull(Transport* transport)
 {
     if (!transport)
         return;
@@ -557,9 +557,14 @@ static void ClearGunshipHullRespawnTimes(Transport* transport)
             WorldObject* passenger = mt->GetPassenger(guid);
             if (!passenger || !mt->HasStaticPassenger(guid))
                 continue;
-            if (Creature* hull = passenger->ToCreature())
-                if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
-                    transport->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
+            Creature* hull = passenger->ToCreature();
+            if (!hull || (hull->GetEntry() != NPC_THE_SKYBREAKER && hull->GetEntry() != NPC_ORGRIMS_HAMMER))
+                continue;
+
+            transport->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
+            if (!hull->IsAlive())
+                hull->setDeathState(DeathState::Alive);
+            hull->SetFullHealth();
         }
     }
 }
@@ -590,8 +595,8 @@ public:
         Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
         Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
 
-        ClearGunshipHullRespawnTimes(friendlyTransport);
-        ClearGunshipHullRespawnTimes(enemyTransport);
+        RestoreGunshipHull(friendlyTransport);
+        RestoreGunshipHull(enemyTransport);
 
         if (friendlyTransport)
         {
@@ -669,6 +674,12 @@ public:
                 me->GetMap()->RemoveCreatureRespawnTime(me->GetSpawnId());
                 me->setDeathState(DeathState::Alive);
             }
+            me->SetFullHealth();
+        }
+
+        void JustRespawned() override
+        {
+            NullCreatureAI::JustRespawned();
             me->SetFullHealth();
         }
 
