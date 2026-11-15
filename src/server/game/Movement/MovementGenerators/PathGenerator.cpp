@@ -376,7 +376,7 @@ bool PathGenerator::ValidatePlayerMove()
             !map->isInLineOfSight(b.x, b.y, b.z + high, a.x, a.y, a.z + high, phase,
                 LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing);
 
-        if ((tooSteep || losBlocked) && !unit->CanFly() && ValidateSurfaceWalk(a, b))
+        if ((tooSteep || losBlocked) && !unit->CanFly() && ValidateSurfaceWalk(_source, a, b, VETO_PLAYER_GRADE))
             return false;
 
         if (tooSteep || losBlocked)
@@ -387,7 +387,7 @@ bool PathGenerator::ValidatePlayerMove()
         {
             // Stair inclines clip the shin ray; walls still veto.
             float const dx = b.x - a.x, dy = b.y - a.y;
-            bool const ramp = !unit->CanFly() && ValidateSurfaceWalk(a, b);
+            bool const ramp = !unit->CanFly() && ValidateSurfaceWalk(_source, a, b, VETO_PLAYER_GRADE);
             if (!IsVetoForgivenGrade(b.z - a.z, std::sqrt(dx * dx + dy * dy), VETO_PLAYER_GRADE) && !ramp)
                 return true;
         }
@@ -1138,9 +1138,9 @@ bool PathGenerator::IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector
     return blockedByDeck(a + up, b + up) || blockedByDeck(b + up, a + up);
 }
 
-bool PathGenerator::ValidateSurfaceWalk(G3D::Vector3 const& a, G3D::Vector3 const& b) const
+bool PathGenerator::ValidateSurfaceWalk(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, float maxGrade)
 {
-    Map* map = _source ? _source->GetMap() : nullptr;
+    Map* map = source ? source->GetMap() : nullptr;
     if (!map)
         return false;
 
@@ -1149,10 +1149,13 @@ bool PathGenerator::ValidateSurfaceWalk(G3D::Vector3 const& a, G3D::Vector3 cons
     if (flat < 0.01f)
         return false;
 
-    // One step per metre keeps every hop inside the shin-height forgiveness, so a
-    // wall or a ledge cannot hide between two samples.
-    uint32 const steps = std::min<uint32>(uint32(flat) + 1, 64);
-    uint32 const phase = _source->GetPhaseMask();
+    // One step per metre (at most) keeps every hop inside the shin-height forgiveness,
+    // so a wall or a ledge cannot hide between two samples.
+    uint32 const steps = std::min<uint32>(uint32(std::ceil(flat)), 64);
+    float const stepLen = flat / float(steps);
+    // A step may rise by its share of the grade plus a little mesh jitter.
+    float const stepRise = maxGrade * stepLen + VETO_STEP_UP_HEIGHT * 0.25f;
+    uint32 const phase = source->GetPhaseMask();
     float const searchStart = std::max(a.z, b.z) + VETO_STEP_UP_HEIGHT;
     float const searchDist = std::fabs(dz) + VETO_STEP_UP_HEIGHT * 2.0f;
 
@@ -1167,7 +1170,9 @@ bool PathGenerator::ValidateSurfaceWalk(G3D::Vector3 const& a, G3D::Vector3 cons
         float const x = a.x + dx * t;
         float const y = a.y + dy * t;
         float const z = map->GetHeight(phase, x, y, searchStart, true, searchDist);
-        if (z <= INVALID_HEIGHT || std::fabs(z - prevZ) > VETO_STEP_UP_HEIGHT)
+        // Each step is judged on its own: the total rise of a long ramp says nothing,
+        // a single unclimbable step does.
+        if (z <= INVALID_HEIGHT || std::fabs(z - prevZ) > stepRise)
             return false;
         if (!map->isInLineOfSight(prevX, prevY, prevZ + 0.5f, x, y, z + 0.5f, phase,
                 LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))

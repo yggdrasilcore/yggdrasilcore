@@ -88,6 +88,12 @@ class PathGenerator
         // within `radius` of a transport on its map.
         [[nodiscard]] static bool IsControlledNPCNearTransport(WorldObject const* obj, float radius);
 
+        // True when the ground from `a` to `b` can be walked: the surface is sampled
+        // once per metre, no single step rises faster than `maxGrade`, and every step
+        // is clear in both directions. Length does not matter, only the steps do, so a
+        // continuous ramp passes while a ledge, wall or cliff fails on its own step.
+        [[nodiscard]] static bool ValidateSurfaceWalk(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, float maxGrade);
+
         // option setters - use optional
 
         // when set, it skips paths with too high slopes (doesn't work with StraightPath enabled)
@@ -199,12 +205,6 @@ class PathGenerator
         // PATHFIND_NOPATH when the destination is not on the deck being ridden.
         void BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* transport);
         [[nodiscard]] bool IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const;
-
-        // True when the ground between two points is a continuous ramp: the VMap
-        // surface holds the line and every one-metre step of it is clear in both
-        // directions. Lets steep inclines through where a straight head-height ray
-        // clips the slope itself.
-        [[nodiscard]] bool ValidateSurfaceWalk(G3D::Vector3 const& a, G3D::Vector3 const& b) const;
 
         [[nodiscard]] NavTerrain GetNavTerrain(float x, float y, float z) const;
         void CreateFilter();
