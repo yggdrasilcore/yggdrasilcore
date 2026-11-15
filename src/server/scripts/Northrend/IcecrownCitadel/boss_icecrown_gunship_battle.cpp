@@ -544,33 +544,27 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 }
 
-static void RestoreGunshipPassengers(Transport* transport)
+static void DespawnGunshipHulls(WorldObject* searcher)
 {
-    if (!transport)
+    if (!searcher)
         return;
 
-    Map* map = transport->GetMap();
+    Map* map = searcher->GetMap();
     if (!map)
         return;
 
-    if (MotionTransport* mt = transport->ToMotionTransport())
+    // Hulls are identified by template entry alone: the transport link is not
+    // reliable while the ship is being torn down, which is why a hull could
+    // survive the wipe. They come back with the next ship, so drop them here and
+    // clear the death timer so the reload spawns them alive at full health.
+    for (uint32 entry : { NPC_THE_SKYBREAKER, NPC_ORGRIMS_HAMMER })
     {
-        Transport::PassengerGuidSet const passengers = mt->GetStaticPassengerGuids();
-        for (ObjectGuid const& guid : passengers)
+        std::list<Creature*> hulls;
+        searcher->GetCreatureListWithEntryInGrid(hulls, entry, 500.0f);
+        for (Creature* hull : hulls)
         {
-            WorldObject* passenger = mt->GetPassenger(guid);
-            if (!passenger || !mt->HasStaticPassenger(guid))
-                continue;
-            Creature* creature = passenger->ToCreature();
-            if (!creature)
-                continue;
-
-            // Everything on the deck comes back with the ship: a stale death timer
-            // would otherwise respawn the replacement already dead.
-            map->RemoveCreatureRespawnTime(creature->GetSpawnId());
-            if (!creature->IsAlive())
-                creature->setDeathState(DeathState::Alive);
-            creature->SetFullHealth();
+            map->RemoveCreatureRespawnTime(hull->GetSpawnId());
+            hull->DespawnOrUnsummon();
         }
     }
 }
@@ -601,8 +595,7 @@ public:
         Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
         Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
 
-        RestoreGunshipPassengers(friendlyTransport);
-        RestoreGunshipPassengers(enemyTransport);
+        DespawnGunshipHulls(_owner);
 
         if (friendlyTransport)
         {
