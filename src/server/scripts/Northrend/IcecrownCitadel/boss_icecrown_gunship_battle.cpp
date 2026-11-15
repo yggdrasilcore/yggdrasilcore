@@ -16,7 +16,9 @@
  */
 
 #include <algorithm>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "AchievementCriteriaScript.h"
 #include "AreaDefines.h"
@@ -34,6 +36,7 @@
 #include "icecrown_citadel.h"
 #include "PassiveAI.h"
 #include "SpellAuraEffects.h"
+#include "TypeContainerVisitor.h"
 
 enum Texts
 {
@@ -544,28 +547,100 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 }
 
-static void DespawnGunshipHulls(WorldObject* searcher)
+static void RestoreGunshipPassengers(Transport* transport)
 {
-    if (!searcher)
+    if (!transport)
         return;
 
-    Map* map = searcher->GetMap();
+    Map* map = transport->GetMap();
     if (!map)
         return;
 
-    // Hulls are identified by template entry alone: the transport link is not
-    // reliable while the ship is being torn down, which is why a hull could
-    // survive the wipe. They come back with the next ship, so drop them here and
-    // clear the death timer so the reload spawns them alive at full health.
-    for (uint32 entry : { NPC_THE_SKYBREAKER, NPC_ORGRIMS_HAMMER })
+    if (MotionTransport* mt = transport->ToMotionTransport())
     {
-        std::list<Creature*> hulls;
-        searcher->GetCreatureListWithEntryInGrid(hulls, entry, 500.0f);
-        for (Creature* hull : hulls)
+        Transport::PassengerGuidSet const passengers = mt->GetStaticPassengerGuids();
+        for (ObjectGuid const& guid : passengers)
         {
-            map->RemoveCreatureRespawnTime(hull->GetSpawnId());
-            hull->DespawnOrUnsummon();
+            WorldObject* passenger = mt->GetPassenger(guid);
+            if (!passenger || !mt->HasStaticPassenger(guid))
+                continue;
+            Creature* creature = passenger->ToCreature();
+            if (!creature)
+                continue;
+
+            // Everything on the deck comes back with the ship: a stale death timer
+            // would otherwise respawn the replacement already dead.
+            map->RemoveCreatureRespawnTime(creature->GetSpawnId());
+            if (!creature->IsAlive())
+                creature->setDeathState(DeathState::Alive);
+            creature->SetFullHealth();
         }
+    }
+}
+
+static bool IsGunshipCreatureEntry(uint32 entry)
+{
+    switch (entry)
+    {
+        case NPC_THE_SKYBREAKER:
+        case NPC_ORGRIMS_HAMMER:
+        case NPC_GUNSHIP_HULL:
+        case NPC_ALLIANCE_GUNSHIP_CANNON:
+        case NPC_HORDE_GUNSHIP_CANNON:
+        case NPC_SKYBREAKER_SORCERER:
+        case NPC_SKYBREAKER_RIFLEMAN:
+        case NPC_SKYBREAKER_MORTAR_SOLDIER:
+        case NPC_SKYBREAKER_MARINE:
+        case NPC_SKYBREAKER_SERGEANT:
+        case NPC_SKYBREAKER_DECKHAND:
+        case NPC_KOR_KRON_BATTLE_MAGE:
+        case NPC_KOR_KRON_AXETHROWER:
+        case NPC_KOR_KRON_ROCKETEER:
+        case NPC_KOR_KRON_REAVER:
+        case NPC_KOR_KRON_SERGEANT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+class GunshipCreatureCollector
+{
+public:
+    void Visit(std::unordered_map<ObjectGuid, Creature*>& creatures)
+    {
+        for (auto const& pair : creatures)
+            if (Creature* creature = pair.second)
+                if (IsGunshipCreatureEntry(creature->GetEntry()))
+                    found.push_back(creature);
+    }
+
+    template<class T>
+    void Visit(std::unordered_map<ObjectGuid, T*>&) { }
+
+    std::vector<Creature*> found;
+};
+
+static void DespawnGunshipCreatures(Map* map)
+{
+    if (!map)
+        return;
+
+    // The ship's mobs are identified by template entry over the whole instance
+    // map: the transport passenger link is not reliable while the ship is being
+    // torn down. They come back with the next ship, so drop them here and clear
+    // the death timer so the reload spawns them alive at full health.
+    GunshipCreatureCollector collector;
+    TypeContainerVisitor<GunshipCreatureCollector, MapStoredObjectTypesContainer> visitor(collector);
+    visitor.Visit(map->GetObjectsStore());
+
+    for (Creature* creature : collector.found)
+    {
+        // Despawning a living creature runs it through its death state, which
+        // writes a fresh respawn time, so the timer is cleared afterwards.
+        creature->DespawnOrUnsummon();
+        if (creature->GetSpawnId())
+            map->RemoveCreatureRespawnTime(creature->GetSpawnId());
     }
 }
 
@@ -595,7 +670,10 @@ public:
         Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
         Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
 
-        DespawnGunshipHulls(_owner);
+        RestoreGunshipPassengers(friendlyTransport);
+        RestoreGunshipPassengers(enemyTransport);
+
+        DespawnGunshipCreatures(map);
 
         if (friendlyTransport)
         {
