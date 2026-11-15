@@ -545,6 +545,14 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, enemyShip, 1);
     instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, friendlyShip, 2);
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
+
+    // A player still on the rampart below misses the deck for the whole fight,
+    // so the encounter start sends them where the boarding troopers arrive.
+    instance->instance->DoForAllPlayers([](Player* player)
+    {
+        if (player->GetPositionZ() < 215.0f)
+            player->CastSpell(player, SPELL_TELEPORT_TO_ENEMY_SHIP, true);
+    });
 }
 
 static void RestoreGunshipPassengers(Transport* transport)
