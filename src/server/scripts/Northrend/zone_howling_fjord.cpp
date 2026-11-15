@@ -463,10 +463,14 @@ enum ShoveltuskStag
     NPC_SHOVELTUSK_STAG             = 23691,
     SHOVELTUSK_SPAR_SEARCH_DIST     = 15,
     SHOVELTUSK_SPAR_FACE_OFF_MS     = 1500,
-    SHOVELTUSK_SPAR_DURATION_MS     = 8000
+    SHOVELTUSK_SPAR_DURATION_MS     = 12000
 };
 
-constexpr float SHOVELTUSK_SPAR_MIN_HEALTH_PCT = 60.0f;
+constexpr float SHOVELTUSK_SPAR_MIN_HEALTH_PCT      = 60.0f;
+// Fractions of the melee range. Below the minimum the stags have pushed into
+// each other (heads clipping), so they briefly back off to the ideal distance.
+constexpr float SHOVELTUSK_SPAR_MIN_SEPARATION_PCT  = 0.60f;
+constexpr float SHOVELTUSK_SPAR_IDEAL_SEPARATION_PCT = 0.85f;
 
 /// Male Shoveltusk Stags periodically challenge each other over territory or mates.
 /// They square off, then ram their antlers together. The melee swing is the stag's
@@ -612,8 +616,18 @@ private:
         me->SetAssistanceTimer(0);
         partner->SetAssistanceTimer(0);
 
-        me->GetMotionMaster()->MoveChase(partner);
-        partner->GetMotionMaster()->MoveChase(me);
+        // Only the stag that started the display moves. If both chase each
+        // other they run through one another and the models end up overlapping.
+        _isMoving = true;
+        partnerAI->_isMoving = false;
+
+        float const desiredSeparation = me->GetMeleeRange(partner) * SHOVELTUSK_SPAR_IDEAL_SEPARATION_PCT;
+        if (me->GetExactDist(partner) < desiredSeparation)
+            me->GetMotionMaster()->MoveBackwards(partner, desiredSeparation);
+        else
+            me->GetMotionMaster()->MoveChase(partner);
+
+        partner->GetMotionMaster()->MoveIdle();
     }
 
     void UpdateSparring(uint32 diff)
@@ -626,12 +640,9 @@ private:
             return;
         }
 
-        _sparTimer += diff;
-        if (_sparTimer >= SHOVELTUSK_SPAR_DURATION_MS)
-        {
-            StopSparring(true);
-            return;
-        }
+        // Something may have cleared the attack state (e.g. a spell interrupt).
+        if (me->GetVictim() != partner)
+            me->Attack(partner, true);
 
         if (_faceOffTimer > diff)
         {
@@ -640,6 +651,38 @@ private:
         }
 
         _faceOffTimer = 0;
+
+        _sparTimer += diff;
+        if (_sparTimer >= SHOVELTUSK_SPAR_DURATION_MS)
+        {
+            StopSparring(true);
+            return;
+        }
+
+        // Wait for the opening charge (or the initial back-off step) to finish.
+        if (!me->movespline->Finalized())
+            return;
+
+        if (!me->IsWithinMeleeRange(partner))
+        {
+            if (_isMoving && me->GetMotionMaster()->GetCurrentMovementGeneratorType() != CHASE_MOTION_TYPE)
+                me->GetMotionMaster()->MoveChase(partner);
+
+            return;
+        }
+
+        float const meleeRange = me->GetMeleeRange(partner);
+
+        // Safety net in case the spawns put them inside each other: the moving
+        // stag takes a short step back to the ideal headbutt distance while the
+        // other one waits, so neither swings from inside the other's model.
+        if (me->GetExactDist(partner) < meleeRange * SHOVELTUSK_SPAR_MIN_SEPARATION_PCT)
+        {
+            if (_isMoving)
+                me->GetMotionMaster()->MoveBackwards(partner, meleeRange * SHOVELTUSK_SPAR_IDEAL_SEPARATION_PCT);
+
+            return;
+        }
 
         // Let the normal melee swing play the headbutt animation. Even when
         // creature_sparring caps the damage, the client still receives the
@@ -655,6 +698,7 @@ private:
         Creature* partner = ObjectAccessor::GetCreature(*me, _partnerGuid);
 
         _sparring = false;
+        _isMoving = false;
         _partnerGuid.Clear();
         _sparTimer = 0;
         _faceOffTimer = 0;
@@ -691,6 +735,7 @@ private:
     uint32 _sparTimer = 0;
     uint32 _faceOffTimer = 0;
     bool _sparring = false;
+    bool _isMoving = false;
 };
 
 void AddSC_howling_fjord()
