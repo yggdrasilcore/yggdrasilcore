@@ -587,10 +587,6 @@ public:
 
         _owner->CastSpell(_owner, _spellId, true);
 
-        // Look the ships up on the instance instead of taking them from the
-        // creature that scheduled the reset: that creature's transport link can
-        // be gone by the time the reset runs, which used to leave our own ship
-        // in the air and the encounter stuck in FAIL.
         Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
         Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
 
