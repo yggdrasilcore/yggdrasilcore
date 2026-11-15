@@ -193,6 +193,19 @@ class PathGenerator
         void BuildPointPath(float const* startPoint, float const* endPoint);
         void BuildShortcut();
 
+        // A transport deck is never part of the map mesh, so a deck move is a straight
+        // line in the transport's own frame, validated against the transport's collision
+        // model plus reciprocal VMap/GO LoS instead of a navmesh query. Leaves
+        // PATHFIND_NOPATH when the destination is not on the deck being ridden.
+        void BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* transport);
+        [[nodiscard]] bool IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const;
+
+        // True when the ground between two points is a continuous ramp: the VMap
+        // surface holds the line and every one-metre step of it is clear in both
+        // directions. Lets steep inclines through where a straight head-height ray
+        // clips the slope itself.
+        [[nodiscard]] bool ValidateSurfaceWalk(G3D::Vector3 const& a, G3D::Vector3 const& b) const;
+
         [[nodiscard]] NavTerrain GetNavTerrain(float x, float y, float z) const;
         void CreateFilter();
         void UpdateFilter();
