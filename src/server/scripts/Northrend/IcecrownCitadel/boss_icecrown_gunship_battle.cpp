@@ -564,35 +564,6 @@ static void ClearGunshipHullRespawnTimes(Transport* transport)
     }
 }
 
-// EnableMovement(true) only clears the pending stop. The ship is frozen at the
-// arrival time of the stop frame it was parked on, so without this it has to
-// sit out that frame's whole stop delay before it leaves. Jump the path
-// progress to the departure of that frame so it departs immediately.
-static void ReleaseGunship(Transport* transport)
-{
-    MotionTransport* ship = transport ? transport->ToMotionTransport() : nullptr;
-    if (!ship)
-        return;
-
-    ship->EnableMovement(true);
-
-    uint32 const period = ship->GetPeriod();
-    if (!period)
-        return;
-
-    uint32 const progress = ship->GetPathProgress();
-    uint32 const timer = progress % period;
-
-    for (KeyFrame const& frame : ship->GetKeyFrames())
-    {
-        if (frame.ArriveTime <= timer && timer < frame.DepartureTime)
-        {
-            ship->SetPathProgress(progress - timer + frame.DepartureTime);
-            break;
-        }
-    }
-}
-
 class ResetEncounterEvent : public BasicEvent
 {
 public:
@@ -802,8 +773,13 @@ public:
             {
                 // Unpark both ships: the enemy one flies off and is removed by its path
                 // event, ours carries the raid to the end position.
-                ReleaseGunship(_instance->instance->GetTransport(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)));
-                ReleaseGunship(_instance->instance->GetTransport(_instance->GetGuidData(DATA_ENEMY_GUNSHIP)));
+                if (Transport* transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
+                    if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                        motionTransport->EnableMovement(true);
+
+                if (Transport* transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ENEMY_GUNSHIP)))
+                    if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                        motionTransport->EnableMovement(true);
 
                 if (Creature* ship = _instance->GetCreature(_teamIdInInstance == TEAM_HORDE ? DATA_ORGRIMS_HAMMER : DATA_THE_SKYBREAKER))
                 {
