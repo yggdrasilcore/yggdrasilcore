@@ -424,6 +424,8 @@ void Creature::AddToWorld()
         loot.sourceWorldObjectGUID = GetGUID();
 
         sScriptMgr->OnCreatureAddWorld(this);
+        if (IsAlive())
+            sScriptMgr->OnCreatureSpawn(this);
 
         // De-render reset: if the creature re-renders far from home (de-rendered while
         // pulled/kited and grid unloaded mid-combat), reset leash and go back home.
@@ -518,6 +520,7 @@ void Creature::RemoveCorpse(bool setSpawnTime, bool skipVisibility)
     uint32 respawnDelay = m_respawnDelay;
     if (IsAIEnabled)
         AI()->CorpseRemoved(respawnDelay);
+    sScriptMgr->OnCreatureCorpseRemoved(this, respawnDelay);
 
     // Should get removed later, just keep "compatibility" with scripts
     if (setSpawnTime)
@@ -772,6 +775,7 @@ void Creature::Update(uint32 diff)
     if (IsAIEnabled && TriggerJustRespawned)
     {
         TriggerJustRespawned = false;
+        sScriptMgr->OnCreatureSpawn(this);
         AI()->JustRespawned();
         if (m_vehicleKit)
             m_vehicleKit->Reset();

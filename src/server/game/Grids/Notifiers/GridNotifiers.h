@@ -1540,7 +1540,7 @@ namespace Ycore
                 return false;
             }
 
-            if (u->IsAlive() && !i_obj->IsHostileTo(u) && i_obj->IsWithinDistInMap(u, i_range) && u->GetMaxHealth() - u->GetHealth() > i_hp)
+            if (u->IsAlive() && !i_obj->IsHostileTo(u) && i_obj->IsWithinDistInMap(u, i_range) && u->GetMaxHealth() - u->GetHealth() >= i_hp)
             {
                 i_hp = u->GetMaxHealth() - u->GetHealth();
                 return true;

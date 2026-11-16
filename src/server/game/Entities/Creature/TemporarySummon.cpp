@@ -256,6 +256,7 @@ void TempSummon::InitSummon()
     {
         if (owner->IsCreature())
         {
+            sScriptMgr->OnCreatureJustSummoned(owner->ToCreature(), this);
             if (owner->ToCreature()->IsAIEnabled)
             {
                 owner->ToCreature()->AI()->JustSummoned(this);
@@ -269,6 +270,7 @@ void TempSummon::InitSummon()
             }
         }
 
+        sScriptMgr->OnCreatureSummoned(this, owner);
         if (IsAIEnabled)
             AI()->IsSummonedBy(owner);
     }
@@ -308,8 +310,12 @@ void TempSummon::UnSummon(Milliseconds msTime)
 
     if (WorldObject* owner = GetSummoner())
     {
-        if (owner->IsCreature() && owner->ToCreature()->IsAIEnabled)
-            owner->ToCreature()->AI()->SummonedCreatureDespawn(this);
+        if (owner->IsCreature())
+        {
+            sScriptMgr->OnCreatureSummonedDespawn(owner->ToCreature(), this);
+            if (owner->ToCreature()->IsAIEnabled)
+                owner->ToCreature()->AI()->SummonedCreatureDespawn(this);
+        }
         else if (owner->IsGameObject() && owner->ToGameObject()->AI())
             owner->ToGameObject()->AI()->SummonedCreatureDespawn(this);
     }

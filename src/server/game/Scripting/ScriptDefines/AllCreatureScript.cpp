@@ -49,6 +49,176 @@ void ScriptMgr::OnCreatureSaveToDB(Creature* creature)
     });
 }
 
+void ScriptMgr::OnCreatureSpawn(Creature* creature)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureSpawn(creature);
+    });
+}
+
+void ScriptMgr::OnCreatureMovementInform(Creature* creature, uint32 type, uint32 id)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureMovementInform(creature, type, id);
+    });
+}
+
+void ScriptMgr::OnCreatureDamageTaken(Creature* creature, Unit* attacker, uint32& damage)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureDamageTaken(creature, attacker, damage);
+    });
+}
+
+void ScriptMgr::OnCreatureReachedHome(Creature* creature)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureReachedHome(creature);
+    });
+}
+
+void ScriptMgr::OnCreatureMoveInLineOfSight(Creature* creature, Unit* who)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureMoveInLineOfSight(creature, who);
+    });
+}
+
+void ScriptMgr::OnCreatureKilledUnit(Creature* creature, Unit* victim)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureKilledUnit(creature, victim);
+    });
+}
+
+void ScriptMgr::OnCreaturePreCombat(Creature* creature, Unit* target)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreaturePreCombat(creature, target);
+    });
+}
+
+void ScriptMgr::OnCreatureHitBySpell(Creature* creature, WorldObject* caster, SpellInfo const* spell)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureHitBySpell(creature, caster, spell);
+    });
+}
+
+void ScriptMgr::OnCreatureSpellHitTarget(Creature* creature, WorldObject* target, SpellInfo const* spell)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureSpellHitTarget(creature, target, spell);
+    });
+}
+
+void ScriptMgr::OnCreatureSummoned(Creature* creature, WorldObject* summoner)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureSummoned(creature, summoner);
+    });
+}
+
+void ScriptMgr::OnCreatureJustSummoned(Creature* creature, Creature* summon)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureJustSummoned(creature, summon);
+    });
+}
+
+void ScriptMgr::OnCreatureSummonedDespawn(Creature* creature, Creature* summon)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureSummonedDespawn(creature, summon);
+    });
+}
+
+void ScriptMgr::OnCreatureSummonedDies(Creature* creature, Creature* summon, Unit* killer)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureSummonedDies(creature, summon, killer);
+    });
+}
+
+void ScriptMgr::OnCreatureReceiveEmote(Creature* creature, Player* player, uint32 emoteId)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureReceiveEmote(creature, player, emoteId);
+    });
+}
+
+void ScriptMgr::OnCreatureCorpseRemoved(Creature* creature, uint32& respawnDelay)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureCorpseRemoved(creature, respawnDelay);
+    });
+}
+
+void ScriptMgr::OnCreatureOwnerAttackedBy(Creature* creature, Unit* attacker)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureOwnerAttackedBy(creature, attacker);
+    });
+}
+
+void ScriptMgr::OnCreatureOwnerAttacked(Creature* creature, Unit* target)
+{
+    ASSERT(creature);
+
+    ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)
+    {
+        script->OnCreatureOwnerAttacked(creature, target);
+    });
+}
+
 void ScriptMgr::OnBeforeCreatureSelectLevel(const CreatureTemplate* cinfo, Creature* creature, uint8& level)
 {
     ExecuteScript<AllCreatureScript>([&](AllCreatureScript* script)

@@ -2251,9 +2251,13 @@ void Spell::prepareDataForTriggerSystem(AuraEffect const* /*triggeredByAura*/)
     if (m_spellInfo->SpellFamilyName == SPELLFAMILY_HUNTER &&
             (m_spellInfo->SpellFamilyFlags[0] & 0x18 ||              // Freezing and Frost Trap, Freezing Arrow
              m_spellInfo->Id == 57879 || m_spellInfo->Id == 45145 ||  // Snake Trap - done this way to avoid double proc
-             m_spellInfo->SpellFamilyFlags[2] & 0x00064000))          // Explosive and Immolation Trap
+             m_spellInfo->SpellFamilyFlags[2] & 0x00024000))          // Explosive and Immolation Trap
     {
         m_procAttacker |= PROC_FLAG_DONE_TRAP_ACTIVATION;
+
+        // also fill up other flags (TargetInfo::DoDamageAndTriggers only fills up flag if both are not set)
+        m_procAttacker |= PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_NEG;
+        m_procVictim |= PROC_FLAG_TAKEN_SPELL_MAGIC_DMG_CLASS_NEG;
     }
 
     /* Effects which are result of aura proc from triggered spell cannot proc
@@ -2891,12 +2895,17 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         //AI functions
         if (spellHitTarget->IsCreature())
         {
+            sScriptMgr->OnCreatureHitBySpell(spellHitTarget->ToCreature(), m_caster, m_spellInfo);
             if (spellHitTarget->ToCreature()->IsAIEnabled)
                 spellHitTarget->ToCreature()->AI()->SpellHit(m_caster, m_spellInfo);
         }
 
-        if (m_caster->IsCreature() && m_caster->ToCreature()->IsAIEnabled)
-            m_caster->ToCreature()->AI()->SpellHitTarget(spellHitTarget, m_spellInfo);
+        if (m_caster->IsCreature())
+        {
+            sScriptMgr->OnCreatureSpellHitTarget(m_caster->ToCreature(), spellHitTarget, m_spellInfo);
+            if (m_caster->ToCreature()->IsAIEnabled)
+                m_caster->ToCreature()->AI()->SpellHitTarget(spellHitTarget, m_spellInfo);
+        }
 
         // Needs to be called after dealing damage/healing to not remove breaking on damage auras
         DoTriggersOnSpellHit(spellHitTarget, mask);
@@ -2904,7 +2913,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
         // if target is fallged for pvp also flag caster if a player
         // xinef: do not flag spells with aura bind sight (no special attribute)
         if (effectUnit->IsPvP() && effectUnit != m_caster && effectUnit->GetOwnerGUID() != m_caster->GetGUID() &&
-            m_caster->IsPlayer() && !m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NO_PVP_FLAG))
+            m_caster->IsPlayer() && !m_caster->GetMap()->IsDungeon() && !m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NO_PVP_FLAG))
         {
             m_caster->ToPlayer()->UpdatePvP(true);
         }
@@ -2993,7 +3002,7 @@ SpellMissInfo Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleA
             if (unit->HasUnitState(UNIT_STATE_ATTACK_PLAYER))
             {
                 m_caster->SetContestedPvP();
-                if (m_caster->IsPlayer() && !m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NO_PVP_FLAG))
+                if (m_caster->IsPlayer() && !m_caster->GetMap()->IsDungeon() && !m_spellInfo->HasAttribute(SPELL_ATTR0_CU_NO_PVP_FLAG))
                     m_caster->ToPlayer()->UpdatePvP(true);
             }
 
@@ -3769,7 +3778,10 @@ void Spell::_cast(bool skipCheck)
                 for (Unit::ControlSet::iterator itr = playerCaster->m_Controlled.begin(); itr != playerCaster->m_Controlled.end(); ++itr)
                     if (Unit* pet = *itr)
                         if (pet->IsAlive() && pet->IsCreature())
+                        {
+                            sScriptMgr->OnCreatureOwnerAttacked(pet->ToCreature(), m_targets.GetUnitTarget());
                             pet->ToCreature()->AI()->OwnerAttacked(m_targets.GetUnitTarget());
+                        }
     }
 
     SetExecutedCurrently(true);

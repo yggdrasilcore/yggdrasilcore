@@ -1523,7 +1523,8 @@ void Player::UpdatePvPState()
 {
     UpdateFFAPvPState();
 
-    if (pvpInfo.IsHostile && !IsInFlight() && !m_taxi.empty()) // in hostile area, not on a taxi
+    // Never auto-flag for PvP inside dungeon or raid instances
+    if (!GetMap()->IsDungeon() && pvpInfo.IsHostile && !IsInFlight() && !m_taxi.empty()) // in hostile area, not on a taxi
     {
         if (!IsPvP() || pvpInfo.EndTimer != 0)
             UpdatePvP(true, true);
@@ -1541,7 +1542,7 @@ void Player::UpdateFFAPvPState(bool reset /*= true*/)
     /// @todo: should we always synchronize UNIT_FIELD_BYTES_2, 1 of controller
     // and controlled? no, we shouldn't, those are checked for affecting player
     // by client
-    if (!pvpInfo.IsInNoPvPArea && !IsGameMaster() &&
+    if (!pvpInfo.IsInNoPvPArea && !IsGameMaster() && !GetMap()->IsDungeon() &&
         (pvpInfo.IsInFFAPvPArea || sWorld->IsFFAPvPRealm()))
     {
         if (!IsFFAPvP())

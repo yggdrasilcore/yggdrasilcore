@@ -133,7 +133,7 @@ public:
         if (!target->IsPlayer())
             return false;
 
-        if (target->HasAura(SPELL_BLOOD_MIRROR_DAMAGE))
+        if (target->HasAnyAuras(SPELL_BLOOD_MIRROR_DAMAGE, SPELL_BLOOD_MIRROR_VISUAL, SPELL_BLOOD_MIRROR_DUMMY))
             return false;
 
         if (IsVampire(target))
@@ -181,6 +181,8 @@ public:
 
             me->SetCanFly(false);
             me->SetDisableGravity(false);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
 
             // Gate Blood Queen behind Blood Prince Council: unattackable + untargetable until princes are DONE
             if (instance->GetBossState(DATA_BLOOD_PRINCE_COUNCIL) != DONE)
@@ -595,6 +597,12 @@ public:
                 GoToMinchar();
                 return;
             }
+
+            // clear flight state before the evade home movement runs, otherwise it can keep flying flags
+            me->SetCanFly(false);
+            me->SetDisableGravity(false);
+            me->SetByteValue(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_GROUND);
+            me->SendMovementFlagUpdate();
 
             BossAI::EnterEvadeMode();
         }

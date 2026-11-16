@@ -18,6 +18,7 @@
 #include "IdleMovementGenerator.h"
 #include "Creature.h"
 #include "CreatureAI.h"
+#include "ScriptMgr.h"
 
 // StopMoving is needed to make unit stop if its last movement generator expires
 // But it should not be sent otherwise there are many redundent packets
@@ -73,7 +74,10 @@ void RotateMovementGenerator::Finalize(Unit* unit)
 {
     unit->ClearUnitState(UNIT_STATE_ROTATING);
     if (unit->IsCreature())
+    {
+        sScriptMgr->OnCreatureMovementInform(unit->ToCreature(), ROTATE_MOTION_TYPE, 0);
         unit->ToCreature()->AI()->MovementInform(ROTATE_MOTION_TYPE, 0);
+    }
 }
 
 void DistractMovementGenerator::Initialize(Unit* owner)

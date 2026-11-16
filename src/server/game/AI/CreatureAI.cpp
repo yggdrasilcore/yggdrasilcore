@@ -254,8 +254,6 @@ void CreatureAI::EnterEvadeMode(EvadeReason why)
         me->GetVehicleKit()->Reset(true);
     }
 
-    sScriptMgr->OnUnitEnterEvadeMode(me, why);
-
     // despawn bosses at reset - only verified tbc/woltk bosses with this reset type
     CreatureTemplate const* cInfo = sObjectMgr->GetCreatureTemplate(me->GetEntry());
     if (cInfo && cInfo->HasFlagsExtra(CREATURE_FLAG_EXTRA_HARD_RESET))
@@ -320,7 +318,7 @@ bool CreatureAI::UpdateVictim()
     return true;
 }
 
-bool CreatureAI::_EnterEvadeMode(EvadeReason /*why*/)
+bool CreatureAI::_EnterEvadeMode(EvadeReason why)
 {
     if (!me->IsAlive())
     {
@@ -367,6 +365,8 @@ bool CreatureAI::_EnterEvadeMode(EvadeReason /*why*/)
             }
         }
     }
+
+    sScriptMgr->OnUnitEnterEvadeMode(me, why);
 
     return true;
 }

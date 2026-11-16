@@ -824,8 +824,12 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recvData)
     GetPlayer()->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_DO_EMOTE, text_emote, 0, unit);
 
     //Send scripted event call
-    if (unit && unit->IsCreature() && ((Creature*)unit)->AI())
-        ((Creature*)unit)->AI()->ReceiveEmote(GetPlayer(), text_emote);
+    if (unit && unit->IsCreature())
+    {
+        sScriptMgr->OnCreatureReceiveEmote(unit->ToCreature(), GetPlayer(), text_emote);
+        if (unit->ToCreature()->AI())
+            unit->ToCreature()->AI()->ReceiveEmote(GetPlayer(), text_emote);
+    }
 }
 
 void WorldSession::HandleChatIgnoredOpcode(WorldPacket& recvData)

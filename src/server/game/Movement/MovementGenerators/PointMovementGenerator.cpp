@@ -22,6 +22,7 @@
 #include "MoveSplineInit.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "World.h"
 
 constexpr float POINT_PATH_CHUNK = 150.0f;
@@ -238,6 +239,8 @@ void PointMovementGenerator<T>::MovementInform(T* /*unit*/)
 
 template <> void PointMovementGenerator<Creature>::MovementInform(Creature* unit)
 {
+    sScriptMgr->OnCreatureMovementInform(unit, POINT_MOTION_TYPE, id);
+
     if (unit->AI())
         unit->AI()->MovementInform(POINT_MOTION_TYPE, id);
 
@@ -293,6 +296,8 @@ void EffectMovementGenerator::Finalize(Unit* unit)
     //    else
     //        unit->GetMotionMaster()->Initialize();
     //}
+
+    sScriptMgr->OnCreatureMovementInform(unit->ToCreature(), EFFECT_MOTION_TYPE, m_Id);
 
     if (unit->ToCreature()->AI())
         unit->ToCreature()->AI()->MovementInform(EFFECT_MOTION_TYPE, m_Id);

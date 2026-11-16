@@ -565,6 +565,7 @@ public:
                 !_unit->movespline->IsSmoothingPoint())
         {
             _unit->ToCreature()->AI()->MovementInform(ESCORT_MOTION_TYPE, _unit->movespline->currentPathIdx() - 1);
+            sScriptMgr->OnCreatureMovementInform(_unit->ToCreature(), ESCORT_MOTION_TYPE, _unit->movespline->currentPathIdx() - 1);
         }
 
         return true;
@@ -860,6 +861,9 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
             attacker->GetAI()->DamageDealt(victim, damage, damagetype, damageSchoolMask);
     }
 
+    if (victim->IsCreature())
+        sScriptMgr->OnCreatureDamageTaken(victim->ToCreature(), attacker, damage);
+
     // Hook for OnDamage Event
     sScriptMgr->OnDamage(attacker, victim, damage);
 
@@ -869,7 +873,10 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         Pet* pet = victim->ToPlayer()->GetPet();
 
         if (pet && pet->IsAlive())
+        {
+            sScriptMgr->OnCreatureOwnerAttackedBy(pet, attacker);
             pet->AI()->OwnerAttackedBy(attacker);
+        }
     }
 
     //Dont deal damage to unit if .cheat god is enable.
@@ -2727,7 +2734,10 @@ void Unit::AttackerStateUpdate(Unit* victim, WeaponAttackType attType /*= BASE_A
             for (Unit::ControlSet::iterator itr = m_Controlled.begin(); itr != m_Controlled.end(); ++itr)
                 if (Unit* pet = *itr)
                     if (pet->IsAlive() && pet->IsCreature())
+                    {
+                        sScriptMgr->OnCreatureOwnerAttacked(pet->ToCreature(), victim);
                         pet->ToCreature()->AI()->OwnerAttacked(victim);
+                    }
     }
 }
 
@@ -5161,7 +5171,7 @@ void Unit::RemoveAurasDueToSpellBySteal(uint32 spellId, ObjectGuid casterGUID, U
                 // Xinef: if stealer has same aura
                 Aura* curAura = stealer->GetAura(aura->GetId());
                 if (!curAura || (!curAura->IsPermanent() && curAura->GetDuration() < (int32)dur))
-                    if (Aura* newAura = Aura::TryRefreshStackOrCreate(aura->GetSpellInfo(), effMask, stealer, nullptr, &baseDamage[0], nullptr, aura->GetCasterGUID()))
+                    if (Aura* newAura = Aura::TryRefreshStackOrCreate(aura->GetSpellInfo(), effMask, stealer, nullptr, &baseDamage[0], nullptr, stealer->GetGUID()))
                     {
                         // created aura must not be single target aura,, so stealer won't loose it on recast
                         if (newAura->IsSingleTarget())
@@ -5173,6 +5183,13 @@ void Unit::RemoveAurasDueToSpellBySteal(uint32 spellId, ObjectGuid casterGUID, U
                         }
                         // FIXME: using aura->GetMaxDuration() maybe not blizzlike but it fixes stealing of spells like Innervate
                         newAura->SetLoadedState(aura->GetMaxDuration(), int32(dur), stealCharge ? 1 : aura->GetCharges(), 1, recalculateMask, &damage[0]);
+
+                        // Reset periodic timers so stolen HoTs tick properly
+                        // For stolen auras we need fresh tick counters since no ticks have occurred yet
+                        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                            if (AuraEffect* aurEff = newAura->GetEffect(i))
+                                aurEff->ResetPeriodic(true);
+
                         newAura->ApplyForTargets();
                     }
             }
@@ -5545,6 +5562,9 @@ void Unit::RemoveAllAurasExceptType(AuraType type)
 // Xinef: We should not remove passive auras on evade, if npc has player owner (scripted one cast auras)
 void Unit::RemoveEvadeAuras()
 {
+    if (IsCharmedOwnedByPlayerOrPlayer())
+        return;
+
     for (AuraApplicationMap::iterator iter = m_appliedAuras.begin(); iter != m_appliedAuras.end();)
     {
         Aura const* aura = iter->second->GetBase();
@@ -6470,7 +6490,6 @@ void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
     data << uint8 (log->physicalLog);                       // if 1, then client show spell name (example: %s's ranged shot hit %s for %u school or %s suffers %u school damage from %s's spell_name
     data << uint8 (log->unused);                            // unused
     data << uint32(log->blocked);                           // blocked
-    data << uint32(log->HitInfo);
     data << uint32(log->HitInfo);
     data << uint8(log->HitInfo & (SPELL_HIT_TYPE_CRIT_DEBUG | SPELL_HIT_TYPE_HIT_DEBUG | SPELL_HIT_TYPE_ATTACK_TABLE_DEBUG));
     //if (log->HitInfo & SPELL_HIT_TYPE_CRIT_DEBUG)
@@ -10440,6 +10459,9 @@ bool Unit::Attack(Unit* victim, bool meleeAttack)
     if (HasUnattackableAura())
         RemoveAurasByType(SPELL_AURA_MOD_UNATTACKABLE);
 
+    if (creature && m_attacking != victim)
+        sScriptMgr->OnCreaturePreCombat(creature, victim);
+
     if (m_attacking)
     {
         if (m_attacking == victim)
@@ -11029,6 +11051,8 @@ void Unit::SetCharm(Unit* charm, bool apply)
     }
     else
     {
+        charm->ClearUnitState(UNIT_STATE_CHARMED);
+
         if (IsPlayer())
         {
             if (!RemoveGuidValue(UNIT_FIELD_CHARM, charm->GetGUID()))
@@ -13824,7 +13848,7 @@ void Unit::CombatStart(Unit* victim, bool initialAggro)
         SetContestedPvP(who->ToPlayer());
 
     Player* player = GetCharmerOrOwnerPlayerOrPlayerItself();
-    if (player && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
+    if (player && !player->GetMap()->IsDungeon() && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
     {
         player->UpdatePvP(true);
         player->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_ENTER_PVP_COMBAT);
@@ -13855,7 +13879,7 @@ void Unit::CombatStartOnCast(Unit* target, bool initialAggro, uint32 duration)
         SetContestedPvP(who->ToPlayer());
 
     Player* player = GetCharmerOrOwnerPlayerOrPlayerItself();
-    if (player && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
+    if (player && !player->GetMap()->IsDungeon() && who->IsPvP() && (!who->IsPlayer() || !player->duel || player->duel->Opponent != who))
     {
         player->UpdatePvP(true);
         player->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_ENTER_PVP_COMBAT);
@@ -14555,7 +14579,60 @@ void Unit::UpdateSpeed(UnitMoveType mtype, bool forced)
             speed = min_speed;
     }
 
+    float const oldSpeed = GetSpeed(mtype);
     SetSpeed(mtype, speed, forced);
+    RetimeSplineForSpeedChange(mtype, oldSpeed);
+}
+
+// A creature spline carries its own duration, so a speed change stored in m_speed_rate never
+// reaches a move that is already running: the leg keeps the speed it was launched with, and the
+// next leg picks up whatever the aura state is at launch time. Re-issue the remaining path with
+// the new speed and the current position as origin.
+void Unit::RetimeSplineForSpeedChange(UnitMoveType mtype, float oldSpeed)
+{
+    Creature* creature = ToCreature();
+    if (!creature || mtype != MOVE_RUN || IsPet() || IsControlledByPlayer())
+        return;
+    if (!movespline || !movespline->Initialized() || movespline->Finalized() || movespline->isFalling())
+        return;
+    if (!creature->GetMap() || creature->GetTransport() || movespline->onTransport)
+        return;
+    if (creature->IsMovementPreventedByCasting() || HasUnitState(UNIT_STATE_ROOT))
+        return;
+
+    float const newSpeed = GetSpeed(mtype);
+    if (std::fabs(newSpeed - oldSpeed) < 0.01f)
+        return;
+
+    float const velocity = GetSpeed(movespline->isWalking() ? MOVE_WALK : MOVE_RUN);
+    if (velocity <= 0.01f)
+        return;
+
+    // Rebuild from the spline itself: origin is where the unit is now, the knots are the ones
+    // still ahead. No re-pathing and no new arc, the geometry is unchanged.
+    Movement::PointsArray const& points = movespline->_Spline().getPoints();
+    int32 const last = movespline->_Spline().last();
+    Movement::PointsArray path;
+    path.push_back(movespline->ComputePosition());
+    for (int32 i = movespline->_currentSplineIdx() + 1; i <= last; ++i)
+        path.push_back(points[i]);
+
+    bool const cyclic = movespline->isCyclic();
+    bool const walking = movespline->isWalking();
+    bool const smooth = movespline->isSmooth();
+    bool const flying = movespline->isFlying();
+
+    Movement::MoveSplineInit init(creature);
+    init.MovebyPath(path, 0);
+    if (cyclic)
+        init.SetCyclic();
+    init.SetWalk(walking);
+    if (smooth)
+        init.SetSmooth();
+    if (flying)
+        init.SetFly();
+    init.SetVelocity(velocity);
+    init.Launch();
 }
 
 float Unit::GetSpeed(UnitMoveType mtype) const
@@ -18004,7 +18081,10 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
     {
         Pet* pet = player->GetPet();
         if (pet && pet->IsAlive() && pet->isControlled())
+        {
+            sScriptMgr->OnCreatureKilledUnit(pet, victim);
             pet->AI()->KilledUnit(victim);
+        }
     }
 
     // 10% durability loss on death
@@ -18024,8 +18104,12 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
             plrVictim->SendDurabilityLoss();
         }
         // Call KilledUnit for creatures
-        if (killer && killer->IsCreature() && killer->IsAIEnabled)
-            killer->ToCreature()->AI()->KilledUnit(victim);
+        if (killer && killer->IsCreature())
+        {
+            sScriptMgr->OnCreatureKilledUnit(killer->ToCreature(), victim);
+            if (killer->IsAIEnabled)
+                killer->ToCreature()->AI()->KilledUnit(victim);
+        }
 
         // last damage from non duel opponent or opponent controlled creature
         if (plrVictim->duel)
@@ -18055,8 +18139,12 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
         }
 
         // Call KilledUnit for creatures, this needs to be called after the lootable flag is set
-        if (killer && killer->IsCreature() && killer->IsAIEnabled)
-            killer->ToCreature()->AI()->KilledUnit(victim);
+        if (killer && killer->IsCreature())
+        {
+            sScriptMgr->OnCreatureKilledUnit(killer->ToCreature(), victim);
+            if (killer->IsAIEnabled)
+                killer->ToCreature()->AI()->KilledUnit(victim);
+        }
 
         // Call creature just died function
         if (CreatureAI* ai = creature->AI())
@@ -18068,9 +18156,11 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
         {
             if (WorldObject* summoner = summon->GetSummoner())
             {
-                if (summoner->ToCreature() && summoner->ToCreature()->IsAIEnabled)
+                if (summoner->ToCreature())
                 {
-                    summoner->ToCreature()->AI()->SummonedCreatureDies(creature, killer);
+                    sScriptMgr->OnCreatureSummonedDies(summoner->ToCreature(), creature, killer);
+                    if (summoner->ToCreature()->IsAIEnabled)
+                        summoner->ToCreature()->AI()->SummonedCreatureDies(creature, killer);
                 }
                 else if (summoner->ToGameObject() && summoner->ToGameObject()->AI())
                 {
@@ -18648,6 +18738,8 @@ bool Unit::SetCharmedBy(Unit* charmer, CharmType type, AuraApplication const* au
     }
     else if (IsPlayer())
         RemoveAurasByType(SPELL_AURA_MOD_SHAPESHIFT);
+
+    AddUnitState(UNIT_STATE_CHARMED);
 
     if (Creature* creature = ToCreature())
         creature->RefreshSwimmingFlag();
@@ -19718,6 +19810,12 @@ void Unit::_ExitVehicle(Position const* exitPosition)
                 pos.RelocateOffset({ seatAddon->ExitParameterX, seatAddon->ExitParameterY, seatAddon->ExitParameterZ, seatAddon->ExitParameterO });
             else if (seatAddon->ExitParameter == VehicleExitParameters::VehicleExitParamDest)
                 pos.Relocate({ seatAddon->ExitParameterX, seatAddon->ExitParameterY, seatAddon->ExitParameterZ, seatAddon->ExitParameterO });
+
+            bool isInLoS = GetMap()->isInLineOfSight(GetPositionX(), GetPositionY(), GetPositionZ(), pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), GetPhaseMask(), LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing);
+            float floorZ = GetMapHeight(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ());
+
+            if (!isInLoS || pos.GetPositionZ() < floorZ)
+                pos = vehicleBase->GetPosition();
         }
     }
 

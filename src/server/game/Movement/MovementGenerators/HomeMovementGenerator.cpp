@@ -21,6 +21,7 @@
 #include "DisableMgr.h"
 #include "Map.h"
 #include "MoveSplineInit.h"
+#include "ScriptMgr.h"
 #include "PathGenerator.h"
 
 namespace
@@ -115,6 +116,7 @@ void HomeMovementGenerator<Creature>::DoFinalize(Creature* owner)
     if (arrived)
     {
         owner->LoadCreaturesAddon(true);
+        sScriptMgr->OnCreatureReachedHome(owner);
         owner->AI()->JustReachedHome();
     }
 

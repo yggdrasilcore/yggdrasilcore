@@ -40,7 +40,14 @@ fi
 # -r == recursive
 # -n == no clobber (don't overwrite)
 # -v == be verbose
-cp -rnv /yggdrasilcore/env/ref/etc/* "$CONF_DIR"
+# Not every image ships reference configs (the map tools do not), so an empty
+# directory must not make the glob fail the script.
+shopt -s nullglob
+ref_configs=(/yggdrasilcore/env/ref/etc/*)
+if [ ${#ref_configs[@]} -gt 0 ]; then
+    cp -rnv "${ref_configs[@]}" "$CONF_DIR"
+fi
+shopt -u nullglob
 
 CONF="$CONF_DIR/$YCORE_COMPONENT.conf"
 CONF_DIST="$CONF_DIR/$YCORE_COMPONENT.conf.dist"
