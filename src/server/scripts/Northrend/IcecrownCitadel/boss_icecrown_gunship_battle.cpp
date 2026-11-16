@@ -1028,6 +1028,7 @@ public:
             _rocketeersYellCooldown = time_t(0);
             checkTimer = 1000;
             _exitingShip = false;
+            me->setActive(true);
         }
 
         void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
@@ -1401,6 +1402,7 @@ public:
             _mortarYellCooldown = time_t(0);
             checkTimer = 1000;
             _exitingShip = false;
+            me->setActive(true);
         }
 
         void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
