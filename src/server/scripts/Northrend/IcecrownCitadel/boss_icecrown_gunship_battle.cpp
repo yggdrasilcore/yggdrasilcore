@@ -16,7 +16,9 @@
  */
 
 #include <algorithm>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "AchievementCriteriaScript.h"
 #include "AreaDefines.h"
@@ -34,6 +36,7 @@
 #include "icecrown_citadel.h"
 #include "PassiveAI.h"
 #include "SpellAuraEffects.h"
+#include "TypeContainerVisitor.h"
 
 enum Texts
 {
@@ -544,9 +547,13 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 }
 
-static void ClearGunshipHullRespawnTimes(Transport* transport)
+static void RestoreGunshipPassengers(Transport* transport)
 {
     if (!transport)
+        return;
+
+    Map* map = transport->GetMap();
+    if (!map)
         return;
 
     if (MotionTransport* mt = transport->ToMotionTransport())
@@ -557,17 +564,90 @@ static void ClearGunshipHullRespawnTimes(Transport* transport)
             WorldObject* passenger = mt->GetPassenger(guid);
             if (!passenger || !mt->HasStaticPassenger(guid))
                 continue;
-            if (Creature* hull = passenger->ToCreature())
-                if (hull->GetEntry() == NPC_THE_SKYBREAKER || hull->GetEntry() == NPC_ORGRIMS_HAMMER)
-                    transport->GetMap()->RemoveCreatureRespawnTime(hull->GetSpawnId());
+            Creature* creature = passenger->ToCreature();
+            if (!creature)
+                continue;
+
+            // Everything on the deck comes back with the ship: a stale death timer
+            // would otherwise respawn the replacement already dead.
+            map->RemoveCreatureRespawnTime(creature->GetSpawnId());
+            if (!creature->IsAlive())
+                creature->setDeathState(DeathState::Alive);
+            creature->SetFullHealth();
         }
+    }
+}
+
+static bool IsGunshipCreatureEntry(uint32 entry)
+{
+    switch (entry)
+    {
+        case NPC_THE_SKYBREAKER:
+        case NPC_ORGRIMS_HAMMER:
+        case NPC_GUNSHIP_HULL:
+        case NPC_ALLIANCE_GUNSHIP_CANNON:
+        case NPC_HORDE_GUNSHIP_CANNON:
+        case NPC_SKYBREAKER_SORCERER:
+        case NPC_SKYBREAKER_RIFLEMAN:
+        case NPC_SKYBREAKER_MORTAR_SOLDIER:
+        case NPC_SKYBREAKER_MARINE:
+        case NPC_SKYBREAKER_SERGEANT:
+        case NPC_SKYBREAKER_DECKHAND:
+        case NPC_KOR_KRON_BATTLE_MAGE:
+        case NPC_KOR_KRON_AXETHROWER:
+        case NPC_KOR_KRON_ROCKETEER:
+        case NPC_KOR_KRON_REAVER:
+        case NPC_KOR_KRON_SERGEANT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+class GunshipCreatureCollector
+{
+public:
+    void Visit(std::unordered_map<ObjectGuid, Creature*>& creatures)
+    {
+        for (auto const& pair : creatures)
+            if (Creature* creature = pair.second)
+                if (IsGunshipCreatureEntry(creature->GetEntry()))
+                    found.push_back(creature);
+    }
+
+    template<class T>
+    void Visit(std::unordered_map<ObjectGuid, T*>&) { }
+
+    std::vector<Creature*> found;
+};
+
+static void DespawnGunshipCreatures(Map* map)
+{
+    if (!map)
+        return;
+
+    // The ship's mobs are identified by template entry over the whole instance
+    // map: the transport passenger link is not reliable while the ship is being
+    // torn down. They come back with the next ship, so drop them here and clear
+    // the death timer so the reload spawns them alive at full health.
+    GunshipCreatureCollector collector;
+    TypeContainerVisitor<GunshipCreatureCollector, MapStoredObjectTypesContainer> visitor(collector);
+    visitor.Visit(map->GetObjectsStore());
+
+    for (Creature* creature : collector.found)
+    {
+        // Despawning a living creature runs it through its death state, which
+        // writes a fresh respawn time, so the timer is cleared afterwards.
+        creature->DespawnOrUnsummon();
+        if (creature->GetSpawnId())
+            map->RemoveCreatureRespawnTime(creature->GetSpawnId());
     }
 }
 
 class ResetEncounterEvent : public BasicEvent
 {
 public:
-    ResetEncounterEvent(Unit* owner, uint32 spellId, ObjectGuid casterTransport, ObjectGuid otherTransport) : _owner(owner), _spellId(spellId), _casterTransport(casterTransport), _otherTransport(otherTransport) { }
+    ResetEncounterEvent(Unit* owner, uint32 spellId) : _owner(owner), _spellId(spellId) { }
 
     bool Execute(uint64, uint32) override
     {
@@ -576,8 +656,8 @@ public:
 
         Map* map = _owner->GetMap();
 
-        if (InstanceScript* instance = _owner->GetInstanceScript())
-            DisengageGunshipEncounterFrames(instance);
+        InstanceScript* instance = _owner->GetInstanceScript();
+        DisengageGunshipEncounterFrames(instance);
 
         map->DoForAllPlayers([](Player* player)
         {
@@ -587,29 +667,31 @@ public:
 
         _owner->CastSpell(_owner, _spellId, true);
 
-        Transport* casterTransport = map->GetTransport(_casterTransport);
-        Transport* otherTransport = map->GetTransport(_otherTransport);
+        Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
+        Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
 
-        ClearGunshipHullRespawnTimes(casterTransport);
-        ClearGunshipHullRespawnTimes(otherTransport);
+        RestoreGunshipPassengers(friendlyTransport);
+        RestoreGunshipPassengers(enemyTransport);
 
-        if (casterTransport)
+        DespawnGunshipCreatures(map);
+
+        if (friendlyTransport)
         {
-            if (MotionTransport* mt = casterTransport->ToMotionTransport())
+            if (MotionTransport* mt = friendlyTransport->ToMotionTransport())
                 mt->UnloadNonStaticPassengers();
         }
 
-        if (otherTransport)
+        if (enemyTransport)
         {
-            if (MotionTransport* mt = otherTransport->ToMotionTransport())
+            if (MotionTransport* mt = enemyTransport->ToMotionTransport())
                 mt->UnloadNonStaticPassengers();
         }
 
-        if (casterTransport)
-            casterTransport->AddObjectToRemoveList();
+        if (friendlyTransport)
+            friendlyTransport->AddObjectToRemoveList();
 
-        if (otherTransport)
-            otherTransport->AddObjectToRemoveList();
+        if (enemyTransport)
+            enemyTransport->AddObjectToRemoveList();
 
         return true;
     }
@@ -617,8 +699,6 @@ public:
 private:
     Unit* _owner;
     uint32 _spellId;
-    ObjectGuid _casterTransport;
-    ObjectGuid _otherTransport;
 };
 
 class VictoryTeleportEvent : public BasicEvent
@@ -674,6 +754,12 @@ public:
             me->SetFullHealth();
         }
 
+        void JustRespawned() override
+        {
+            NullCreatureAI::JustRespawned();
+            me->SetFullHealth();
+        }
+
         void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
             if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS)
@@ -692,8 +778,8 @@ public:
             if (_summonedFirstMage)
                 return;
 
-            Transport* transport = me->GetMap()->GetTransport(me->m_movementInfo.transport.guid);
-            if (!transport || transport->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? GO_THE_SKYBREAKER_H : GO_ORGRIMS_HAMMER_A))
+            // Only the enemy ship's deck hull asks for the first mage.
+            if (me->GetEntry() != uint32(_teamIdInInstance == TEAM_HORDE ? NPC_THE_SKYBREAKER : NPC_ORGRIMS_HAMMER))
                 return;
 
             if (!me->HealthBelowPctDamaged(90, damage))
@@ -710,9 +796,9 @@ public:
                 return;
             _died = true;
             
-            ObjectGuid transportGuid = me->m_movementInfo.transport.guid;
-            Transport* transport = me->GetMap()->GetTransport(transportGuid);
-            bool isVictory = transport && (transport->GetEntry() == GO_THE_SKYBREAKER_H || transport->GetEntry() == GO_ORGRIMS_HAMMER_A);
+            // This hull creature belongs to the losing ship: the enemy's hull means we won.
+            bool const isVictory = me->GetEntry() == uint32(_teamIdInInstance == TEAM_HORDE ? NPC_THE_SKYBREAKER : NPC_ORGRIMS_HAMMER);
+            Transport* defeatedShip = _instance->instance->GetTransport(_instance->GetGuidData(isVictory ? DATA_ENEMY_GUNSHIP : DATA_ICECROWN_GUNSHIP_BATTLE));
             _instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, isVictory ? DONE : FAIL);
             me->GetMap()->SetZoneMusic(AREA_ICECROWN_CITADEL, 0);
 
@@ -727,7 +813,7 @@ public:
                 a->SetDuration(0);
 
             uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
-            if (MotionTransport* t = (transport ? transport->ToMotionTransport() : nullptr))
+            if (MotionTransport* t = (defeatedShip ? defeatedShip->ToMotionTransport() : nullptr))
             {
                 Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
                 for (ObjectGuid const& guid : passengers)
@@ -773,11 +859,13 @@ public:
 
             if (isVictory)
             {
-                if (Transport * transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
-                    if (MotionTransport* otherTransport = transport->ToMotionTransport())
-                        otherTransport->EnableMovement(true);
+                // Unpark both ships: the enemy one flies off and is removed by its path
+                // event, ours carries the raid to the end position.
+                if (Transport* transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
+                    if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                        motionTransport->EnableMovement(true);
 
-                if (transport)
+                if (Transport* transport = _instance->instance->GetTransport(_instance->GetGuidData(DATA_ENEMY_GUNSHIP)))
                     if (MotionTransport* motionTransport = transport->ToMotionTransport())
                         motionTransport->EnableMovement(true);
 
@@ -823,12 +911,7 @@ public:
             else
             {
                 uint32 teleportSpellId = _teamIdInInstance == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
-                Unit* resetOwner = me;
-                if (Creature* enemyShip = _instance->GetCreature(DATA_ENEMY_GUNSHIP))
-                    resetOwner = enemyShip;
-                // Use the stored transport GUID; the transport may already be
-                // unloaded while this creature is still being removed.
-                resetOwner->m_Events.AddEventAtOffset(new ResetEncounterEvent(resetOwner, teleportSpellId, transportGuid, _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 8s);
+                me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 8s);
             }
         }
 
@@ -1084,9 +1167,7 @@ public:
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId,
-                        me->GetTransport() ? me->GetTransport()->GetGUID() : ObjectGuid::Empty,
-                        _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
 					
                     return;
 				}
@@ -1457,9 +1538,7 @@ public:
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H  : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId,
-                        me->GetTransport() ? me->GetTransport()->GetGUID() : ObjectGuid::Empty,
-                        _instance->GetGuidData(DATA_ENEMY_GUNSHIP)), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
                         
 					return;
 				}

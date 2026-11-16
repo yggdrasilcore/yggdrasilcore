@@ -217,6 +217,33 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
 
     _forceDestination = forceDest;
 
+    // Deck movement: a transport's geometry is never part of the map mesh, so
+    // there is no navmesh to query on a ship. Walk the deck in the transport's
+    // own frame instead, validated against its collision model and reciprocal
+    // VMap/GO LoS.
+    if (Transport const* transport = _source ? _source->GetTransport() : nullptr)
+    {
+        BuildTransportPath(start, dest, transport);
+        return true;
+    }
+
+    // A destination on a transport the mover is not riding is not walkable: the
+    // deck has no mesh and there is no path onto one. Boarding stays scripted.
+    if (Map* map = _source ? _source->GetMap() : nullptr)
+    {
+        if (Transport* destinationTransport = map->GetTransportForPos(_source->GetPhaseMask(), destX, destY, destZ))
+        {
+            if (destinationTransport->ToMotionTransport())
+            {
+                Clear();
+                _pathPoints.push_back(start);
+                SetActualEndPosition(start);
+                _type = PATHFIND_NOPATH;
+                return true;
+            }
+        }
+    }
+
     // make sure navMesh works - we can run on map w/o mmap
     // check if the start and end point have a .mmtile loaded (can we pass via not loaded tile on the way?)
     Unit const* _sourceUnit = _source->ToUnit();
@@ -334,27 +361,34 @@ bool PathGenerator::ValidatePlayerMove()
     uint32 const phase = _source->GetPhaseMask();
     auto segmentBlocked = [&](G3D::Vector3 const& a, G3D::Vector3 const& b) -> bool
     {
+        float const gdx = b.x - a.x, gdy = b.y - a.y;
+        float const gflat = std::sqrt(gdx * gdx + gdy * gdy);
+        float const gdz = b.z - a.z;
+
         // Grade veto: uphill past player grade is never walkable, clear rays or not.
-        if (!unit->CanFly())
-        {
-            float const gdx = b.x - a.x, gdy = b.y - a.y;
-            float const gflat = std::sqrt(gdx * gdx + gdy * gdy);
-            float const gdz = b.z - a.z;
-            if (gdz > 0.5f && gflat >= 0.01f && (gdz / gflat) > VETO_PLAYER_GRADE)
-                return true;
-        }
-        if (!map->isInLineOfSight(a.x, a.y, a.z + high, b.x, b.y, b.z + high, phase,
-                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
+        bool const tooSteep = !unit->CanFly() && gdz > 0.5f && gflat >= 0.01f && (gdz / gflat) > VETO_PLAYER_GRADE;
+        // A head-height ray clips an incline on the way up and overhangs it on the
+        // way down, so a ramp is checked by walking it instead of by one straight
+        // ray. Only consulted once the cheap checks have already refused the line.
+        bool const losBlocked =
+            !map->isInLineOfSight(a.x, a.y, a.z + high, b.x, b.y, b.z + high, phase,
+                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing) ||
+            !map->isInLineOfSight(b.x, b.y, b.z + high, a.x, a.y, a.z + high, phase,
+                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing);
+
+        if ((tooSteep || losBlocked) && !unit->CanFly() && ValidateSurfaceWalk(_source, a, b, VETO_PLAYER_GRADE))
+            return false;
+
+        if (tooSteep || losBlocked)
             return true;
-        if (!map->isInLineOfSight(b.x, b.y, b.z + high, a.x, a.y, a.z + high, phase,
-                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
-            return true;
+
         float rx, ry, rz;
         if (map->GetObjectHitPos(phase, a.x, a.y, a.z + 0.6f, b.x, b.y, b.z + 0.6f, rx, ry, rz, -0.5f))
         {
             // Stair inclines clip the shin ray; walls still veto.
             float const dx = b.x - a.x, dy = b.y - a.y;
-            if (!IsVetoForgivenGrade(b.z - a.z, std::sqrt(dx * dx + dy * dy), VETO_PLAYER_GRADE))
+            bool const ramp = !unit->CanFly() && ValidateSurfaceWalk(_source, a, b, VETO_PLAYER_GRADE);
+            if (!IsVetoForgivenGrade(b.z - a.z, std::sqrt(dx * dx + dy * dy), VETO_PLAYER_GRADE) && !ramp)
                 return true;
         }
         return false;
@@ -1032,6 +1066,127 @@ void PathGenerator::BuildShortcut()
     NormalizePath();
 
     _type = PATHFIND_SHORTCUT;
+}
+
+void PathGenerator::BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* transport)
+{
+    Clear();
+    SetActualEndPosition(startPos);
+
+    Map* map = _source ? _source->GetMap() : nullptr;
+    if (!map || !transport)
+    {
+        _pathPoints.push_back(startPos);
+        _type = PATHFIND_NOPATH;
+        return;
+    }
+
+    // Only the deck the unit is riding is walkable: a destination on another
+    // transport means boarding, which no deck path can resolve.
+    Transport* destinationTransport = map->GetTransportForPos(_source->GetPhaseMask(), endPos.x, endPos.y, endPos.z);
+    // The ray probe can miss a point that is still on the deck (deck edges, thin
+    // walkways), so accept anything inside the transport's own bounds as well.
+    bool const onThisDeck = destinationTransport == transport ||
+        (transport->m_model && transport->m_model->GetBounds().contains(endPos));
+    if (!onThisDeck || IsTransportSegmentBlocked(startPos, endPos, transport))
+    {
+        _pathPoints.push_back(startPos);
+        _type = PATHFIND_NOPATH;
+        return;
+    }
+
+    _pathPoints.push_back(startPos);
+    _pathPoints.push_back(endPos);
+    SetActualEndPosition(endPos);
+    // No mesh was used; the line itself was validated against the deck.
+    _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
+}
+
+bool PathGenerator::IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const
+{
+    Map* map = (_source && transport) ? _source->GetMap() : nullptr;
+    if (!map)
+        return true;
+
+    float const high = std::max(_source->GetCollisionHeight(), 0.5f);
+    uint32 const phase = _source->GetPhaseMask();
+
+    // Reciprocal: whatever blocks the line blocks it from either end.
+    if (!map->isInLineOfSight(a.x, a.y, a.z + high, b.x, b.y, b.z + high, phase,
+            LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
+        return true;
+    if (!map->isInLineOfSight(b.x, b.y, b.z + high, a.x, a.y, a.z + high, phase,
+            LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
+        return true;
+
+    // The deck's own hull, masts and cannons are not part of the map's collision.
+    GameObjectModel* model = transport->m_model;
+    if (!model)
+        return false;
+
+    G3D::Vector3 const up(0.0f, 0.0f, high);
+    auto blockedByDeck = [&](G3D::Vector3 const& from, G3D::Vector3 const& to) -> bool
+    {
+        G3D::Vector3 const delta = to - from;
+        float distance = delta.length();
+        if (distance <= 0.01f)
+            return false;
+        G3D::Ray ray(from, delta / distance);
+        return model->intersectRay(ray, distance, false, phase, VMAP::ModelIgnoreFlags::Nothing);
+    };
+
+    return blockedByDeck(a + up, b + up) || blockedByDeck(b + up, a + up);
+}
+
+bool PathGenerator::ValidateSurfaceWalk(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, float maxGrade)
+{
+    Map* map = source ? source->GetMap() : nullptr;
+    if (!map)
+        return false;
+
+    float const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+    float const flat = std::sqrt(dx * dx + dy * dy);
+    if (flat < 0.01f)
+        return false;
+
+    // One step per metre (at most) keeps every hop inside the shin-height forgiveness,
+    // so a wall or a ledge cannot hide between two samples.
+    uint32 const steps = std::min<uint32>(uint32(std::ceil(flat)), 64);
+    float const stepLen = flat / float(steps);
+    // A step may rise by its share of the grade plus a little mesh jitter.
+    float const stepRise = maxGrade * stepLen + VETO_STEP_UP_HEIGHT * 0.25f;
+    uint32 const phase = source->GetPhaseMask();
+    float const searchStart = std::max(a.z, b.z) + VETO_STEP_UP_HEIGHT;
+    float const searchDist = std::fabs(dz) + VETO_STEP_UP_HEIGHT * 2.0f;
+
+    float prevX = a.x, prevY = a.y;
+    float prevZ = map->GetHeight(phase, a.x, a.y, searchStart, true, searchDist);
+    if (prevZ <= INVALID_HEIGHT || std::fabs(prevZ - a.z) > VETO_STEP_UP_HEIGHT)
+        return false;
+
+    for (uint32 i = 1; i <= steps; ++i)
+    {
+        float const t = float(i) / float(steps);
+        float const x = a.x + dx * t;
+        float const y = a.y + dy * t;
+        float const z = map->GetHeight(phase, x, y, searchStart, true, searchDist);
+        // Each step is judged on its own: the total rise of a long ramp says nothing,
+        // a single unclimbable step does.
+        if (z <= INVALID_HEIGHT || std::fabs(z - prevZ) > stepRise)
+            return false;
+        if (!map->isInLineOfSight(prevX, prevY, prevZ + 0.5f, x, y, z + 0.5f, phase,
+                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
+            return false;
+        if (!map->isInLineOfSight(x, y, z + 0.5f, prevX, prevY, prevZ + 0.5f, phase,
+                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::Nothing))
+            return false;
+        prevX = x;
+        prevY = y;
+        prevZ = z;
+    }
+
+    // The walk has to arrive where the move is going, not just reach some ground.
+    return std::fabs(prevZ - b.z) <= VETO_STEP_UP_HEIGHT;
 }
 
 void PathGenerator::CreateFilter()
