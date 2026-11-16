@@ -16,3 +16,6 @@ INSERT INTO `creature_sparring` (`GUID`, `SparringPCT`)
 SELECT `guid`, 50
 FROM `creature`
 WHERE `id1` = 23691;
+
+UPDATE ycore_world.creature SET position_x=1482.3374, position_y=-4624.3496, position_z=178.3095 where guid=108650;
+UPDATE ycore_world.creature SET MovementType=1, wander_distance=5 where id1=23691 and MovementType=0 and wander_distance=0;
