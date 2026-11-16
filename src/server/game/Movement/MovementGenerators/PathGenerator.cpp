@@ -227,9 +227,21 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
         return true;
     }
 
-    // Both ends on a deck, and not the same one: no walkable connection exists.
+    // Both ends on a deck, and not the same one: walk to the farthest point of the
+    // gap that is real ground off the decks, then resolve again from there.
     if (startTransport && destinationTransport)
     {
+        G3D::Vector3 walkTo;
+        if (FindOffDeckGround(_source, start, dest, walkTo))
+        {
+            Clear();
+            _pathPoints.push_back(start);
+            _pathPoints.push_back(walkTo);
+            SetActualEndPosition(walkTo);
+            _type = PATHFIND_INCOMPLETE;
+            return true;
+        }
+
         Clear();
         _pathPoints.push_back(start);
         SetActualEndPosition(start);
@@ -296,6 +308,45 @@ bool PathGenerator::ValidateTransportCrossing(WorldObject const* source, G3D::Ve
     }
 
     return true;
+}
+
+bool PathGenerator::FindOffDeckGround(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, G3D::Vector3& out)
+{
+    Map* map = source ? source->GetMap() : nullptr;
+    if (!map)
+        return false;
+
+    uint32 const phase = source->GetPhaseMask();
+    auto offDeck = [&](G3D::Vector3 const& point) -> bool
+    {
+        if (map->GetTransportForPos(phase, point.x, point.y, point.z))
+            return false;
+        for (Transport* transport : map->GetAllTransports())
+            if (transport && transport->IsInWorld() && transport->m_model &&
+                transport->m_model->GetBounds().contains(point))
+                return false;
+        return true;
+    };
+
+    float const dx = b.x - a.x, dy = b.y - a.y;
+    float const flat = std::sqrt(dx * dx + dy * dy);
+    uint32 const steps = std::min<uint32>(uint32(std::ceil(flat)), 64);
+
+    bool found = false;
+    for (uint32 i = 1; i <= steps; ++i)
+    {
+        float const t = std::min(float(i) / float(std::max<uint32>(steps, 1)), 1.0f);
+        G3D::Vector3 sample(a.x + dx * t, a.y + dy * t, a.z + (b.z - a.z) * t);
+        if (!offDeck(sample))
+            continue;
+        sample.z = map->GetHeight(phase, sample.x, sample.y, sample.z + VETO_STEP_UP_HEIGHT, true);
+        if (sample.z <= INVALID_HEIGHT)
+            continue;
+        out = sample;
+        found = true;
+    }
+
+    return found;
 }
 
 dtPolyRef PathGenerator::GetPathPolyByPosition(dtPolyRef const* polyPath, uint32 polyPathSize, float const* point, float* distance) const

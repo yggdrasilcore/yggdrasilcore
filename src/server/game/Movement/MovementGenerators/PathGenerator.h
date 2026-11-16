@@ -203,6 +203,7 @@ class PathGenerator
         [[nodiscard]] static bool IsTransportSegmentBlocked(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
 
         [[nodiscard]] static bool ValidateTransportCrossing(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
+        [[nodiscard]] static bool FindOffDeckGround(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, G3D::Vector3& out);
 
         [[nodiscard]] NavTerrain GetNavTerrain(float x, float y, float z) const;
         void CreateFilter();
