@@ -30476,9 +30476,9 @@
   }
  },
  "MotionTransport::RemovePassenger@e1376b70:qwen3-5-4b": {
-  "hash": "7636029aaa15",
-  "desc": "Removes a passenger from the transport's internal passenger lists and optionally updates the passenger's state to reflect removal.",
-  "raw": "{\"what\": \"Removes a passenger from the transport's internal passenger lists and optionally updates the passenger's state to reflect removal.\", \"effects\": \"None\"}",
+  "hash": "8740e005b41a",
+  "desc": "Removes a passenger from the transport's internal passenger lists and updates related game state, optionally clearing all movement flags associated with the passenger. Side effects: modifies internal data structures (erases GUIDs from _passengers and _staticPassengers), calls external script hook if player, modifies passenger movement info, clears unit pathfinding ignore state",
+  "raw": "{\"what\": \"Removes a passenger from the transport's internal passenger lists and updates related game state, optionally clearing all movement flags associated with the passenger.\", \"effects\": \"modifies internal data structures (erases GUIDs from _passengers and _staticPassengers), calls external script hook if player, modifies passenger movement info, clears unit pathfinding ignore state\"}",
   "entry": {
    "class": "MotionTransport",
    "name": "RemovePassenger",
@@ -30490,8 +30490,8 @@
     "file": "src/server/game/Entities/Transport/Transport.cpp",
     "line": 409
    },
-   "hash": "7636029aaa15",
-   "desc": "Removes a passenger from the transport's internal passenger lists and optionally updates the passenger's state to reflect removal.",
+   "hash": "8740e005b41a",
+   "desc": "Removes a passenger from the transport's internal passenger lists and updates related game state, optionally clearing all movement flags associated with the passenger. Side effects: modifies internal data structures (erases GUIDs from _passengers and _staticPassengers), calls external script hook if player, modifies passenger movement info, clears unit pathfinding ignore state",
    "ai": true,
    "model": "qwen3.5:4b"
   }
