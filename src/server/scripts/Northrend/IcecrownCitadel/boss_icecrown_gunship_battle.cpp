@@ -546,8 +546,7 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, friendlyShip, 2);
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 
-    // A player still on the rampart below misses the deck for the whole fight,
-    // so the encounter start sends them where the boarding troopers arrive.
+    // Players left below the deck are sent where the boarders arrive.
     instance->instance->DoForAllPlayers([](Player* player)
     {
         if (player->GetPositionZ() < 215.0f)
@@ -2001,13 +2000,12 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
                     anyValid = true;
                     me->SetInCombatWith(p);
                     p->SetInCombatWith(me);
-                    // Give every reachable player the same base threat so a victim exists;
-                    // whoever hits us is recorded above it and takes over.
+                    // Equal base threat so a victim exists; attackers out-threat it.
                     me->AddThreat(p, 1.0f);
                 }
             }
 
-            // The opposing captain and crew must be fightable too, not just players.
+            // The opposing captain and crew are targets too.
             std::list<Creature*> enemies;
             me->GetCreatureListWithEntryInGrid(enemies, NPC_IGB_MURADIN_BRONZEBEARD, 200.0f);
             me->GetCreatureListWithEntryInGrid(enemies, NPC_IGB_HIGH_OVERLORD_SAURFANG, 200.0f);
@@ -2034,7 +2032,7 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
         else
             checkTimer -= diff;
 
-        // Turn the threat list into a victim and go after it.
+        // Pick a victim and go after it.
         if (me->SelectVictim())
             AttackStart(me->GetVictim());
     }

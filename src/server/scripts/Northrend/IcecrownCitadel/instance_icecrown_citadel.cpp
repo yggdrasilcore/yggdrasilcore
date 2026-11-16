@@ -1443,8 +1443,7 @@ public:
                 return;
             }
 
-            // The ships' own AIs stop being ticked once every player is out of their
-            // grid, so "no player near the deck" is checked here, from the instance.
+            // The ships' AIs stop being ticked once no player is near the deck.
             float x, y, z, o;
             if (!instance->GetCreature(GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
                 return;
@@ -1468,8 +1467,7 @@ public:
             }
         }
 
-        // The friendly ship sits at the first point of its own animation path while the
-        // encounter is waiting; anywhere else means it is still out from a fight.
+        // The ship waits at the first point of its own path; anywhere else means it is out.
         bool IsGunshipAtSpawnPosition(Transport* transport)
         {
             MotionTransport* gunship = transport ? transport->ToMotionTransport() : nullptr;
@@ -1480,9 +1478,7 @@ public:
             return gunship->GetExactDist2d(start.Node->x, start.Node->y) <= 5.0f;
         }
 
-        // The fight was abandoned mid-way (everyone left, so no creature AI could reset
-        // it) and the ship is still out at its parked position. Take both ships away and
-        // rebuild the friendly one docked at its first keyframe.
+        // Removes both ships; SpawnGunship rebuilds the friendly one docked.
         void ResetAbandonedGunship()
         {
             if (Transport* transport = instance->GetTransport(GunshipGUID))
