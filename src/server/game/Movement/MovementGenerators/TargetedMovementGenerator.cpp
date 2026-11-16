@@ -266,21 +266,6 @@ bool ChaseMovementGenerator<T>::DispatchSplineToPosition(T* owner, float x, floa
         if (i_path->GetPath().size() < 2)
             return holdAtTransportEdge();
 
-        // The path stops on off-deck ground on purpose: walk it, then resolve again.
-        if (i_path->GetPathType() & PATHFIND_INCOMPLETE)
-        {
-            owner->AddUnitState(UNIT_STATE_CHASE_MOVE);
-            i_recalculateTravel = true;
-
-            Movement::MoveSplineInit init(owner);
-            init.MovebyPath(i_path->GetPath());
-            if (target)
-                init.SetFacing(i_target.getTarget());
-            init.SetWalk(walk);
-            init.Launch();
-            return false;
-        }
-
         // Stop once the reachable base endpoint is reached; never step onto the deck.
         G3D::Vector3 const& base = i_path->GetActualEndPosition();
         float const dx = owner->GetPositionX() - base.x;

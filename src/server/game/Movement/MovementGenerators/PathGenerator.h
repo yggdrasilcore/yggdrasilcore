@@ -200,10 +200,14 @@ class PathGenerator
         void BuildShortcut();
 
         void BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* transport);
+        void BuildCrossTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* startTransport, Transport const* destinationTransport);
         [[nodiscard]] static bool IsTransportSegmentBlocked(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
 
         [[nodiscard]] static bool ValidateTransportCrossing(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
-        [[nodiscard]] static bool FindOffDeckGround(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, G3D::Vector3& out);
+        [[nodiscard]] static bool IsOnTransportDeck(WorldObject const* source, G3D::Vector3 const& point, Transport const* transport);
+        [[nodiscard]] static bool IsOnAnyTransport(WorldObject const* source, G3D::Vector3 const& point);
+        [[nodiscard]] static bool TrySampleGround(WorldObject const* source, G3D::Vector3& point);
+        static void SampleSegment(G3D::Vector3 const& a, G3D::Vector3 const& b, std::vector<G3D::Vector3>& out);
 
         [[nodiscard]] NavTerrain GetNavTerrain(float x, float y, float z) const;
         void CreateFilter();
