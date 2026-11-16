@@ -1419,54 +1419,6 @@ public:
             }
         }
 
-        void Update(uint32 diff) override
-        {
-            InstanceScript::Update(diff);
-
-            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == DONE)
-                return;
-
-            bool anyPlayer = false;
-            for (Map::PlayerList::const_iterator itr = instance->GetPlayers().begin(); itr != instance->GetPlayers().end(); ++itr)
-            {
-                Player* other = itr->GetSource();
-                if (other && other->IsInWorld())
-                {
-                    anyPlayer = true;
-                    break;
-                }
-            }
-
-            if (!anyPlayer || !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
-            {
-                ResetAbandonedGunship();
-                return;
-            }
-
-            // The ships' AIs stop being ticked once no player is near the deck.
-            float x, y, z, o;
-            if (!instance->GetCreature(GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
-                return;
-
-            Transport* transport = instance->GetTransport(GunshipGUID);
-            transport->GetPosition(x, y, z, o);
-
-            anyPlayer = false;
-            for (Map::PlayerList::const_iterator itr = instance->GetPlayers().begin(); itr != instance->GetPlayers().end(); ++itr)
-                if (Player* other = itr->GetSource())
-                    if (other->IsInWorld() && other->GetExactDist2d(x, y) <= 200.0f)
-                    {
-                        anyPlayer = true;
-                        break;
-                    }
-
-            if (!anyPlayer)
-            {
-                SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
-                ResetAbandonedGunship();
-            }
-        }
-
         // The ship waits at the first point of its own path; anywhere else means it is out.
         bool IsGunshipAtSpawnPosition(Transport* transport)
         {
@@ -2237,6 +2189,35 @@ public:
 
         void Update(uint32 diff) override
         {
+            // Ships' AIs stop ticking when no player is near them.
+            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != DONE)
+            {
+                if (!instance->HavePlayers() || !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
+                {
+                    ResetAbandonedGunship();
+                }
+                else if (instance->GetCreature(GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
+                {
+                    float x, y, z, o;
+                    instance->GetTransport(GunshipGUID)->GetPosition(x, y, z, o);
+
+                    bool playerNearDeck = false;
+                    for (ObjectGuid const& guid : instance->CopyPlayerGuids())
+                        if (Player* player = ObjectAccessor::FindPlayer(guid))
+                            if (player->IsInWorld() && player->GetMap() == instance && player->GetExactDist2d(x, y) <= 200.0f)
+                            {
+                                playerNearDeck = true;
+                                break;
+                            }
+
+                    if (!playerNearDeck)
+                    {
+                        SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
+                        ResetAbandonedGunship();
+                    }
+                }
+            }
+
             // Xinef: A Feast of Souls (24547) whispers
             if (LichKingRandomWhisperTimer <= diff)
             {
