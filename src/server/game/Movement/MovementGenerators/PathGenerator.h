@@ -206,6 +206,12 @@ class PathGenerator
         void BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* transport);
         [[nodiscard]] bool IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const;
 
+        // A move onto a deck is ordinary ground movement: the leg is sampled until it
+        // first probes onto the transport, and only the final, deck-reaching step is
+        // gated by the reciprocal VMap/GO LoS and hull test. Returns false only when
+        // that step is blocked, so the caller can stop on the ground.
+        [[nodiscard]] bool ValidateTransportCrossing(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const;
+
         [[nodiscard]] NavTerrain GetNavTerrain(float x, float y, float z) const;
         void CreateFilter();
         void UpdateFilter();
