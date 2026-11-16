@@ -196,8 +196,19 @@ namespace
                 unit->CanSwim() &&
                 map->IsInWater(phase, a.x, a.y, a.z, collisionHeight) &&
                 map->IsInWater(phase, b.x, b.y, b.z, collisionHeight);
-            if (!swimmable && !PathGenerator::IsWalkableClimb(a.x, a.y, a.z, b.x, b.y, b.z, collisionHeight))
-                return true;
+            if (!swimmable)
+            {
+                // Players walk the surface: a continuous ramp is walkable however far it
+                // rises, and a ledge still trips its own step. Creatures keep the
+                // unit-height climb test.
+                if (unit->IsPlayer())
+                {
+                    if (!PathGenerator::ValidateSurfaceWalk(unit, a, b, VETO_PLAYER_GRADE))
+                        return true;
+                }
+                else if (!PathGenerator::IsWalkableClimb(a.x, a.y, a.z, b.x, b.y, b.z, collisionHeight))
+                    return true;
+            }
         }
         return false;
     }
