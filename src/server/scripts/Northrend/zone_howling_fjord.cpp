@@ -16,6 +16,7 @@
  */
 
 #include "CreatureScript.h"
+#include "MovementGenerator.h"
 #include "PassiveAI.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
@@ -621,13 +622,40 @@ private:
         _isMoving = true;
         partnerAI->_isMoving = false;
 
+        HoldInPlace(me);
+        HoldInPlace(partner);
+
         float const desiredSeparation = me->GetMeleeRange(partner) * SHOVELTUSK_SPAR_IDEAL_SEPARATION_PCT;
         if (me->GetExactDist(partner) < desiredSeparation)
             me->GetMotionMaster()->MoveBackwards(partner, desiredSeparation);
         else
             me->GetMotionMaster()->MoveChase(partner);
+    }
 
-        partner->GetMotionMaster()->MoveIdle();
+    /// Freeze the stag in place without touching the default movement generator.
+    /// MoveIdle() must not be used for this: the random-wander generator lives in
+    /// MOTION_SLOT_IDLE and is never recreated, so after a single spar the stag
+    /// would stand still for the rest of its life instead of roaming again.
+    static void HoldInPlace(Creature* stag)
+    {
+        stag->StopMoving();
+
+        if (MovementGenerator* idle = stag->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE))
+            idle->Pause(0);
+    }
+
+    /// Undo HoldInPlace(): drop the movement overlaid on top (the approach chase)
+    /// and hand control back to the default generator. If something replaced the
+    /// default generator meanwhile, rebuild it so the stag starts roaming again.
+    static void ReleaseFromHold(Creature* stag)
+    {
+        stag->GetMotionMaster()->Clear(false);
+
+        MovementGenerator* idle = stag->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE);
+        if (!idle || idle->GetMovementGeneratorType() != stag->GetDefaultMovementType())
+            stag->GetMotionMaster()->InitDefault();
+        else
+            idle->Resume(0);
     }
 
     void UpdateSparring(uint32 diff)
@@ -713,13 +741,11 @@ private:
 
         if (me->IsAlive())
         {
+            // Put the default wander generator back in charge before moving on.
+            ReleaseFromHold(me);
+
             if (returnHome)
                 me->GetMotionMaster()->MoveTargetedHome();
-            else
-            {
-                me->GetMotionMaster()->Clear();
-                me->GetMotionMaster()->MoveIdle();
-            }
         }
 
         if (partner && partner->IsAlive())
