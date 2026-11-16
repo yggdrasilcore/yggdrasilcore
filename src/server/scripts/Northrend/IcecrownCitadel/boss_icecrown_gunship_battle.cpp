@@ -1904,7 +1904,7 @@ protected:
 
 struct npc_gunship_boarding_addAI : public ScriptedAI
 {
-    npc_gunship_boarding_addAI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1))
+    npc_gunship_boarding_addAI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1)), _reachedEnemyShip(false)
     {
         anyValid = true;
         checkTimer = 1000;
@@ -1976,11 +1976,15 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
             me->SetTransportHomePosition(x, y, z, o);
 
             me->CastSpell(me, SPELL_TELEPORT_TO_ENEMY_SHIP, true);
+            _reachedEnemyShip = true;
         }
     }
 
     void UpdateAI(uint32 diff) override
     {
+        if (!_reachedEnemyShip)
+            return;
+
         if (checkTimer <= diff)
         {
             checkTimer = 1000;
@@ -1997,17 +2001,47 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
                     anyValid = true;
                     me->SetInCombatWith(p);
                     p->SetInCombatWith(me);
-                    me->AddThreat(p, 0.0f);
+                    // Give every reachable player the same base threat so a victim exists;
+                    // whoever hits us is recorded above it and takes over.
+                    me->AddThreat(p, 1.0f);
+                }
+            }
+
+            // The opposing captain and crew must be fightable too, not just players.
+            std::list<Creature*> enemies;
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_IGB_MURADIN_BRONZEBEARD, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_IGB_HIGH_OVERLORD_SAURFANG, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_MARINE, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_SERGEANT, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_RIFLEMAN, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_SORCERER, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_KOR_KRON_REAVER, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_KOR_KRON_SERGEANT, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_KOR_KRON_ROCKETEER, 200.0f);
+            for (Creature* enemy : enemies)
+            {
+                if (!enemy || enemy == me || !enemy->IsAlive())
+                    continue;
+                if (CanAIAttack(enemy) && me->IsValidAttackTarget(enemy))
+                {
+                    anyValid = true;
+                    me->SetInCombatWith(enemy);
+                    enemy->SetInCombatWith(me);
+                    me->AddThreat(enemy, 1.0f);
                 }
             }
         }
         else
             checkTimer -= diff;
+
+        // Turn the threat list into a victim and go after it.
+        if (me->SelectVictim())
+            AttackStart(me->GetVictim());
     }
 
     bool CanAIAttack(Unit const* target) const override
     {
-        return Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS && target->GetTransport() && target->GetTransport() != me->GetTransport() && target->GetPositionZ() < 478.0f && (me->GetEntry() == NPC_SKYBREAKER_SERGEANT || me->GetEntry() == NPC_SKYBREAKER_MARINE ? (target->GetPositionY() < 2431.0f) : (target->GetPositionY() > 2042.0f));
+        return Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS && target->GetTransport() && target->GetTransport() != me->GetTransport() && target->GetPositionZ() < 478.0f;
     }
 
 protected:
@@ -2020,6 +2054,7 @@ protected:
     bool anyValid;
     uint16 checkTimer;
     bool _usedDesperateResolve;
+    bool _reachedEnemyShip;
     InstanceScript* Instance;
     SlotInfo const* Slot;
     uint32 Index;

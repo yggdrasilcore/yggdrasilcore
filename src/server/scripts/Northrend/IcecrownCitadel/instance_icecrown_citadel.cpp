@@ -351,7 +351,12 @@ public:
             DoRemoveAurasDueToSpellOnPlayers(SPELL_OOZE_VARIABLE);
 
             if (GetBossState(DATA_LADY_DEATHWHISPER) == DONE && GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != DONE)
+            {
+                if (instance->GetPlayerCountLocked() <= 1 && !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
+                    ResetAbandonedGunship();
+
                 SpawnGunship();
+            }
 
             // Also covers an instance whose Gunship Battle state was set directly, which would
             // otherwise keep them hidden for good.
@@ -1412,6 +1417,83 @@ public:
                         hull->SetFullHealth();
                     }
             }
+        }
+
+        void Update(uint32 diff) override
+        {
+            InstanceScript::Update(diff);
+
+            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == DONE)
+                return;
+
+            bool anyPlayer = false;
+            for (Map::PlayerList::const_iterator itr = instance->GetPlayers().begin(); itr != instance->GetPlayers().end(); ++itr)
+            {
+                Player* other = itr->GetSource();
+                if (other && other->IsInWorld())
+                {
+                    anyPlayer = true;
+                    break;
+                }
+            }
+
+            if (!anyPlayer || !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
+            {
+                ResetAbandonedGunship();
+                return;
+            }
+
+            // The ships' own AIs stop being ticked once every player is out of their
+            // grid, so "no player near the deck" is checked here, from the instance.
+            float x, y, z, o;
+            if (!instance->GetCreature(GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
+                return;
+
+            Transport* transport = instance->GetTransport(GunshipGUID);
+            transport->GetPosition(x, y, z, o);
+
+            anyPlayer = false;
+            for (Map::PlayerList::const_iterator itr = instance->GetPlayers().begin(); itr != instance->GetPlayers().end(); ++itr)
+                if (Player* other = itr->GetSource())
+                    if (other->IsInWorld() && other->GetExactDist2d(x, y) <= 200.0f)
+                    {
+                        anyPlayer = true;
+                        break;
+                    }
+
+            if (!anyPlayer)
+            {
+                SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
+                ResetAbandonedGunship();
+            }
+        }
+
+        // The friendly ship sits at the first point of its own animation path while the
+        // encounter is waiting; anywhere else means it is still out from a fight.
+        bool IsGunshipAtSpawnPosition(Transport* transport)
+        {
+            MotionTransport* gunship = transport ? transport->ToMotionTransport() : nullptr;
+            if (!gunship || gunship->GetKeyFrames().empty())
+                return false;
+
+            KeyFrame const& start = gunship->GetKeyFrames().front();
+            return gunship->GetExactDist2d(start.Node->x, start.Node->y) <= 5.0f;
+        }
+
+        // The fight was abandoned mid-way (everyone left, so no creature AI could reset
+        // it) and the ship is still out at its parked position. Take both ships away and
+        // rebuild the friendly one docked at its first keyframe.
+        void ResetAbandonedGunship()
+        {
+            if (Transport* transport = instance->GetTransport(GunshipGUID))
+                transport->AddObjectToRemoveList();
+
+            if (Transport* transport = instance->GetTransport(EnemyGunshipGUID))
+                transport->AddObjectToRemoveList();
+
+            GunshipGUID.Clear();
+            EnemyGunshipGUID.Clear();
+            SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, NOT_STARTED);
         }
 
         void SpawnGunship()
