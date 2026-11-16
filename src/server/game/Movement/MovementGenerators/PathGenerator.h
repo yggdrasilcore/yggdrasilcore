@@ -199,18 +199,10 @@ class PathGenerator
         void BuildPointPath(float const* startPoint, float const* endPoint);
         void BuildShortcut();
 
-        // A transport deck is never part of the map mesh, so a deck move is a straight
-        // line in the transport's own frame, validated against the transport's collision
-        // model plus reciprocal VMap/GO LoS instead of a navmesh query. Leaves
-        // PATHFIND_NOPATH when the destination is not on the deck being ridden.
         void BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* transport);
-        [[nodiscard]] bool IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const;
+        [[nodiscard]] static bool IsTransportSegmentBlocked(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
 
-        // A move onto a deck is ordinary ground movement: the leg is sampled until it
-        // first probes onto the transport, and only the final, deck-reaching step is
-        // gated by the reciprocal VMap/GO LoS and hull test. Returns false only when
-        // that step is blocked, so the caller can stop on the ground.
-        [[nodiscard]] bool ValidateTransportCrossing(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const;
+        [[nodiscard]] static bool ValidateTransportCrossing(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
 
         [[nodiscard]] NavTerrain GetNavTerrain(float x, float y, float z) const;
         void CreateFilter();

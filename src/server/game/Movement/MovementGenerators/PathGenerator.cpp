@@ -217,32 +217,24 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
 
     _forceDestination = forceDest;
 
-    if (Map* map = _source ? _source->GetMap() : nullptr)
+    Map* map = _source ? _source->GetMap() : nullptr;
+    Transport* startTransport = _source ? _source->GetTransport() : nullptr;
+    Transport* destinationTransport = map ? map->GetTransportForPos(_source->GetPhaseMask(), destX, destY, destZ) : nullptr;
+
+    if (startTransport && (!destinationTransport || destinationTransport == startTransport))
     {
-        Transport* startTransport = _source->GetTransport();
-        Transport* destinationTransport = map->GetTransportForPos(_source->GetPhaseMask(), destX, destY, destZ);
+        BuildTransportPath(start, dest, startTransport);
+        return true;
+    }
 
-        // Deck movement: a transport's geometry is never part of the map mesh, so
-        // there is no navmesh to query on a ship. Walk the deck in the transport's
-        // own frame instead, validated against its collision model and reciprocal
-        // VMap/GO LoS.
-        if (startTransport && (!destinationTransport || destinationTransport == startTransport))
-        {
-            BuildTransportPath(start, dest, startTransport);
-            return true;
-        }
-
-        // A move between two decks: nothing walkable joins them, and no deck path can
-        // resolve the gap. Only this case is unroutable; a move onto or off a deck is
-        // ordinary ground movement and is settled by the mesh and the boarding sample.
-        if (startTransport && destinationTransport && destinationTransport != startTransport)
-        {
-            Clear();
-            _pathPoints.push_back(start);
-            SetActualEndPosition(start);
-            _type = PATHFIND_NOPATH;
-            return true;
-        }
+    // Both ends on a deck, and not the same one: no walkable connection exists.
+    if (startTransport && destinationTransport)
+    {
+        Clear();
+        _pathPoints.push_back(start);
+        SetActualEndPosition(start);
+        _type = PATHFIND_NOPATH;
+        return true;
     }
 
     // make sure navMesh works - we can run on map w/o mmap
@@ -261,45 +253,34 @@ bool PathGenerator::CalculatePath(float x, float y, float z, float destX, float 
 
     BuildPolyPath(start, dest);
 
-    // A move that starts on the ground and ends on a deck is a boarding step: the
-    // deck is not meshed, so the destination probe is the only thing that knows it.
-    // Sample the leg from the last point that probes onto no transport to the first
-    // one that does, and permit it only when that crossing is clear from both ends.
-    // Failing that, the path stops on the ground instead of walking through a hull.
-    Map* boardingMap = _source ? _source->GetMap() : nullptr;
-    if (boardingMap && !_source->GetTransport())
-        if (Transport* deck = boardingMap->GetTransportForPos(_source->GetPhaseMask(), destX, destY, destZ))
-            if (deck->ToMotionTransport() && !ValidateTransportCrossing(start, dest, deck))
-            {
-                Clear();
-                _pathPoints.push_back(start);
-                SetActualEndPosition(start);
-                _type = PATHFIND_NOPATH;
-                return true;
-            }
+    if (destinationTransport && destinationTransport->ToMotionTransport() &&
+        !ValidateTransportCrossing(_source, start, dest, destinationTransport))
+    {
+        Clear();
+        _pathPoints.push_back(start);
+        SetActualEndPosition(start);
+        _type = PATHFIND_NOPATH;
+        return true;
+    }
 
     ClipPathToTransportArea();
     return true;
 }
 
-bool PathGenerator::ValidateTransportCrossing(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const
+bool PathGenerator::ValidateTransportCrossing(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport)
 {
-    Map* map = (_source && transport) ? _source->GetMap() : nullptr;
+    Map* map = (source && transport) ? source->GetMap() : nullptr;
     if (!map)
         return false;
 
-    uint32 const phase = _source->GetPhaseMask();
+    uint32 const phase = source->GetPhaseMask();
     auto onDeck = [&](G3D::Vector3 const& point) -> bool
     {
-        // The single-point ray probe misses deck edges and thin walkways, so the
-        // transport's own bounds count as deck too.
         if (transport->m_model && transport->m_model->GetBounds().contains(point))
             return true;
         return map->GetTransportForPos(phase, point.x, point.y, point.z) == transport;
     };
 
-    // Sample along the leg until it first reaches the deck: the shore side of that
-    // sample is the last good ground point, and the crossing is the step after it.
     float const dx = b.x - a.x, dy = b.y - a.y;
     float const flat = std::sqrt(dx * dx + dy * dy);
     uint32 const steps = std::min<uint32>(uint32(std::ceil(flat)), 64);
@@ -309,16 +290,12 @@ bool PathGenerator::ValidateTransportCrossing(G3D::Vector3 const& a, G3D::Vector
     {
         float const t = std::min(float(i) / float(std::max<uint32>(steps, 1)), 1.0f);
         G3D::Vector3 const sample(a.x + dx * t, a.y + dy * t, a.z + (b.z - a.z) * t);
-        if (!onDeck(sample))
-        {
-            lastGood = sample;
-            continue;
-        }
-        return !IsTransportSegmentBlocked(lastGood, sample, transport);
+        if (onDeck(sample))
+            return IsTransportSegmentBlocked(source, lastGood, sample, transport);
+        lastGood = sample;
     }
 
-    // Never reached the deck on the way: the endpoint was a probe hit only.
-    return !IsTransportSegmentBlocked(lastGood, b, transport);
+    return true;
 }
 
 dtPolyRef PathGenerator::GetPathPolyByPosition(dtPolyRef const* polyPath, uint32 polyPathSize, float const* point, float* distance) const
@@ -1146,7 +1123,7 @@ void PathGenerator::BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector
     // walkways), so accept anything inside the transport's own bounds as well.
     bool const onThisDeck = destinationTransport == transport ||
         (transport->m_model && transport->m_model->GetBounds().contains(endPos));
-    if (!onThisDeck || IsTransportSegmentBlocked(startPos, endPos, transport))
+    if (!onThisDeck || IsTransportSegmentBlocked(_source, startPos, endPos, transport))
     {
         _pathPoints.push_back(startPos);
         _type = PATHFIND_NOPATH;
@@ -1160,14 +1137,14 @@ void PathGenerator::BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector
     _type = PathType(PATHFIND_NORMAL | PATHFIND_NOT_USING_PATH);
 }
 
-bool PathGenerator::IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const
+bool PathGenerator::IsTransportSegmentBlocked(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport)
 {
-    Map* map = (_source && transport) ? _source->GetMap() : nullptr;
+    Map* map = (source && transport) ? source->GetMap() : nullptr;
     if (!map)
         return true;
 
-    float const high = std::max(_source->GetCollisionHeight(), 0.5f);
-    uint32 const phase = _source->GetPhaseMask();
+    float const high = std::max(source->GetCollisionHeight(), 0.5f);
+    uint32 const phase = source->GetPhaseMask();
 
     // Reciprocal: whatever blocks the line blocks it from either end.
     if (!map->isInLineOfSight(a.x, a.y, a.z + high, b.x, b.y, b.z + high, phase,
