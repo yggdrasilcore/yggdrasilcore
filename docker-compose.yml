@@ -26,6 +26,7 @@ services:
   yggdrasilcore-database:
     container_name: yggdrasilcore-database
     image: mysql:8.3
+    command: --disable-log-bin
     networks:
       - yggdrasilcore-network
     ports:

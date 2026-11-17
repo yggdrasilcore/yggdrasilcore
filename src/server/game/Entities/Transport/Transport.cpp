@@ -438,6 +438,13 @@ void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
             passenger->ToUnit()->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
         }
     }
+    // The no-pathfinding flag is only meaningful while riding, and boarding sets it
+    // through whichever route carried the movement info. Clearing it here, whatever
+    // the caller asked for, keeps a teleport off a transport from stranding it set.
+    else if (passenger->ToUnit())
+    {
+        passenger->ToUnit()->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
+    }
 }
 
 Creature* MotionTransport::CreateNPCPassenger(ObjectGuid::LowType guid, CreatureData const* data)
