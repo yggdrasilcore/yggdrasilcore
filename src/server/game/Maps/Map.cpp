@@ -3336,6 +3336,12 @@ bool Map::CheckCollisionAndGetValidCoords(WorldObject const* source, float start
     float groundZ = VMAP_INVALID_HEIGHT_VALUE;
     source->UpdateAllowedPositionZ(destX, destY, destZ, &groundZ);
 
+    if (unit && unit->IsPlayer())
+        LOG_ERROR("server", "CheckCollision in=({:.3f},{:.3f},{:.3f}) out=({:.3f},{:.3f},{:.3f}) "
+                  "pathEnd_z={:.3f} notOnGround={} collided={} type={} groundZ={:.3f}",
+                  startX, startY, startZ, destX, destY, destZ, endPos.z, notOnGround, collided,
+                  uint32(path.GetPathType()), groundZ);
+
     // position has no ground under it (or is too far away)
     if (groundZ <= INVALID_HEIGHT && unit && !unit->CanFly())
     {
