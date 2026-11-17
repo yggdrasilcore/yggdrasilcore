@@ -77,7 +77,7 @@ void PointMovementGenerator<T>::DoInitialize(T* unit)
         if (unit->IsPlayer())
         {
             float dx = i_x - unit->GetPositionX(), dy = i_y - unit->GetPositionY();
-            LOG_ERROR("movement", "PointMG {} i_z={:.3f} i_xy=({:.3f},{:.3f}) bot_z={:.3f} dest_z={:.3f} "
+            LOG_ERROR("server", "PointMG {} i_z={:.3f} i_xy=({:.3f},{:.3f}) bot_z={:.3f} dest_z={:.3f} "
                      "result={} type={} points={} actual_end_z={:.3f} dist2d={:.3f}",
                      unit->GetGUID().ToString(), i_z, i_x, i_y, unit->GetPositionZ(), destZ, result,
                      uint32(path.GetPathType()), uint32(path.GetPath().size()),
