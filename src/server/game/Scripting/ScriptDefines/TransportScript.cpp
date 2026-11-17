@@ -68,6 +68,16 @@ void ScriptMgr::OnTransportUpdate(Transport* transport, uint32 diff)
     });
 }
 
+void ScriptMgr::OnTransportDestroy(Transport* transport)
+{
+    ASSERT(transport);
+
+    ExecuteScript<TransportScript>([=](TransportScript* script)
+    {
+        script->OnTransportDestroy(transport);
+    });
+}
+
 void ScriptMgr::OnRelocate(Transport* transport, uint32 waypointId, uint32 mapId, float x, float y, float z)
 {
     if (auto tempScript = ScriptRegistry<TransportScript>::GetScriptById(transport->GetScriptId()))
