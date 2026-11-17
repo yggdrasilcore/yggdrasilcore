@@ -541,7 +541,7 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
         BuildShortcut();
 
         bool canSwim = creature ? creature->CanSwim() : true;
-        bool path = creature ? creature->CanFly() : true;
+        bool path = creature ? creature->CanFly() : false;
         bool waterPath = IsWaterPath(_pathPoints);
         if (path || (waterPath && canSwim))
         {
