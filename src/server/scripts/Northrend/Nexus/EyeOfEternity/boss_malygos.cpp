@@ -57,10 +57,8 @@ enum MovementInformPoints
 enum MalygosSpells
 {
     SPELL_BERSERK                       = 64238,
-    SPELL_ARCANE_BREATH_N               = 56272,
-    SPELL_ARCANE_BREATH_H               = 60072,
-    SPELL_ARCANE_STORM_N                = 61693,
-    SPELL_ARCANE_STORM_H                = 61694,
+    SPELL_ARCANE_BREATH                 = 56272,
+    SPELL_ARCANE_STORM                  = 61693,
 
     SPELL_VORTEX_VISUAL                 = 55873,
     SPELL_VORTEX_CONTROL_VEHICLE        = 56263,
@@ -80,18 +78,13 @@ enum MalygosSpells
     SPELL_DESTROY_PLATFORM_VISUAL       = 59084,
 
     SPELL_ARCANE_PULSE                  = 57432,
-    SPELL_PH3_SURGE_OF_POWER_N          = 57407,
-    SPELL_PH3_SURGE_OF_POWER_H          = 60936,
+    SPELL_PH3_SURGE_OF_POWER            = 57407,
 
     SPELL_STATIC_FIELD_MAIN             = 57430,
     SPELL_STATIC_FIELD_SUMMON           = 57431,
     SPELL_STATIC_FIELD_AURA             = 57428,
     SPELL_STATIC_FIELD_DAMAGE           = 57429,
 };
-
-#define SPELL_ARCANE_BREATH             DUNGEON_MODE(SPELL_ARCANE_BREATH_N, SPELL_ARCANE_BREATH_H)
-#define SPELL_ARCANE_STORM              DUNGEON_MODE(SPELL_ARCANE_STORM_N, SPELL_ARCANE_STORM_H)
-#define SPELL_PH3_SURGE_OF_POWER        DUNGEON_MODE(SPELL_PH3_SURGE_OF_POWER_N, SPELL_PH3_SURGE_OF_POWER_H)
 
 enum MalygosEvents
 {
@@ -241,6 +234,8 @@ public:
             me->SetUnitFlag(UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_PACIFIED);
             me->RemoveUnitFlag(UNIT_FLAG_DISABLE_MOVE);
 
+            me->SetAnimTier(AnimTier::Fly);
+
             if (pInstance)
             {
                 pInstance->SetData(DATA_ENCOUNTER_STATUS, NOT_STARTED);
@@ -284,12 +279,6 @@ public:
                     case MI_POINT_SURGE_OF_POWER_CENTER:
                         events.RescheduleEvent(EVENT_SURGE_OF_POWER_WARNING, 0ms, 1);
                         break;
-                }
-            }
-            else if (type == EFFECT_MOTION_TYPE)
-            {
-                switch (id)
-                {
                     case MI_POINT_INTRO_LAND:
                         me->SetDisableGravity(false);
                         events.RescheduleEvent(EVENT_START_FIGHT, 0ms, 1);
@@ -408,7 +397,7 @@ public:
                     }
                 case EVENT_INTRO_LAND:
                     {
-                        me->GetMotionMaster()->MoveLand(MI_POINT_INTRO_LAND, me->GetPositionX(), me->GetPositionY(), CenterPos.GetPositionZ(), 7.0f);
+                        me->GetMotionMaster()->MovePoint(MI_POINT_INTRO_LAND, me->GetPositionX(), me->GetPositionY(), CenterPos.GetPositionZ(), FORCED_MOVEMENT_RUN, 0.f, 0.f, true, true, MOTION_SLOT_ACTIVE, AnimTier::Ground);
                         break;
                     }
                 case EVENT_START_FIGHT:
@@ -469,7 +458,7 @@ public:
                         me->GetMotionMaster()->MoveIdle();
                         me->StopMoving();
                         me->SetDisableGravity(true);
-                        me->GetMotionMaster()->MoveTakeoff(MI_POINT_VORTEX_TAKEOFF, me->GetPositionX(), me->GetPositionY(), CenterPos.GetPositionZ() + 20.0f, 7.0f);
+                        me->GetMotionMaster()->MovePoint(MI_POINT_VORTEX_TAKEOFF, me->GetPositionX(), me->GetPositionY(), CenterPos.GetPositionZ() + 20.0f, FORCED_MOVEMENT_RUN, 0.f, 0.f, true, true, MOTION_SLOT_ACTIVE, AnimTier::Fly);
 
                         events.DelayEvents(25s, 1); // don't delay berserk (group 0)
                     }
@@ -494,10 +483,13 @@ public:
                         {
                             vp->SetDisableGravity(true);
 
-                            me->GetMap()->DoForAllPlayers([&](Player* pPlayer)
-                            {
+                            Map::PlayerList const& PlayerList = me->GetMap()->GetPlayers();
+                            if (!PlayerList.IsEmpty())
+                                for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+                                    if (Player* pPlayer = i->GetSource())
+                                    {
                                         if (!pPlayer->IsAlive() || pPlayer->IsGameMaster())
-                                            return;
+                                            continue;
 
                                         Position plrpos;
                                         float playerAngle = CenterPos.GetAngle(pPlayer);
@@ -514,7 +506,7 @@ public:
                                             {
                                                 pPlayer->EnterVehicle(c, 0);
                                                 if (!pPlayer->GetVehicle())
-                                                    return;
+                                                    continue;
                                             }
                                             //pPlayer->ClearUnitState(UNIT_STATE_ONVEHICLE);
 
@@ -536,14 +528,14 @@ public:
                                             pPlayer->SetGuidValue(PLAYER_FARSIGHT, vp->GetGUID());
                                             c->SetUnitFlag(UNIT_FLAG_NOT_SELECTABLE);
                                         }
-                            });
+                                    }
                         }
 
                         events.RescheduleEvent(EVENT_VORTEX_LAND_0, 11s, 1);
                         break;
                     }
                 case EVENT_VORTEX_LAND_0:
-                    me->GetMotionMaster()->MoveLand(MI_POINT_VORTEX_LAND, CenterPos, 7.0f);
+                    me->GetMotionMaster()->MovePoint(MI_POINT_VORTEX_LAND, CenterPos, FORCED_MOVEMENT_RUN, 0.f, true, true, AnimTier::Ground);
 
                     break;
                 case EVENT_VORTEX_LAND_1:
@@ -577,7 +569,7 @@ public:
                         me->GetMotionMaster()->MoveIdle();
                         me->DisableSpline();
                         me->SetDisableGravity(true);
-                        me->GetMotionMaster()->MoveTakeoff(MI_POINT_CENTER_AIR_PH_2, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 32.0f, 7.0f);
+                        me->GetMotionMaster()->MovePoint(MI_POINT_CENTER_AIR_PH_2, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ() + 32.0f, FORCED_MOVEMENT_RUN, 0.f, 0.f, true, true, MOTION_SLOT_ACTIVE, AnimTier::Fly);
                         events.RescheduleEvent(EVENT_START_PHASE_2_MOVE_TO_SIDE, 22s + 500ms, 1);
                         break;
                     }
@@ -703,26 +695,23 @@ public:
                 case EVENT_MOVE_TO_PHASE_3_POSITION:
                     {
                         me->SendMeleeAttackStop(me->GetVictim());
-                        me->GetMotionMaster()->MoveTakeoff(MI_POINT_PH_3_FIGHT_POSITION, CenterPos.GetPositionX(), CenterPos.GetPositionY(), CenterPos.GetPositionZ() - 5.0f, me->GetSpeed(MOVE_RUN));
+                        me->GetMotionMaster()->MovePoint(MI_POINT_PH_3_FIGHT_POSITION, CenterPos.GetPositionX(), CenterPos.GetPositionY(), CenterPos.GetPositionZ() - 5.0f, FORCED_MOVEMENT_RUN, 0.f, 0.f, true, true, MOTION_SLOT_ACTIVE, AnimTier::Fly);
 
                         me->GetThreatMgr().ClearAllThreat(); // players on vehicle are unattackable -> leads to EnterEvadeMode() because target is not acceptable!
 
                         // mount players:
-                        me->GetMap()->DoForAllPlayers([&](Player* pPlayer)
-                        {
-                                    sScriptMgr->AnticheatSetUnderACKmount(pPlayer);
+                        Map::PlayerList const& PlayerList = me->GetMap()->GetPlayers();
+                        if (!PlayerList.IsEmpty())
+                            for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+                                if (Player* player = i->GetSource())
+                                {
+                                    sScriptMgr->AnticheatSetUnderACKmount(player);
 
-                                    if (!pPlayer->IsAlive() || pPlayer->IsGameMaster())
-                                        return;
+                                    if (!player->IsAlive() || player->IsGameMaster())
+                                        continue;
 
-                                    if (Creature* c = me->SummonCreature(NPC_WYRMREST_SKYTALON, pPlayer->GetPositionX(), pPlayer->GetPositionY(), pPlayer->GetPositionZ() - 20.0f, 0.0f, TEMPSUMMON_MANUAL_DESPAWN, 0))
-                                    {
-                                        c->SetFaction(pPlayer->GetFaction());
-                                        //pPlayer->CastCustomSpell(60683, SPELLVALUE_BASE_POINT0, 1, c, true);
-                                        c->m_Events.AddEventAtOffset(new EoEDrakeEnterVehicleEvent(*c, pPlayer->GetGUID()), 500ms);
-                                        AttackStart(c);
-                                    }
-                        });
+                                    player->CastSpell(player, SPELL_SUMMON_RED_DRAGON_BUDDY, true);
+                                }
 
                         events.RescheduleEvent(EVENT_SAY_PHASE_3_INTRO, 3s, 1);
                     }
@@ -1181,14 +1170,11 @@ public:
                 case EVENT_SCION_OF_ETERNITY_ARCANE_BARRAGE:
                     {
                         GuidVector guids;
-                        Map* snapMap3 = me->GetMap();
-                        std::vector<ObjectGuid> snapGuids = snapMap3->CopyPlayerGuids();
-                        if (!snapGuids.empty())
-                            for (ObjectGuid const& playerGuid : snapGuids)
-                                if (Player* pPlayer = ObjectAccessor::FindPlayer(playerGuid))
+                        Map::PlayerList const& PlayerList = me->GetMap()->GetPlayers();
+                        if (!PlayerList.IsEmpty())
+                            for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
+                                if (Player* pPlayer = i->GetSource())
                                 {
-                                    if (!pPlayer->IsInWorld() || pPlayer->GetMap() != snapMap3)
-                                        continue;
                                     if (pPlayer->IsAlive())
                                     {
                                         if (!pPlayer->GetVehicle())
@@ -1441,6 +1427,19 @@ public:
     {
         npc_eoe_wyrmrest_skytalonAI(Creature* pCreature) : VehicleAI(pCreature) { }
 
+        void IsSummonedBy(WorldObject* summoner) override
+        {
+            me->SetDisableGravity(true);
+            if (summoner && summoner->IsPlayer())
+            {
+                ObjectGuid summonerGUID = summoner->GetGUID();
+                me->m_Events.AddEventAtOffset([summonerGUID, this] {
+                    if (Player* rider = ObjectAccessor::GetPlayer(*me, summonerGUID))
+                        DoCast(rider, SPELL_RIDE_RED_DRAGON, true);
+                }, 2s);
+            }
+        }
+
         void PassengerBoarded(Unit* pass, int8  /*seat*/, bool apply) override
         {
             if (apply)
@@ -1525,6 +1524,47 @@ class spell_eoe_ph3_surge_of_power : public SpellScript
     }
 };
 
+// 56070 - Summon Red Dragon Buddy
+class spell_wyrmrest_skytalon_summon_red_dragon_buddy : public SpellScript
+{
+    PrepareSpellScript(spell_wyrmrest_skytalon_summon_red_dragon_buddy);
+
+    bool Load() override
+    {
+        return GetCaster()->IsPlayer();
+    }
+
+    void SetDest(SpellDestination& dest)
+    {
+        dest.Relocate(GetCaster()->GetPosition());
+        // Adjust effect summon position to lower Z
+        Position const offset = { 0.0f, 0.0f, -80.0f, 0.0f };
+        dest.RelocateOffset(offset);
+    }
+
+    void Register() override
+    {
+        OnDestinationTargetSelect += SpellDestinationTargetSelectFn(spell_wyrmrest_skytalon_summon_red_dragon_buddy::SetDest, EFFECT_0, TARGET_DEST_CASTER_RADIUS);
+    }
+};
+
+// 56072 - Ride Red Dragon Buddy
+class spell_wyrmrest_skytalon_ride_red_dragon_buddy_trigger : public SpellScript
+{
+    PrepareSpellScript(spell_wyrmrest_skytalon_ride_red_dragon_buddy_trigger);
+
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* target = GetHitUnit())
+            target->CastSpell(GetCaster(), GetEffectValue(), true);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_wyrmrest_skytalon_ride_red_dragon_buddy_trigger::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
 void AddSC_boss_malygos()
 {
     new boss_malygos();
@@ -1536,6 +1576,8 @@ void AddSC_boss_malygos()
     new npc_scion_of_eternity();
     new npc_hover_disk();
     new npc_eoe_wyrmrest_skytalon();
+    RegisterSpellScript(spell_wyrmrest_skytalon_summon_red_dragon_buddy);
+    RegisterSpellScript(spell_wyrmrest_skytalon_ride_red_dragon_buddy_trigger);
 
     RegisterSpellScript(spell_eoe_ph3_surge_of_power);
 }
