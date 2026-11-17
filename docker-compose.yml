@@ -26,6 +26,7 @@ services:
   yggdrasilcore-database:
     container_name: yggdrasilcore-database
     image: mysql:8.3
+    command: --max-binlog-size=100M
     networks:
       - yggdrasilcore-network
     ports:
