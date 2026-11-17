@@ -580,11 +580,14 @@ void PathGenerator::BuildPolyPath(G3D::Vector3 const& startPos, G3D::Vector3 con
         bool startInWaterEndUnderWater = (liquidDataStart.Status & MAP_LIQUID_STATUS_IN_CONTACT) != 0 &&
                                          liquidDataEnd.Status == LIQUID_MAP_UNDER_WATER;
         bool waterPath = startUnderWaterEndInWater || startInWaterEndUnderWater;
+        // The shortcut drops the mesh entirely and lands on the requested Z, so it
+        // may only be taken by a unit already in the water it is leaving.
+        bool swimmingStart = (liquidDataStart.Status & (LIQUID_MAP_IN_WATER | LIQUID_MAP_UNDER_WATER)) != 0;
         Unit const* _sourceUnit = _source->ToUnit();
 
         if (_sourceUnit)
         {
-            bool isWater = (_sourceUnit->CanSwim() && waterPath);
+            bool isWater = (_sourceUnit->CanSwim() && waterPath && swimmingStart);
 
             if (isWater || _sourceUnit->CanFly() || (_sourceUnit->IsFalling() && endPos.z < startPos.z))
             {
