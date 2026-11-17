@@ -199,12 +199,15 @@ class PathGenerator
         void BuildPointPath(float const* startPoint, float const* endPoint);
         void BuildShortcut();
 
-        // A transport deck is never part of the map mesh, so a deck move is a straight
-        // line in the transport's own frame, validated against the transport's collision
-        // model plus reciprocal VMap/GO LoS instead of a navmesh query. Leaves
-        // PATHFIND_NOPATH when the destination is not on the deck being ridden.
         void BuildTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* transport);
-        [[nodiscard]] bool IsTransportSegmentBlocked(G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport) const;
+        void BuildCrossTransportPath(G3D::Vector3 const& startPos, G3D::Vector3 const& endPos, Transport const* startTransport, Transport const* destinationTransport);
+        [[nodiscard]] static bool IsTransportSegmentBlocked(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
+
+        [[nodiscard]] static bool ValidateTransportCrossing(WorldObject const* source, G3D::Vector3 const& a, G3D::Vector3 const& b, Transport const* transport);
+        [[nodiscard]] static bool IsOnTransportDeck(WorldObject const* source, G3D::Vector3 const& point, Transport const* transport);
+        [[nodiscard]] static bool IsOnAnyTransport(WorldObject const* source, G3D::Vector3 const& point);
+        [[nodiscard]] static bool TrySampleGround(WorldObject const* source, G3D::Vector3& point);
+        static void SampleSegment(G3D::Vector3 const& a, G3D::Vector3 const& b, std::vector<G3D::Vector3>& out);
 
         [[nodiscard]] NavTerrain GetNavTerrain(float x, float y, float z) const;
         void CreateFilter();
