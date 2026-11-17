@@ -405,6 +405,13 @@ struct SpellTargetPosition
 
 typedef std::map<std::pair<uint32 /*spell_id*/, SpellEffIndex /*effIndex*/>, SpellTargetPosition> SpellTargetPositionMap;
 
+struct SpellCone
+{
+    int16_t cone_degrees;
+};
+
+typedef std::map<uint32 /*spell_id*/, SpellCone> SpellConeMap;
+
 // Enum with EffectRadiusIndex and their actual radius
 enum EffectRadiusIndex
 {
@@ -680,6 +687,7 @@ public:
 
     // Spell target coordinates
     [[nodiscard]] SpellTargetPosition const* GetSpellTargetPosition(uint32 spell_id, SpellEffIndex effIndex) const;
+    [[nodiscard]] SpellCone const* GetSpellCone(uint32 spell_id) const;
 
     // Spell Groups
     [[nodiscard]] uint32 GetSpellGroup(uint32 spellid) const;
@@ -780,6 +788,7 @@ public:
     void LoadSpellRequired();
     void LoadSpellLearnSkills();
     void LoadSpellTargetPositions();
+    void LoadSpellCones();
     void LoadSpellGroups();
     void LoadSpellGroupStackRules();
     void LoadSpellProcEvents();
@@ -813,6 +822,7 @@ private:
     SpellRequiredMap           mSpellReq;
     SpellLearnSkillMap         mSpellLearnSkills;
     SpellTargetPositionMap     mSpellTargetPositions;
+    SpellConeMap               mSpellCones;
     SpellGroupMap              mSpellGroupMap;
     SpellGroupStackMap         mSpellGroupStackMap;
     SpellProcEventMap          mSpellProcEventMap;
