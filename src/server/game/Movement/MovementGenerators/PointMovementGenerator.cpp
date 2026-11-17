@@ -74,6 +74,15 @@ void PointMovementGenerator<T>::DoInitialize(T* unit)
 
         PathGenerator path(unit);
         bool result = path.CalculatePath(destX, destY, destZ, _forceDestination);
+        if (unit->IsPlayer())
+        {
+            float dx = i_x - unit->GetPositionX(), dy = i_y - unit->GetPositionY();
+            LOG_INFO("movement", "PointMG {} i_z={:.3f} i_xy=({:.3f},{:.3f}) bot_z={:.3f} dest_z={:.3f} "
+                     "result={} type={} points={} actual_end_z={:.3f} dist2d={:.3f}",
+                     unit->GetGUID().ToString(), i_z, i_x, i_y, unit->GetPositionZ(), destZ, result,
+                     uint32(path.GetPathType()), uint32(path.GetPath().size()),
+                     path.GetActualEndPosition().z, std::sqrt(dx * dx + dy * dy));
+        }
         if (result && !(path.GetPathType() & PATHFIND_NOPATH) && path.GetPath().size() > 2 &&
             path.ValidatePlayerMove())
         {
