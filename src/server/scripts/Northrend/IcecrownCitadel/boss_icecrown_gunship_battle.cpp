@@ -2067,7 +2067,14 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
 
     bool CanAIAttack(Unit const* target) const override
     {
-        return Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS && target->GetTransport() && target->GetTransport() != me->GetTransport() && target->GetPositionZ() < 478.0f;
+        if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS || !target || target->GetPositionZ() >= 478.0f)
+            return false;
+
+        // The transport re-probe re-attaches the add to the deck it stands on, so
+        // its own transport link no longer identifies the ship it left. Fight
+        // everything aboard the players' ship instead.
+        Transport* playerShip = Instance->instance->GetTransport(Instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE));
+        return playerShip && target->GetTransport() == playerShip;
     }
 
 protected:
