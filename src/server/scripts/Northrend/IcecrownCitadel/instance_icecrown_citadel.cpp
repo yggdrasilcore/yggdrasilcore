@@ -1438,7 +1438,7 @@ public:
         void ResetAbandonedGunship()
         {
             // The captains enable movement on gossip, long before the encounter starts.
-            if (GameTime::GetGameTime().count() - _gunshipGossipTime < 60)
+            if (GameTime::GetGameTime().count() - _gunshipGossipTime < 90)
                 return;
 
             if (Transport* transport = instance->GetTransport(GunshipGUID))
