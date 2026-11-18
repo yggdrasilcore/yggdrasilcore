@@ -546,12 +546,20 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, friendlyShip, 2);
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
 
-    // Players left below the deck are sent where the boarders arrive.
-    instance->instance->DoForAllPlayers([](Player* player)
+    // Players left on the rampart below miss the deck for the whole fight.
+    if (Transport* transport = friendlyShip->GetTransport())
     {
-        if (player->GetPositionZ() < 215.0f)
-            player->CastSpell(player, SPELL_TELEPORT_TO_ENEMY_SHIP, true);
-    });
+        Position const& exitPos = horde ? OrgrimsHammerTeleportExit : SkybreakerTeleportExit;
+        float x, y, z, o;
+        exitPos.GetPosition(x, y, z, o);
+        transport->CalculatePassengerPosition(x, y, z, &o);
+
+        instance->instance->DoForAllPlayers([=](Player* player)
+        {
+            if (player->GetPositionZ() < 215.0f)
+                player->NearTeleportTo(x, y, z, o);
+        });
+    }
 }
 
 static void RestoreGunshipPassengers(Transport* transport)

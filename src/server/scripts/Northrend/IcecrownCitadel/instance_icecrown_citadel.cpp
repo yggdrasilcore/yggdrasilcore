@@ -1437,6 +1437,11 @@ public:
         // Removes both ships; SpawnGunship rebuilds the friendly one docked.
         void ResetAbandonedGunship()
         {
+            // A fight with players still in the instance is not abandoned, however far
+            // the ships are from their spawn point.
+            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS && instance->HavePlayers())
+                return;
+
             // The captains enable movement on gossip, long before the encounter starts.
             if (GameTime::GetGameTime().count() - _gunshipGossipTime < 90)
                 return;
