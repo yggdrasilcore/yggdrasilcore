@@ -221,6 +221,9 @@ Position const OrgrimsHammerTeleportExit = { 7.461699f, 0.158853f, 35.72989f, 0.
 Position const OrgrimsHammerTeleportPortal = { 47.550990f, -0.101778f, 37.61111f, 0.0f };
 Position const SkybreakerTeleportExit      = { -17.55738f, -0.090421f, 21.18366f, 0.0f };
 
+// The Skybreaker hull hangs in the hold below the deck exit.
+Position const SkybreakerHullPosition      = { -17.55738f, -0.090421f, 10.0f, 0.0f };
+
 uint32 const MuradinExitPathSize = 10;
 Position const MuradinExitPath[MuradinExitPathSize] =
 {
@@ -762,14 +765,14 @@ public:
             me->SetRegeneratingHealth(false);
 
             // The hull spawns inside the hold, where the transport probe cannot see
-            // the ship and drops the passenger link; anchor it on the deck instead.
+            // the ship and drops the passenger link; anchor it on the ship instead.
             if (Transport* transport = me->GetTransport())
             {
-                Position const& deckPos = me->GetEntry() == NPC_THE_SKYBREAKER ? SkybreakerTeleportExit : OrgrimsHammerTeleportExit;
+                Position const& hullPos = me->GetEntry() == NPC_THE_SKYBREAKER ? SkybreakerHullPosition : OrgrimsHammerTeleportExit;
                 float x, y, z, o;
-                deckPos.GetPosition(x, y, z, o);
+                hullPos.GetPosition(x, y, z, o);
                 me->m_movementInfo.transport.pos.Relocate(x, y, z, o);
-                me->SetTransportHomePosition(deckPos);
+                me->SetTransportHomePosition(hullPos);
                 transport->CalculatePassengerPosition(x, y, z, &o);
                 me->Relocate(x, y, z, o);
             }
