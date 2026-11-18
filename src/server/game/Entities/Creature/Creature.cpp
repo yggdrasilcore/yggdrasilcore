@@ -1057,7 +1057,14 @@ void Creature::Update(uint32 diff)
         // Client-steered movers own transport membership through HandleMoverRelocation().
         // Re-probing them would detach/re-add them and force a stop spline, which snaps
         // the controlling client away from its predicted position.
-        if (!m_movedByPlayer && (GetOwnerGUID().IsPlayer() || GetTransport()))
+        // Static passengers are placed by the transport itself and the transport already
+        // moves them; the probe cannot see inside a hull, so it would only detach them.
+        bool staticPassenger = false;
+        if (Transport* transport = GetTransport())
+            if (MotionTransport* motionTransport = transport->ToMotionTransport())
+                staticPassenger = motionTransport->HasStaticPassenger(GetGUID());
+
+        if (!m_movedByPlayer && !staticPassenger && (GetOwnerGUID().IsPlayer() || GetTransport()))
         {
             if (m_transportCheckTimer <= diff)
             {
