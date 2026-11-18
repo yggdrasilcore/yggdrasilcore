@@ -1039,6 +1039,7 @@ public:
             Transport* transport = me->GetTransport();
             if (!transport)
                 return;
+            _instance->SetData(DATA_GUNSHIP_GOSSIP, 1);
             transport->setActive(true);
             if (MotionTransport* motionTransport = transport->ToMotionTransport())
                 motionTransport->EnableMovement(true);
@@ -1413,6 +1414,7 @@ public:
             Transport* transport = me->GetTransport();
             if (!transport)
                 return;
+            _instance->SetData(DATA_GUNSHIP_GOSSIP, 1);
             transport->setActive(true);
             if (MotionTransport* motionTransport = transport->ToMotionTransport())
                 motionTransport->EnableMovement(true);

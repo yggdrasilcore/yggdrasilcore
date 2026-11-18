@@ -18,6 +18,7 @@
 #include "AccountMgr.h"
 #include "AreaDefines.h"
 #include "CreatureTextMgr.h"
+#include "GameTime.h"
 #include "Group.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
@@ -86,7 +87,9 @@ enum Spells
     BLOOD_BEAM_VISUAL_LLEG  = 72302,
     BLOOD_BEAM_VISUAL_RLEG  = 72301,
     VOID_ZONE_VISUAL        = 69422,
-    SPELL_SIMPLE_TELEPORT   = 12980     // the camp crew stepping off the teleporter pads
+    SPELL_SIMPLE_TELEPORT   = 12980,    // the camp crew stepping off the teleporter pads
+    SPELL_TELEPORT_PLAYERS_ON_RESET_A = 70446,
+    SPELL_TELEPORT_PLAYERS_ON_RESET_H = 71284
 };
 
 enum Say
@@ -296,6 +299,7 @@ public:
             _saurfangEventPending = false;
             _saurfangZeppelinDocked = false;
             _saurfangZeppelinLeaving = false;
+            _gunshipGossipTime = 0;
             SetHeaders(DataHeader);
             SetBossNumber(MAX_ENCOUNTERS);
             SetPersistentDataCount(MAX_DATA_INDEXES);
@@ -1433,6 +1437,10 @@ public:
         // Removes both ships; SpawnGunship rebuilds the friendly one docked.
         void ResetAbandonedGunship()
         {
+            // The captains enable movement on gossip, long before the encounter starts.
+            if (GameTime::GetGameTime().count() - _gunshipGossipTime < 60)
+                return;
+
             if (Transport* transport = instance->GetTransport(GunshipGUID))
                 transport->AddObjectToRemoveList();
 
@@ -1441,7 +1449,23 @@ public:
 
             GunshipGUID.Clear();
             EnemyGunshipGUID.Clear();
+
+            uint32 teleportSpellId = GetTeamIdInInstance() == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
+            instance->DoForAllPlayers([teleportSpellId](Player* player)
+            {
+                if (player->GetPositionZ() <= 215.0f)
+                    return;
+
+                if (Transport* transport = player->GetTransport())
+                    transport->RemovePassenger(player, true);
+
+                player->CastSpell(player, teleportSpellId, true);
+            });
+
             SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, NOT_STARTED);
+
+            if (!Events.HasTimeUntilEvent(EVENT_RESPAWN_GUNSHIP))
+                Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 30s);
         }
 
         void SpawnGunship()
@@ -1680,6 +1704,9 @@ public:
         {
             switch (type)
             {
+                case DATA_GUNSHIP_GOSSIP:
+                    _gunshipGossipTime = GameTime::GetGameTime().count();
+                    break;
                 case DATA_SAURFANG_EVENT_SPAWN:
                     if (data == IN_PROGRESS)
                     {
@@ -2571,6 +2598,7 @@ public:
         bool _saurfangEventPending;
         bool _saurfangZeppelinDocked;
         bool _saurfangZeppelinLeaving;
+        time_t _gunshipGossipTime;
         ObjectGuid PlagueSigilGUID;
         ObjectGuid BloodwingSigilGUID;
         ObjectGuid FrostwingSigilGUID;
