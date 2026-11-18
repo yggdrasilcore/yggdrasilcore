@@ -761,19 +761,6 @@ public:
         {
             me->SetRegeneratingHealth(false);
 
-            // The hull spawns inside the hold, where the transport probe cannot see
-            // the ship and drops the passenger link; anchor it on the ship instead.
-            if (Transport* transport = me->GetTransport())
-            {
-                Position const& hullPos = me->GetEntry() == NPC_THE_SKYBREAKER ? SkybreakerTeleportExit : OrgrimsHammerTeleportExit;
-                float x, y, z, o;
-                hullPos.GetPosition(x, y, z, o);
-                me->m_movementInfo.transport.pos.Relocate(x, y, z, o);
-                me->SetTransportHomePosition(hullPos);
-                transport->CalculatePassengerPosition(x, y, z, &o);
-                me->Relocate(x, y, z, o);
-            }
-
             if (!me->IsAlive())
             {
                 me->GetMap()->RemoveCreatureRespawnTime(me->GetSpawnId());
