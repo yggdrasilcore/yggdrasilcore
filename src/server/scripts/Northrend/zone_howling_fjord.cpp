@@ -16,11 +16,13 @@
  */
 
 #include "CreatureScript.h"
+#include "MovementGenerator.h"
 #include "PassiveAI.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedGossip.h"
+#include "SmartAI.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
 
@@ -457,6 +459,311 @@ class spell_hawk_hunting : public SpellScript
     }
 };
 
+enum ShoveltuskStag
+{
+    NPC_SHOVELTUSK_STAG             = 23691,
+    SHOVELTUSK_SPAR_SEARCH_DIST     = 15,
+    SHOVELTUSK_SPAR_FACE_OFF_MS     = 1500,
+    SHOVELTUSK_SPAR_DURATION_MS     = 12000
+};
+
+constexpr float SHOVELTUSK_SPAR_MIN_HEALTH_PCT      = 60.0f;
+// Fractions of the melee range. Below the minimum the stags have pushed into
+// each other (heads clipping), so they briefly back off to the ideal distance.
+constexpr float SHOVELTUSK_SPAR_MIN_SEPARATION_PCT  = 0.60f;
+constexpr float SHOVELTUSK_SPAR_IDEAL_SEPARATION_PCT = 0.85f;
+
+/// Male Shoveltusk Stags periodically challenge each other over territory or mates.
+/// They square off, then ram their antlers together. The melee swing is the stag's
+/// headbutt animation. creature_sparring keeps the mock fight from ever killing them.
+class npc_shoveltusk_stag : public SmartAI
+{
+public:
+    npc_shoveltusk_stag(Creature* creature) : SmartAI(creature), _nextSparCheck(urand(30, 120) * IN_MILLISECONDS) { }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (_sparring)
+        {
+            UpdateSparring(diff);
+            return;
+        }
+
+        SmartAI::UpdateAI(diff);
+
+        if (_nextSparCheck <= diff)
+        {
+            _nextSparCheck = urand(60, 180) * IN_MILLISECONDS;
+            TryStartSparring();
+        }
+        else
+            _nextSparCheck -= diff;
+    }
+
+    void JustEngagedWith(Unit* who) override
+    {
+        // The sparring opener also enters combat; don't run the regular aggro
+        // behaviour (Shoveltusk Charge) for it.
+        if (_sparring && who && who->GetGUID() == _partnerGuid)
+            return;
+
+        SmartAI::JustEngagedWith(who);
+    }
+
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType damageType, SpellSchoolMask damageSchoolMask) override
+    {
+        if (_sparring && (!attacker || attacker->GetGUID() != _partnerGuid))
+        {
+            StopSparring(false);
+
+            if (attacker && me->IsValidAttackTarget(attacker))
+                me->Attack(attacker, true);
+        }
+
+        SmartAI::DamageTaken(attacker, damage, damageType, damageSchoolMask);
+    }
+
+    void OnCalculateMeleeDamageReceived(uint32& damage, Unit* attacker) override
+    {
+        // A territorial display, not a fight to the death: the tusks only
+        // inflict minor damage on a sparring partner. This hook runs before
+        // the damage packet is sent, so the client sees the reduced value.
+        if (_sparring && attacker && attacker->GetGUID() == _partnerGuid)
+            damage = std::max<uint32>(1, damage / 4);
+    }
+
+    void EnterEvadeMode(EvadeReason why) override
+    {
+        if (_sparring)
+            StopSparring(false);
+
+        SmartAI::EnterEvadeMode(why);
+    }
+
+    void JustDied(Unit* killer) override
+    {
+        if (_sparring)
+            StopSparring(false);
+
+        SmartAI::JustDied(killer);
+    }
+
+private:
+    void TryStartSparring()
+    {
+        if (!me->IsAlive() || me->IsInCombat() || me->IsInEvadeMode() || me->IsCharmedOwnedByPlayerOrPlayer()
+            || me->GetHealthPct() < SHOVELTUSK_SPAR_MIN_HEALTH_PCT)
+            return;
+
+        std::list<Creature*> stags;
+        me->GetCreatureListWithEntryInGrid(stags, NPC_SHOVELTUSK_STAG, SHOVELTUSK_SPAR_SEARCH_DIST);
+
+        Creature* partner = nullptr;
+        float bestDistance = SHOVELTUSK_SPAR_SEARCH_DIST;
+
+        for (Creature* stag : stags)
+        {
+            if (stag == me || !stag->IsAlive() || stag->IsInCombat() || stag->IsInEvadeMode()
+                || stag->IsCharmedOwnedByPlayerOrPlayer() || stag->GetHealthPct() < SHOVELTUSK_SPAR_MIN_HEALTH_PCT)
+                continue;
+
+            if (!me->InSamePhase(stag) || !me->IsWithinLOSInMap(stag))
+                continue;
+
+            npc_shoveltusk_stag* stagAI = dynamic_cast<npc_shoveltusk_stag*>(stag->AI());
+            if (!stagAI || stagAI->_sparring)
+                continue;
+
+            float distance = me->GetDistance(stag);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                partner = stag;
+            }
+        }
+
+        if (partner)
+            StartSparring(partner);
+    }
+
+    void StartSparring(Creature* partner)
+    {
+        npc_shoveltusk_stag* partnerAI = dynamic_cast<npc_shoveltusk_stag*>(partner->AI());
+        if (!partnerAI)
+            return;
+
+        _sparring = true;
+        _partnerGuid = partner->GetGUID();
+        _sparTimer = 0;
+        _faceOffTimer = SHOVELTUSK_SPAR_FACE_OFF_MS;
+
+        partnerAI->_sparring = true;
+        partnerAI->_partnerGuid = me->GetGUID();
+        partnerAI->_sparTimer = 0;
+        partnerAI->_faceOffTimer = SHOVELTUSK_SPAR_FACE_OFF_MS;
+
+        // Prevent the herd from joining the sparring match.
+        me->SetNoCallAssistance(true);
+        partner->SetNoCallAssistance(true);
+
+        me->SetFacingToObject(partner);
+        partner->SetFacingToObject(me);
+
+        me->Attack(partner, true);
+        partner->Attack(me, true);
+
+        // Unit::Attack arms the periodic assistance timer, which Creature::Update
+        // would otherwise use to re-enable CallAssistance() while we spar.
+        me->SetAssistanceTimer(0);
+        partner->SetAssistanceTimer(0);
+
+        // Only the stag that started the display moves. If both chase each
+        // other they run through one another and the models end up overlapping.
+        _isMoving = true;
+        partnerAI->_isMoving = false;
+
+        HoldInPlace(me);
+        HoldInPlace(partner);
+
+        float const desiredSeparation = me->GetMeleeRange(partner) * SHOVELTUSK_SPAR_IDEAL_SEPARATION_PCT;
+        if (me->GetExactDist(partner) < desiredSeparation)
+            me->GetMotionMaster()->MoveBackwards(partner, desiredSeparation);
+        else
+            me->GetMotionMaster()->MoveChase(partner);
+    }
+
+    /// Freeze the stag in place without touching the default movement generator.
+    /// MoveIdle() must not be used for this: the random-wander generator lives in
+    /// MOTION_SLOT_IDLE and is never recreated, so after a single spar the stag
+    /// would stand still for the rest of its life instead of roaming again.
+    static void HoldInPlace(Creature* stag)
+    {
+        stag->StopMoving();
+
+        if (MovementGenerator* idle = stag->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE))
+            idle->Pause(0);
+    }
+
+    /// Undo HoldInPlace(): drop the movement overlaid on top (the approach chase)
+    /// and hand control back to the default generator. If something replaced the
+    /// default generator meanwhile, rebuild it so the stag starts roaming again.
+    static void ReleaseFromHold(Creature* stag)
+    {
+        stag->GetMotionMaster()->Clear(false);
+
+        MovementGenerator* idle = stag->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE);
+        if (!idle || idle->GetMovementGeneratorType() != stag->GetDefaultMovementType())
+            stag->GetMotionMaster()->InitDefault();
+        else
+            idle->Resume(0);
+    }
+
+    void UpdateSparring(uint32 diff)
+    {
+        Creature* partner = ObjectAccessor::GetCreature(*me, _partnerGuid);
+        if (!partner || !partner->IsAlive() || !me->IsAlive() || !me->IsWithinLOSInMap(partner)
+            || me->GetDistance(partner) > SHOVELTUSK_SPAR_SEARCH_DIST * 2)
+        {
+            StopSparring(true);
+            return;
+        }
+
+        // Something may have cleared the attack state (e.g. a spell interrupt).
+        if (me->GetVictim() != partner)
+            me->Attack(partner, true);
+
+        if (_faceOffTimer > diff)
+        {
+            _faceOffTimer -= diff;
+            return;
+        }
+
+        _faceOffTimer = 0;
+
+        _sparTimer += diff;
+        if (_sparTimer >= SHOVELTUSK_SPAR_DURATION_MS)
+        {
+            StopSparring(true);
+            return;
+        }
+
+        // Wait for the opening charge (or the initial back-off step) to finish.
+        if (!me->movespline->Finalized())
+            return;
+
+        if (!me->IsWithinMeleeRange(partner))
+        {
+            if (_isMoving && me->GetMotionMaster()->GetCurrentMovementGeneratorType() != CHASE_MOTION_TYPE)
+                me->GetMotionMaster()->MoveChase(partner);
+
+            return;
+        }
+
+        float const meleeRange = me->GetMeleeRange(partner);
+
+        // Safety net in case the spawns put them inside each other: the moving
+        // stag takes a short step back to the ideal headbutt distance while the
+        // other one waits, so neither swings from inside the other's model.
+        if (me->GetExactDist(partner) < meleeRange * SHOVELTUSK_SPAR_MIN_SEPARATION_PCT)
+        {
+            if (_isMoving)
+                me->GetMotionMaster()->MoveBackwards(partner, meleeRange * SHOVELTUSK_SPAR_IDEAL_SEPARATION_PCT);
+
+            return;
+        }
+
+        // Let the normal melee swing play the headbutt animation. Even when
+        // creature_sparring caps the damage, the client still receives the
+        // fake-damage hit and plays the attack animation.
+        DoMeleeAttackIfReady();
+    }
+
+    void StopSparring(bool returnHome)
+    {
+        if (!_sparring)
+            return;
+
+        Creature* partner = ObjectAccessor::GetCreature(*me, _partnerGuid);
+
+        _sparring = false;
+        _isMoving = false;
+        _partnerGuid.Clear();
+        _sparTimer = 0;
+        _faceOffTimer = 0;
+        _nextSparCheck = urand(60, 180) * IN_MILLISECONDS;
+
+        me->AttackStop();
+        if (partner)
+            me->GetThreatMgr().ClearThreat(partner);
+
+        if (me->GetThreatMgr().isThreatListEmpty())
+            me->CombatStop(true);
+
+        if (me->IsAlive())
+        {
+            // Put the default wander generator back in charge before moving on.
+            ReleaseFromHold(me);
+
+            if (returnHome)
+                me->GetMotionMaster()->MoveTargetedHome();
+        }
+
+        if (partner && partner->IsAlive())
+        {
+            if (npc_shoveltusk_stag* partnerAI = dynamic_cast<npc_shoveltusk_stag*>(partner->AI()))
+                if (partnerAI->_sparring && partnerAI->_partnerGuid == me->GetGUID())
+                    partnerAI->StopSparring(returnHome);
+        }
+    }
+
+    ObjectGuid _partnerGuid;
+    uint32 _nextSparCheck;
+    uint32 _sparTimer = 0;
+    uint32 _faceOffTimer = 0;
+    bool _sparring = false;
+    bool _isMoving = false;
+};
+
 void AddSC_howling_fjord()
 {
     new npc_attracted_reef_bull();
@@ -465,5 +772,6 @@ void AddSC_howling_fjord()
     new npc_plaguehound_tracker();
     new npc_razael_and_lyana();
     RegisterCreatureAI(npc_rodin_lightning_enabler);
+    RegisterCreatureAI(npc_shoveltusk_stag);
     RegisterSpellScript(spell_hawk_hunting);
 }
