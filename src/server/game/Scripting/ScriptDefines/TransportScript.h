@@ -37,6 +37,13 @@ public:
     // Called when a player exits the transport.
     virtual void OnRemovePassenger(Transport* /*transport*/, Player* /*player*/) { }
 
+    // Called every transport update tick. Unlike OnUpdate, this is not gated on
+    // the transport's script id, so it reaches scripts that are not bound to it.
+    virtual void OnTransportUpdate(Transport* /*transport*/, uint32 /*diff*/) { }
+
+    // Called when a transport is destroyed, before it is removed from the world.
+    virtual void OnTransportDestroy(Transport* /*transport*/) { }
+
     // Called when transport moves.
     virtual void OnRelocate(Transport* /*transport*/, uint32 /*waypointId*/, uint32 /*mapId*/, float /*x*/, float /*y*/, float /*z*/) { }
 };

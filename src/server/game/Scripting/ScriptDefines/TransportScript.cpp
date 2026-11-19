@@ -17,6 +17,7 @@
 
 #include "TransportScript.h"
 #include "ScriptMgr.h"
+#include "ScriptMgrMacros.h"
 #include "Transport.h"
 
 void ScriptMgr::OnAddPassenger(Transport* transport, Player* player)
@@ -60,6 +61,22 @@ void ScriptMgr::OnTransportUpdate(Transport* transport, uint32 diff)
     {
         tempScript->OnUpdate(transport, diff);
     }
+
+    // Generic broadcast: every registered TransportScript sees every transport's tick.
+    ExecuteScript<TransportScript>([=](TransportScript* script)
+    {
+        script->OnTransportUpdate(transport, diff);
+    });
+}
+
+void ScriptMgr::OnTransportDestroy(Transport* transport)
+{
+    ASSERT(transport);
+
+    ExecuteScript<TransportScript>([=](TransportScript* script)
+    {
+        script->OnTransportDestroy(transport);
+    });
 }
 
 void ScriptMgr::OnRelocate(Transport* transport, uint32 waypointId, uint32 mapId, float x, float y, float z)
