@@ -1988,6 +1988,30 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
 
             me->CastSpell(me, SPELL_TELEPORT_TO_ENEMY_SHIP, true);
             _reachedEnemyShip = true;
+
+            // Walk to the nearer of the opposing captain and the closest player.
+            uint32 captainEntry = Instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_ALLIANCE ? NPC_IGB_MURADIN_BRONZEBEARD : NPC_IGB_HIGH_OVERLORD_SAURFANG;
+            Unit* target = me->FindNearestCreature(captainEntry, 200.0f);
+
+            Map* map = me->GetMap();
+            std::vector<ObjectGuid> guids = map->CopyPlayerGuids();
+            for (ObjectGuid const& playerGuid : guids)
+            {
+                Player* player = ObjectAccessor::FindPlayer(playerGuid);
+                if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive())
+                    continue;
+                if (!target || me->GetDistance(player) < me->GetDistance(target))
+                    target = player;
+            }
+
+            if (target)
+            {
+                // GetNearPoint adds both combat reaches, so the point sits at the
+                // target's edge rather than inside it.
+                float x, y, z;
+                target->GetNearPoint(me, x, y, z, CONTACT_DISTANCE, 0.0f, target->GetAngle(me));
+                me->GetMotionMaster()->MovePoint(0, x, y, z, FORCED_MOVEMENT_NONE, 0.0f, false);
+            }
         }
     }
 
