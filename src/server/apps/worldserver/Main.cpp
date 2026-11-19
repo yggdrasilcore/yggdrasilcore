@@ -417,6 +417,12 @@ int main(int argc, char** argv)
 
     sLog->SetSynchronous();
 
+    // Log every session out before the script shutdown hooks run. Modules that
+    // keep session state outside WorldSessionMgr (shadow bots) tear that state
+    // down in OnShutdown; once it is gone, those sessions can no longer log out
+    // and their players stay in their maps until MapMgr::UnloadAll().
+    sWorldSocketMgrHandle.reset();
+
     sScriptMgr->OnShutdown();
 
     // set server offline

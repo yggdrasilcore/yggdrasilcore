@@ -165,23 +165,32 @@ void WorldSessionMgr::UpdateSessions(uint32 const diff)
     }
 
     // pussywizard:
-    if (_offlineSessions.empty())
-        return;
-    uint32 currTime = GameTime::GetGameTime().count();
-    for (SessionMap::iterator itr = _offlineSessions.begin(), next; itr != _offlineSessions.end(); itr = next)
+    if (!_offlineSessions.empty())
     {
-        next = itr;
-        ++next;
-        WorldSession* pSession = itr->second;
-        if (!pSession->GetPlayer() || pSession->GetOfflineTime() + 60 < currTime || pSession->IsKicked())
+        uint32 currTime = GameTime::GetGameTime().count();
+        for (SessionMap::iterator itr = _offlineSessions.begin(), next; itr != _offlineSessions.end(); itr = next)
         {
+            next = itr;
+            ++next;
+            WorldSession* pSession = itr->second;
+            if (!pSession->GetPlayer() || pSession->GetOfflineTime() + 60 < currTime || pSession->IsKicked())
             {
-                std::unique_lock<std::shared_mutex> lock(_sessionsLock);
-                _offlineSessions.erase(itr);
+                {
+                    std::unique_lock<std::shared_mutex> lock(_sessionsLock);
+                    _offlineSessions.erase(itr);
+                }
+                delete pSession;
             }
-            delete pSession;
         }
     }
+
+#ifdef MOD_SHADOWS
+    // Deleting a session logs its player out, and a player logging out schedules its
+    // shadow bots for logout. Those bots are not part of _sessions, so drain their
+    // queue again to get them out of their maps in this update. At shutdown there is
+    // no next update before the maps are unloaded.
+    DrainBotLogouts();
+#endif
 }
 
 /// Remove a given session
