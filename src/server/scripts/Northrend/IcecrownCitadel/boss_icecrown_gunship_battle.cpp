@@ -1915,7 +1915,7 @@ protected:
 
 struct npc_gunship_boarding_addAI : public ScriptedAI
 {
-    npc_gunship_boarding_addAI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1)), _reachedEnemyShip(false)
+    npc_gunship_boarding_addAI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1)), _reachedEnemyShip(false), _boardMoveSent(false)
     {
         anyValid = true;
         checkTimer = 1000;
@@ -1988,30 +1988,6 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
 
             me->CastSpell(me, SPELL_TELEPORT_TO_ENEMY_SHIP, true);
             _reachedEnemyShip = true;
-
-            // Walk to the nearer of the opposing captain and the closest player.
-            uint32 captainEntry = Instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_ALLIANCE ? NPC_IGB_MURADIN_BRONZEBEARD : NPC_IGB_HIGH_OVERLORD_SAURFANG;
-            Unit* target = me->FindNearestCreature(captainEntry, 200.0f);
-
-            Map* map = me->GetMap();
-            std::vector<ObjectGuid> guids = map->CopyPlayerGuids();
-            for (ObjectGuid const& playerGuid : guids)
-            {
-                Player* player = ObjectAccessor::FindPlayer(playerGuid);
-                if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive())
-                    continue;
-                if (!target || me->GetDistance(player) < me->GetDistance(target))
-                    target = player;
-            }
-
-            if (target)
-            {
-                // GetNearPoint adds both combat reaches, so the point sits at the
-                // target's edge rather than inside it.
-                float x, y, z;
-                target->GetNearPoint(me, x, y, z, CONTACT_DISTANCE, 0.0f, target->GetAngle(me));
-                me->GetMotionMaster()->MovePoint(0, x, y, z, FORCED_MOVEMENT_NONE, 0.0f, false);
-            }
         }
     }
 
@@ -2019,6 +1995,9 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
     {
         if (!_reachedEnemyShip)
             return;
+
+        if (!_boardMoveSent)
+            SendBoardMove();
 
         if (checkTimer <= diff)
         {
@@ -2073,6 +2052,42 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
             AttackStart(me->GetVictim());
     }
 
+    void SendBoardMove()
+    {
+        // The transport re-probe re-attaches the add to the enemy deck a tick
+        // after the teleport; a point move issued any earlier is resolved
+        // against the ship it left.
+        Transport* playerShip = Instance->instance->GetTransport(Instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE));
+        if (!playerShip || me->GetTransport() != playerShip)
+            return;
+
+        _boardMoveSent = true;
+
+        // Walk to the nearer of the opposing captain and the closest player.
+        uint32 captainEntry = Instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_ALLIANCE ? NPC_IGB_MURADIN_BRONZEBEARD : NPC_IGB_HIGH_OVERLORD_SAURFANG;
+        Unit* target = me->FindNearestCreature(captainEntry, 200.0f);
+
+        Map* map = me->GetMap();
+        std::vector<ObjectGuid> guids = map->CopyPlayerGuids();
+        for (ObjectGuid const& playerGuid : guids)
+        {
+            Player* player = ObjectAccessor::FindPlayer(playerGuid);
+            if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive())
+                continue;
+            if (!target || me->GetDistance(player) < me->GetDistance(target))
+                target = player;
+        }
+
+        if (!target)
+            return;
+
+        // GetNearPoint adds both combat reaches, so the point sits at the
+        // target's edge rather than inside it.
+        float x, y, z;
+        target->GetNearPoint(me, x, y, z, CONTACT_DISTANCE, 0.0f, target->GetAngle(me));
+        me->GetMotionMaster()->MovePoint(0, x, y, z, FORCED_MOVEMENT_NONE, 0.0f, false);
+    }
+
     bool CanAIAttack(Unit const* target) const override
     {
         if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS || !target || target->GetPositionZ() >= 478.0f)
@@ -2096,6 +2111,7 @@ protected:
     uint16 checkTimer;
     bool _usedDesperateResolve;
     bool _reachedEnemyShip;
+    bool _boardMoveSent;
     InstanceScript* Instance;
     SlotInfo const* Slot;
     uint32 Index;
