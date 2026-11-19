@@ -215,10 +215,15 @@ class spell_pal_sacred_shield_base : public AuraScript
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell);
             amount = spellInfo->Effects[EFFECT_0].CalcValue();
 
-            // +75.00% from sp bonus
-            amount += CalculatePct(caster->SpellBaseDamageBonusDone(spellInfo->GetSchoolMask()), 75.0f);
+            // +75.00% from spell healing bonus
+            float bonus = CalculatePct(caster->SpellBaseHealingBonusDone(spellInfo->GetSchoolMask()), 75.0f);
 
-            // Xinef: removed divine guardian because it will affect triggered spell with increased amount
+            // Divine Guardian is only applied at the spell healing bonus because it was already applied to the base value in CalculateSpellDamage
+            bonus = caster->ApplyEffectModifiers(spellInfo, aurEff->GetEffIndex(), bonus);
+            bonus *= caster->CalculateLevelPenalty(spellInfo);
+
+            amount += int32(bonus);
+
             // Arena - Dampening
             if (AuraEffect const* dampening = caster->GetAuraEffect(SPELL_GENERIC_ARENA_DAMPENING, EFFECT_0))
             {
@@ -229,6 +234,12 @@ class spell_pal_sacred_shield_base : public AuraScript
             {
                 AddPct(amount, dampening2->GetAmount());
             }
+
+            // ICC buff
+            if (AuraEffect const* auraStrengthOfWrynn = caster->GetAuraEffect(SPELL_AURA_MOD_HEALING_DONE_PERCENT, SPELLFAMILY_GENERIC, 1704, EFFECT_2))
+                AddPct(amount, auraStrengthOfWrynn->GetAmount());
+            else if (AuraEffect const* auraHellscreamsWarsong = caster->GetAuraEffect(SPELL_AURA_MOD_HEALING_DONE_PERCENT, SPELLFAMILY_GENERIC, 937, EFFECT_2))
+                AddPct(amount, auraHellscreamsWarsong->GetAmount());
         }
     }
 
@@ -275,6 +286,10 @@ class spell_pal_sacred_shield_base : public AuraScript
             return;
         }
 
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+
         uint32 triggered_spell_id = GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell;
         if (eventInfo.GetActionTarget()->HasSpellCooldown(triggered_spell_id))
             return;
@@ -283,12 +298,11 @@ class spell_pal_sacred_shield_base : public AuraScript
         int32 basepoints = aurEff->GetAmount();
 
         // Item - Paladin T8 Holy 4P Bonus
-        if (Unit* caster = aurEff->GetCaster())
-            if (AuraEffect const* aurEffect = caster->GetAuraEffect(64895, 0))
-                cooldown = aurEffect->GetAmount() * IN_MILLISECONDS;
+        if (AuraEffect const* aurEffect = caster->GetAuraEffect(64895, 0))
+            cooldown = aurEffect->GetAmount() * IN_MILLISECONDS;
 
         eventInfo.GetActionTarget()->AddSpellCooldown(triggered_spell_id, 0, cooldown);
-        eventInfo.GetActionTarget()->CastCustomSpell(eventInfo.GetActionTarget(), triggered_spell_id, &basepoints, nullptr, nullptr, true, nullptr, aurEff, eventInfo.GetActionTarget()->GetGUID());
+        caster->CastCustomSpell(eventInfo.GetActionTarget(), triggered_spell_id, &basepoints, nullptr, nullptr, true, nullptr, aurEff, caster->GetGUID());
     }
 
     void Register() override
