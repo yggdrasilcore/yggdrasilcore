@@ -608,11 +608,17 @@ static bool IsGunshipCreatureEntry(uint32 entry)
         case NPC_SKYBREAKER_MARINE:
         case NPC_SKYBREAKER_SERGEANT:
         case NPC_SKYBREAKER_DECKHAND:
+        case NPC_ORGRIMS_HAMMER_CREW:
         case NPC_KOR_KRON_BATTLE_MAGE:
         case NPC_KOR_KRON_AXETHROWER:
         case NPC_KOR_KRON_ROCKETEER:
         case NPC_KOR_KRON_REAVER:
         case NPC_KOR_KRON_SERGEANT:
+        case NPC_IGB_HIGH_OVERLORD_SAURFANG:
+        case NPC_IGB_MURADIN_BRONZEBEARD:
+        case NPC_ZAFOD_BOOMBOX:
+        case NPC_HIGH_CAPTAIN_JUSTIN_BARTLETT:
+        case NPC_SKY_REAVER_KORM_BLACKSCAR:
             return true;
         default:
             return false;
@@ -659,6 +665,39 @@ static void DespawnGunshipCreatures(Map* map)
     }
 }
 
+void ResetGunshipTransports(InstanceScript* instance)
+{
+    if (!instance)
+        return;
+
+    Map* map = instance->instance;
+    Transport* friendlyTransport = map ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
+    Transport* enemyTransport = map ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
+
+    RestoreGunshipPassengers(friendlyTransport);
+    RestoreGunshipPassengers(enemyTransport);
+
+    DespawnGunshipCreatures(map);
+
+    if (friendlyTransport)
+    {
+        if (MotionTransport* mt = friendlyTransport->ToMotionTransport())
+            mt->UnloadNonStaticPassengers();
+    }
+
+    if (enemyTransport)
+    {
+        if (MotionTransport* mt = enemyTransport->ToMotionTransport())
+            mt->UnloadNonStaticPassengers();
+    }
+
+    if (friendlyTransport)
+        friendlyTransport->AddObjectToRemoveList();
+
+    if (enemyTransport)
+        enemyTransport->AddObjectToRemoveList();
+}
+
 class ResetEncounterEvent : public BasicEvent
 {
 public:
@@ -682,31 +721,7 @@ public:
 
         _owner->CastSpell(_owner, _spellId, true);
 
-        Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
-        Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
-
-        RestoreGunshipPassengers(friendlyTransport);
-        RestoreGunshipPassengers(enemyTransport);
-
-        DespawnGunshipCreatures(map);
-
-        if (friendlyTransport)
-        {
-            if (MotionTransport* mt = friendlyTransport->ToMotionTransport())
-                mt->UnloadNonStaticPassengers();
-        }
-
-        if (enemyTransport)
-        {
-            if (MotionTransport* mt = enemyTransport->ToMotionTransport())
-                mt->UnloadNonStaticPassengers();
-        }
-
-        if (friendlyTransport)
-            friendlyTransport->AddObjectToRemoveList();
-
-        if (enemyTransport)
-            enemyTransport->AddObjectToRemoveList();
+        ResetGunshipTransports(instance);
 
         return true;
     }

@@ -42,6 +42,10 @@ extern Position const TerenasSpawn;
 extern Position const TerenasSpawnHeroic;
 extern Position const SpiritWardenSpawn;
 
+// Defined in boss_icecrown_gunship_battle.cpp
+// Despawns the gunship battle's passengers and removes both ships.
+void ResetGunshipTransports(InstanceScript* instance);
+
 // Shared spells used by more than one script
 enum SharedSpells
 {

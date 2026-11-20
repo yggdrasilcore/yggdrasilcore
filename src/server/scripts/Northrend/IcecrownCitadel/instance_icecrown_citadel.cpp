@@ -1459,11 +1459,7 @@ public:
             if (GameTime::GetGameTime().count() - _gunshipGossipTime < 90)
                 return;
 
-            if (Transport* transport = instance->GetTransport(GunshipGUID))
-                transport->AddObjectToRemoveList();
-
-            if (Transport* transport = instance->GetTransport(EnemyGunshipGUID))
-                transport->AddObjectToRemoveList();
+            ResetGunshipTransports(this);
 
             GunshipGUID.Clear();
             EnemyGunshipGUID.Clear();
