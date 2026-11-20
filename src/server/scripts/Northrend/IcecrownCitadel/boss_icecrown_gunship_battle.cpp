@@ -2110,28 +2110,16 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
 
         _boardMoveSent = true;
 
-        // Walk to the nearer of the opposing captain and the closest player.
+        // Walk to the opposing captain.
         uint32 captainEntry = Instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_ALLIANCE ? NPC_IGB_MURADIN_BRONZEBEARD : NPC_IGB_HIGH_OVERLORD_SAURFANG;
-        Unit* target = me->FindNearestCreature(captainEntry, 200.0f);
-
-        Map* map = me->GetMap();
-        std::vector<ObjectGuid> guids = map->CopyPlayerGuids();
-        for (ObjectGuid const& playerGuid : guids)
-        {
-            Player* player = ObjectAccessor::FindPlayer(playerGuid);
-            if (!player || !player->IsInWorld() || player->GetMap() != map || !player->IsAlive())
-                continue;
-            if (!target || me->GetDistance(player) < me->GetDistance(target))
-                target = player;
-        }
-
-        if (!target)
+        Creature* captain = me->FindNearestCreature(captainEntry, 200.0f);
+        if (!captain)
             return;
 
         // GetNearPoint adds both combat reaches, so the point sits at the
-        // target's edge rather than inside it.
+        // captain's edge rather than inside it.
         float x, y, z;
-        target->GetNearPoint(me, x, y, z, CONTACT_DISTANCE, 0.0f, target->GetAngle(me));
+        captain->GetNearPoint(me, x, y, z, CONTACT_DISTANCE, 0.0f, captain->GetAngle(me));
         me->GetMotionMaster()->MovePoint(0, x, y, z, FORCED_MOVEMENT_NONE, 0.0f, false);
     }
 
