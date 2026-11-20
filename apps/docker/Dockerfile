@@ -73,7 +73,7 @@ RUN apt-get update                                                     \
 # include_file_mtime and pch_defines keep the entries valid: the checkout gives
 # every source file a new mtime and the precompiled headers are rebuilt.
 ARG CCACHE_DIR="/ccache"
-ARG CCACHE_MAXSIZE="1000MB"
+ARG CCACHE_MAXSIZE="5GB"
 ARG CCACHE_COMPILERCHECK="content"
 ARG CCACHE_SLOPPINESS="pch_defines,time_macros,include_file_mtime"
 ARG CCACHE_COMPRESS="1"
