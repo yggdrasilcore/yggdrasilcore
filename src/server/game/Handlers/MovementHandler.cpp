@@ -622,7 +622,7 @@ bool WorldSession::VerifyMovementInfo(MovementInfo const& movementInfo, Player* 
 
     // rooted mover sent packet without root or moving AND root - ignore, due to client crash possibility
     if (opcode != CMSG_FORCE_MOVE_UNROOT_ACK)
-        if (mover->IsRooted() && (!movementInfo.HasMovementFlag(MOVEMENTFLAG_ROOT) || movementInfo.HasMovementFlag(MOVEMENTFLAG_MASK_MOVING)))
+        if ((mover->IsRooted() || mover->HasUnitState(UNIT_STATE_ROOT | UNIT_STATE_STUNNED)) && (!movementInfo.HasMovementFlag(MOVEMENTFLAG_ROOT) || movementInfo.HasMovementFlag(MOVEMENTFLAG_MASK_MOVING)))
             return false;
 
     return true;

@@ -18433,19 +18433,15 @@ void Unit::SendMoveRoot(bool apply)
 {
     const Player* client = GetClientControlling();
 
-    // Apply flags in-place when unit currently is not controlled by a player
-    if (!client)
+    if (apply)
     {
-        if (apply)
-        {
-            m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_MASK_MOVING_FLY);
-            m_movementInfo.AddMovementFlag(MOVEMENTFLAG_ROOT);
-            if (!client)
-                StopMoving();
-        }
-        else
-            m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_ROOT);
+        m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_MASK_MOVING_FLY);
+        m_movementInfo.AddMovementFlag(MOVEMENTFLAG_ROOT);
+        if (!client)
+            StopMoving();
     }
+    else
+        m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_ROOT);
 
     if (!IsInWorld())
         return;
