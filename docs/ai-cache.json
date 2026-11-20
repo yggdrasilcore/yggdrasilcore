@@ -30392,22 +30392,22 @@
   }
  },
  "MotionTransport::Update@29706278:qwen3-5-4b": {
-  "hash": "7d8a53c41005",
-  "desc": "Updates the transport's movement state by processing AI logic, path progress based on a diff value, and arrival/departure events at current waypoints. Side effects: May trigger arrival events, change moving state to false upon arrival, update go state if pending stop is set, and modify path progress calculations.",
-  "raw": "{\"what\": \"Updates the transport's movement state by processing AI logic, path progress based on a diff value, and arrival/departure events at current waypoints.\", \"effects\": \"May trigger arrival events, change moving state to false upon arrival, update go state if pending stop is set, and modify path progress calculations.\"}",
+  "hash": "13b0d4024a1d",
+  "desc": "Updates the transport's movement state by processing AI logic, path progress, and arrival/departure events based on a time difference. Side effects: May trigger arrival events, change moving state to false, update go state to ready if pending stop is set, or log an error if AI initialization fails.",
+  "raw": "{\"what\": \"Updates the transport's movement state by processing AI logic, path progress, and arrival/departure events based on a time difference.\", \"effects\": \"May trigger arrival events, change moving state to false, update go state to ready if pending stop is set, or log an error if AI initialization fails.\"}",
   "entry": {
    "class": "MotionTransport",
    "name": "Update",
    "sig": "void Update(uint32 diff)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 61,
+   "line": 81,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 146
+    "line": 245
    },
-   "hash": "7d8a53c41005",
-   "desc": "Updates the transport's movement state by processing AI logic, path progress based on a diff value, and arrival/departure events at current waypoints. Side effects: May trigger arrival events, change moving state to false upon arrival, update go state if pending stop is set, and modify path progress calculations.",
+   "hash": "13b0d4024a1d",
+   "desc": "Updates the transport's movement state by processing AI logic, path progress, and arrival/departure events based on a time difference. Side effects: May trigger arrival events, change moving state to false, update go state to ready if pending stop is set, or log an error if AI initialization fails.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30455,43 +30455,43 @@
   }
  },
  "MotionTransport::AddPassenger@4a779e7d:qwen3-5-4b": {
-  "hash": "c47fb8331cae",
-  "desc": "Adds a passenger to the current transport by inserting their GUID into an internal set, optionally removing them from any other transport if 'withAll' is true, and updates their movement state and pathfinding flags if they are a player or unit. Side effects: Modifies the internal passenger list; may remove the passenger from another transport; sets the passenger's transport reference and movement flags; adds a script event for players; potentially ignores pathfinding for units.",
-  "raw": "{\n  \"what\": \"Adds a passenger to the current transport by inserting their GUID into an internal set, optionally removing them from any other transport if 'withAll' is true, and updates their movement state and pathfinding flags if they are a player or unit.\",\n  \"effects\": \"Modifies the internal passenger list; may remove the passenger from another transport; sets the passenger's transport reference and movement flags; adds a script event for players; potentially ignores pathfinding for units.\"\n}",
+  "hash": "0a05467b055a",
+  "desc": "Adds a passenger to the transport's internal list, optionally removing them from their previous transport if 'withAll' is true, and updates their movement state and pathfinding flags. Side effects: Modifies the transport's passenger list, potentially removes the passenger from another transport, updates the passenger's position relative to the new transport, sets movement flags, adds a unit state for units, and triggers a script event.",
+  "raw": "{\n  \"what\": \"Adds a passenger to the transport's internal list, optionally removing them from their previous transport if 'withAll' is true, and updates their movement state and pathfinding flags.\",\n  \"effects\": \"Modifies the transport's passenger list, potentially removes the passenger from another transport, updates the passenger's position relative to the new transport, sets movement flags, adds a unit state for units, and triggers a script event.\"\n}",
   "entry": {
    "class": "MotionTransport",
    "name": "AddPassenger",
    "sig": "void AddPassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 79,
+   "line": 85,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 368
+    "line": 378
    },
-   "hash": "c47fb8331cae",
-   "desc": "Adds a passenger to the current transport by inserting their GUID into an internal set, optionally removing them from any other transport if 'withAll' is true, and updates their movement state and pathfinding flags if they are a player or unit. Side effects: Modifies the internal passenger list; may remove the passenger from another transport; sets the passenger's transport reference and movement flags; adds a script event for players; potentially ignores pathfinding for units.",
+   "hash": "0a05467b055a",
+   "desc": "Adds a passenger to the transport's internal list, optionally removing them from their previous transport if 'withAll' is true, and updates their movement state and pathfinding flags. Side effects: Modifies the transport's passenger list, potentially removes the passenger from another transport, updates the passenger's position relative to the new transport, sets movement flags, adds a unit state for units, and triggers a script event.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "MotionTransport::RemovePassenger@e1376b70:qwen3-5-4b": {
-  "hash": "8740e005b41a",
-  "desc": "Removes a passenger from the transport's internal passenger lists and updates related game state, optionally clearing all movement flags associated with the passenger. Side effects: modifies internal data structures (erases GUIDs from _passengers and _staticPassengers), calls external script hook if player, modifies passenger movement info, clears unit pathfinding ignore state",
-  "raw": "{\"what\": \"Removes a passenger from the transport's internal passenger lists and updates related game state, optionally clearing all movement flags associated with the passenger.\", \"effects\": \"modifies internal data structures (erases GUIDs from _passengers and _staticPassengers), calls external script hook if player, modifies passenger movement info, clears unit pathfinding ignore state\"}",
+  "hash": "ba20e0e10d8a",
+  "desc": "Removes a passenger from the transport's internal passenger lists and updates related game state, including fall information for players, pathfinding flags, and script notifications. Side effects: modifies _passengers and _staticPassengers maps; sets player fall information; clears transport association and movement flags; modifies unit states; triggers OnRemovePassenger script event",
+  "raw": "{\"what\": \"Removes a passenger from the transport's internal passenger lists and updates related game state, including fall information for players, pathfinding flags, and script notifications.\", \"effects\": \"modifies _passengers and _staticPassengers maps; sets player fall information; clears transport association and movement flags; modifies unit states; triggers OnRemovePassenger script event\"}",
   "entry": {
    "class": "MotionTransport",
    "name": "RemovePassenger",
    "sig": "void RemovePassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 80,
+   "line": 86,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 409
+    "line": 418
    },
-   "hash": "8740e005b41a",
-   "desc": "Removes a passenger from the transport's internal passenger lists and updates related game state, optionally clearing all movement flags associated with the passenger. Side effects: modifies internal data structures (erases GUIDs from _passengers and _staticPassengers), calls external script hook if player, modifies passenger movement info, clears unit pathfinding ignore state",
+   "hash": "ba20e0e10d8a",
+   "desc": "Removes a passenger from the transport's internal passenger lists and updates related game state, including fall information for players, pathfinding flags, and script notifications. Side effects: modifies _passengers and _staticPassengers maps; sets player fall information; clears transport association and movement flags; modifies unit states; triggers OnRemovePassenger script event",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -30917,43 +30917,43 @@
   }
  },
  "StaticTransport::AddPassenger@4a779e7d:qwen3-5-4b": {
-  "hash": "33c858830be5",
-  "desc": "Adds a passenger to the transport's internal list and optionally updates their movement state if they are already on another transport.",
-  "raw": "{\"what\": \"Adds a passenger to the transport's internal list and optionally updates their movement state if they are already on another transport.\", \"effects\": \"None\"}",
+  "hash": "60481ed34477",
+  "desc": "Adds a passenger to the transport's internal list and optionally integrates them into the transport's movement system.",
+  "raw": "{\n  \"what\": \"Adds a passenger to the transport's internal list and optionally integrates them into the transport's movement system.\",\n  \"effects\": \"None\"\n}",
   "entry": {
    "class": "StaticTransport",
    "name": "AddPassenger",
    "sig": "void AddPassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 148,
+   "line": 154,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 1223
+    "line": 1245
    },
-   "hash": "33c858830be5",
-   "desc": "Adds a passenger to the transport's internal list and optionally updates their movement state if they are already on another transport.",
+   "hash": "60481ed34477",
+   "desc": "Adds a passenger to the transport's internal list and optionally integrates them into the transport's movement system.",
    "ai": true,
    "model": "qwen3.5:4b"
   }
  },
  "StaticTransport::RemovePassenger@e1376b70:qwen3-5-4b": {
-  "hash": "d2f430ca892a",
-  "desc": "Removes a passenger from the transport's internal list and updates game state if the passenger is a player. Side effects: Modifies the transport's passenger list; may trigger script events for players; clears movement flags and transport association for the passenger if 'withAll' is true.",
-  "raw": "{\"what\": \"Removes a passenger from the transport's internal list and updates game state if the passenger is a player.\", \"effects\": \"Modifies the transport's passenger list; may trigger script events for players; clears movement flags and transport association for the passenger if 'withAll' is true.\"}",
+  "hash": "e7845d03860e",
+  "desc": "Removes a passenger from the transport's internal list and updates related game state Side effects: modifies _passengers list, sets fall information for players, clears movement flags/transport data if requested, triggers script event",
+  "raw": "{\"what\": \"Removes a passenger from the transport's internal list and updates related game state\", \"effects\": \"modifies _passengers list, sets fall information for players, clears movement flags/transport data if requested, triggers script event\"}",
   "entry": {
    "class": "StaticTransport",
    "name": "RemovePassenger",
    "sig": "void RemovePassenger(WorldObject* passenger, bool withAll = false)",
    "file": "src/server/game/Entities/Transport/Transport.h",
-   "line": 149,
+   "line": 155,
    "access": "public",
    "impl": {
     "file": "src/server/game/Entities/Transport/Transport.cpp",
-    "line": 1256
+    "line": 1277
    },
-   "hash": "d2f430ca892a",
-   "desc": "Removes a passenger from the transport's internal list and updates game state if the passenger is a player. Side effects: Modifies the transport's passenger list; may trigger script events for players; clears movement flags and transport association for the passenger if 'withAll' is true.",
+   "hash": "e7845d03860e",
+   "desc": "Removes a passenger from the transport's internal list and updates related game state Side effects: modifies _passengers list, sets fall information for players, clears movement flags/transport data if requested, triggers script event",
    "ai": true,
    "model": "qwen3.5:4b"
   }
@@ -43461,6 +43461,24 @@
    },
    "hash": "fa5ea79c1be5",
    "desc": "Retries the movement spline for a unit to adjust its speed based on the new speed value",
+   "ai": true,
+   "model": "qwen3.5:4b"
+  }
+ },
+ "Transport::SetCreateAnnounced@50acf77e:qwen3-5-4b": {
+  "hash": "bed2481ca873",
+  "desc": "Sets the internal flag `_createAnnounced` to `true`, indicating that a creation announcement has been made. Side effects: modifies state",
+  "raw": "{\"what\": \"Sets the internal flag `_createAnnounced` to `true`, indicating that a creation announcement has been made.\", \"effects\": \"modifies state\"}",
+  "entry": {
+   "class": "Transport",
+   "name": "SetCreateAnnounced",
+   "sig": "void SetCreateAnnounced()",
+   "file": "src/server/game/Entities/Transport/Transport.h",
+   "line": 54,
+   "access": "public",
+   "impl": null,
+   "hash": "bed2481ca873",
+   "desc": "Sets the internal flag `_createAnnounced` to `true`, indicating that a creation announcement has been made. Side effects: modifies state",
    "ai": true,
    "model": "qwen3.5:4b"
   }
