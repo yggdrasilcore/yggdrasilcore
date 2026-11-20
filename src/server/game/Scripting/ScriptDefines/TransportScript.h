@@ -28,17 +28,12 @@ protected:
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return true; }
 
-    // Called when a player boards the transport.
-    virtual void OnAddPassenger(Transport* /*transport*/, Player* /*player*/) { }
+    // Called when a passenger boards the transport: a player, a creature or a
+    // gameobject.
+    virtual void OnAddPassenger(Transport* /*transport*/, WorldObject* /*passenger*/) { }
 
-    // Called when a creature boards the transport.
-    virtual void OnAddCreaturePassenger(Transport* /*transport*/, Creature* /*creature*/) { }
-
-    // Called when a player exits the transport.
-    virtual void OnRemovePassenger(Transport* /*transport*/, Player* /*player*/) { }
-
-    // Called when a creature exits the transport.
-    virtual void OnRemoveCreaturePassenger(Transport* /*transport*/, Creature* /*creature*/) { }
+    // Called when a passenger exits the transport.
+    virtual void OnRemovePassenger(Transport* /*transport*/, WorldObject* /*passenger*/) { }
 
     // Called after the transport has been added to its map, when its map and
     // instance id are known. Like OnTransportDestroy, this is broadcast to every

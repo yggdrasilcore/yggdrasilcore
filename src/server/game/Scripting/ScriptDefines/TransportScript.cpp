@@ -20,47 +20,25 @@
 #include "ScriptMgrMacros.h"
 #include "Transport.h"
 
-void ScriptMgr::OnAddPassenger(Transport* transport, Player* player)
+void ScriptMgr::OnAddPassenger(Transport* transport, WorldObject* passenger)
 {
     ASSERT(transport);
-    ASSERT(player);
+    ASSERT(passenger);
 
     ExecuteScript<TransportScript>([=](TransportScript* script)
     {
-        script->OnAddPassenger(transport, player);
+        script->OnAddPassenger(transport, passenger);
     });
 }
 
-void ScriptMgr::OnAddCreaturePassenger(Transport* transport, Creature* creature)
+void ScriptMgr::OnRemovePassenger(Transport* transport, WorldObject* passenger)
 {
     ASSERT(transport);
-    ASSERT(creature);
+    ASSERT(passenger);
 
     ExecuteScript<TransportScript>([=](TransportScript* script)
     {
-        script->OnAddCreaturePassenger(transport, creature);
-    });
-}
-
-void ScriptMgr::OnRemovePassenger(Transport* transport, Player* player)
-{
-    ASSERT(transport);
-    ASSERT(player);
-
-    ExecuteScript<TransportScript>([=](TransportScript* script)
-    {
-        script->OnRemovePassenger(transport, player);
-    });
-}
-
-void ScriptMgr::OnRemoveCreaturePassenger(Transport* transport, Creature* creature)
-{
-    ASSERT(transport);
-    ASSERT(creature);
-
-    ExecuteScript<TransportScript>([=](TransportScript* script)
-    {
-        script->OnRemoveCreaturePassenger(transport, creature);
+        script->OnRemovePassenger(transport, passenger);
     });
 }
 

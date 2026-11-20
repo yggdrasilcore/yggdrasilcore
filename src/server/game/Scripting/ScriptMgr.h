@@ -304,10 +304,8 @@ public: /* DynamicObjectScript */
     void OnDynamicObjectUpdate(DynamicObject* dynobj, uint32 diff);
 
 public: /* TransportScript */
-    void OnAddPassenger(Transport* transport, Player* player);
-    void OnAddCreaturePassenger(Transport* transport, Creature* creature);
-    void OnRemovePassenger(Transport* transport, Player* player);
-    void OnRemoveCreaturePassenger(Transport* transport, Creature* creature);
+    void OnAddPassenger(Transport* transport, WorldObject* passenger);
+    void OnRemovePassenger(Transport* transport, WorldObject* passenger);
     void OnTransportCreate(Transport* transport);
     void OnTransportUpdate(Transport* transport, uint32 diff);
     void OnTransportDestroy(Transport* transport);

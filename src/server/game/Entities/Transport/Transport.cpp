@@ -388,8 +388,7 @@ void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
     if (inserted)
     {
-        if (Player* plr = passenger->ToPlayer())
-            sScriptMgr->OnAddPassenger(ToTransport(), plr);
+        sScriptMgr->OnAddPassenger(ToTransport(), passenger);
 
         if (withAll)
         {
@@ -423,15 +422,10 @@ void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 
     if (erased)
     {
+        sScriptMgr->OnRemovePassenger(ToTransport(), passenger);
+
         if (Player* plr = passenger->ToPlayer())
-        {
-            sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
-        }
-        else if (Creature* creature = passenger->ToCreature())
-        {
-            sScriptMgr->OnRemoveCreaturePassenger(ToTransport(), creature);
-        }
     }
 
     if (withAll && (erased || passenger->GetTransport() == this))
@@ -501,7 +495,7 @@ Creature* MotionTransport::CreateNPCPassenger(ObjectGuid::LowType guid, Creature
         std::lock_guard<std::recursive_mutex> guard(_passengersLock);
         _staticPassengers.insert(creature->GetGUID());
     }
-    sScriptMgr->OnAddCreaturePassenger(this, creature);
+    sScriptMgr->OnAddPassenger(this, creature);
     return creature;
 }
 
@@ -546,6 +540,7 @@ GameObject* MotionTransport::CreateGOPassenger(ObjectGuid::LowType guid, GameObj
         std::lock_guard<std::recursive_mutex> guard(_passengersLock);
         _staticPassengers.insert(go->GetGUID());
     }
+    sScriptMgr->OnAddPassenger(this, go);
     return go;
 }
 
@@ -1252,8 +1247,7 @@ void StaticTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
     if (inserted)
     {
-        if (Player* plr = passenger->ToPlayer())
-            sScriptMgr->OnAddPassenger(ToTransport(), plr);
+        sScriptMgr->OnAddPassenger(ToTransport(), passenger);
 
         if (withAll)
         {
@@ -1285,15 +1279,10 @@ void StaticTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 
     if (erased)
     {
+        sScriptMgr->OnRemovePassenger(ToTransport(), passenger);
+
         if (Player* plr = passenger->ToPlayer())
-        {
-            sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
-        }
-        else if (Creature* creature = passenger->ToCreature())
-        {
-            sScriptMgr->OnRemoveCreaturePassenger(ToTransport(), creature);
-        }
     }
 
     if (withAll && (erased || passenger->GetTransport() == this))
