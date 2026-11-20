@@ -37,6 +37,11 @@ public:
     // Called when a player exits the transport.
     virtual void OnRemovePassenger(Transport* /*transport*/, Player* /*player*/) { }
 
+    // Called after the transport has been added to its map, when its map and
+    // instance id are known. Like OnTransportDestroy, this is broadcast to every
+    // registered TransportScript, not only to the one bound to the transport.
+    virtual void OnTransportCreate(Transport* /*transport*/) { }
+
     // Called every transport update tick. Unlike OnUpdate, this is not gated on
     // the transport's script id, so it reaches scripts that are not bound to it.
     virtual void OnTransportUpdate(Transport* /*transport*/, uint32 /*diff*/) { }
