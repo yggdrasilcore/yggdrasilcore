@@ -2268,7 +2268,9 @@ public:
             // Ships' AIs stop ticking when no player is near them.
             if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != DONE)
             {
-                if (!instance->HavePlayers() || !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
+                // An empty instance is not an abandoned ship: a docked ship stays
+                // docked until players actually use it.
+                if (instance->HavePlayers() && !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
                 {
                     ResetAbandonedGunship(true);
                 }
