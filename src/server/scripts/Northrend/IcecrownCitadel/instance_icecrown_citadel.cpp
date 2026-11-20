@@ -18,6 +18,7 @@
 #include "AccountMgr.h"
 #include "AreaDefines.h"
 #include "CreatureTextMgr.h"
+#include "GameTime.h"
 #include "Group.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
@@ -54,6 +55,7 @@ enum TimedEvents
     EVENT_REBUILD_PLATFORM      = 3,
     EVENT_RESPAWN_GUNSHIP       = 4,
     EVENT_RESPAWN_SINDRAGOSA    = 5,
+    EVENT_RESET_GUNSHIP         = 6,
     EVENT_SAURFANG_ZEPPELIN_DOCK = 7,
     EVENT_SAURFANG_OUTRO_TIMEOUT = 8,
     EVENT_SAURFANG_ZEPPELIN_REMOVE = 9,
@@ -86,7 +88,9 @@ enum Spells
     BLOOD_BEAM_VISUAL_LLEG  = 72302,
     BLOOD_BEAM_VISUAL_RLEG  = 72301,
     VOID_ZONE_VISUAL        = 69422,
-    SPELL_SIMPLE_TELEPORT   = 12980     // the camp crew stepping off the teleporter pads
+    SPELL_SIMPLE_TELEPORT   = 12980,    // the camp crew stepping off the teleporter pads
+    SPELL_TELEPORT_PLAYERS_ON_RESET_A = 70446,
+    SPELL_TELEPORT_PLAYERS_ON_RESET_H = 71284
 };
 
 enum Say
@@ -296,6 +300,7 @@ public:
             _saurfangEventPending = false;
             _saurfangZeppelinDocked = false;
             _saurfangZeppelinLeaving = false;
+            _gunshipGossipTime = 0;
             SetHeaders(DataHeader);
             SetBossNumber(MAX_ENCOUNTERS);
             SetPersistentDataCount(MAX_DATA_INDEXES);
@@ -351,7 +356,12 @@ public:
             DoRemoveAurasDueToSpellOnPlayers(SPELL_OOZE_VARIABLE);
 
             if (GetBossState(DATA_LADY_DEATHWHISPER) == DONE && GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != DONE)
+            {
+                if (instance->GetPlayerCountLocked() <= 1 && !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
+                    ResetAbandonedGunship(false, true);
+
                 SpawnGunship();
+            }
 
             // Also covers an instance whose Gunship Battle state was set directly, which would
             // otherwise keep them hidden for good.
@@ -1414,6 +1424,99 @@ public:
             }
         }
 
+        // The ship waits at the first point of its own path; anywhere else means it is out.
+        bool IsGunshipAtSpawnPosition(Transport* transport)
+        {
+            MotionTransport* gunship = transport ? transport->ToMotionTransport() : nullptr;
+            if (!gunship || gunship->GetKeyFrames().empty())
+                return false;
+
+            KeyFrame const& start = gunship->GetKeyFrames().front();
+            return gunship->GetExactDist2d(start.Node->x, start.Node->y) <= 5.0f;
+        }
+
+        // Returns false when the ships are never touched: a fight with players near
+        // the ship, the gossip grace period, or a reset whose rebuild is pending.
+        bool CanResetAbandonedGunship()
+        {
+            // A fight with players still near the ship is not abandoned, however far
+            // the ships are from their spawn point.
+            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS)
+            {
+                if (Transport* transport = instance->GetTransport(GunshipGUID))
+                {
+                    float x, y, z, o;
+                    transport->GetPosition(x, y, z, o);
+
+                    for (ObjectGuid const& guid : instance->CopyPlayerGuids())
+                    {
+                        Player* player = ObjectAccessor::FindPlayer(guid);
+                        if (player && player->IsInWorld() && player->GetMap() == instance && player->GetExactDist2d(x, y) <= 200.0f)
+                            return false;
+                    }
+                }
+            }
+
+            // The captains enable movement on gossip, long before the encounter starts.
+            if (GameTime::GetGameTime().count() - _gunshipGossipTime < 90)
+                return false;
+
+            // Both ships are already gone: this reset has run and the rebuild is
+            // pending. Tearing down again cleared a non-existent ship, so the
+            // watchdog below kept calling us and re-sent every player above the
+            // deck to the loss position until the ship respawned.
+            if (!GunshipGUID && !EnemyGunshipGUID)
+            {
+                if (!Events.HasTimeUntilEvent(EVENT_RESPAWN_GUNSHIP))
+                    Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 30s);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        // Every reset explodes the ship at once and removes it 8 seconds later,
+        // the same sequence as a hull death. immediate is the rebuild kick.
+        void ResetAbandonedGunship(bool explode, bool immediate = false)
+        {
+            if (!CanResetAbandonedGunship())
+                return;
+
+            if (explode)
+                ExplodeGunshipHull(this);
+
+            if (!immediate)
+            {
+                if (!Events.HasTimeUntilEvent(EVENT_RESET_GUNSHIP))
+                    Events.ScheduleEvent(EVENT_RESET_GUNSHIP, 8s);
+
+                return;
+            }
+
+            ResetGunshipTransports(this);
+
+            GunshipGUID.Clear();
+            EnemyGunshipGUID.Clear();
+
+            uint32 teleportSpellId = GetTeamIdInInstance() == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
+            instance->DoForAllPlayers([teleportSpellId](Player* player)
+            {
+                if (player->GetPositionZ() <= 215.0f)
+                    return;
+
+                if (Transport* transport = player->GetTransport())
+                    transport->RemovePassenger(player, true);
+
+                player->CastSpell(player, teleportSpellId, true);
+            });
+
+            SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, NOT_STARTED);
+
+            if (!Events.HasTimeUntilEvent(EVENT_RESPAWN_GUNSHIP))
+                Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 30s);
+        }
+
         void SpawnGunship()
         {
             if (!instance->HavePlayers())
@@ -1650,6 +1753,9 @@ public:
         {
             switch (type)
             {
+                case DATA_GUNSHIP_GOSSIP:
+                    _gunshipGossipTime = GameTime::GetGameTime().count();
+                    break;
                 case DATA_SAURFANG_EVENT_SPAWN:
                     if (data == IN_PROGRESS)
                     {
@@ -2159,6 +2265,37 @@ public:
 
         void Update(uint32 diff) override
         {
+            // Ships' AIs stop ticking when no player is near them.
+            if (GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != DONE)
+            {
+                // An empty instance is not an abandoned ship: a docked ship stays
+                // docked until players actually use it.
+                if (instance->HavePlayers() && !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
+                {
+                    ResetAbandonedGunship(true);
+                }
+                else if (instance->GetCreature(GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
+                {
+                    float x, y, z, o;
+                    instance->GetTransport(GunshipGUID)->GetPosition(x, y, z, o);
+
+                    bool playerNearDeck = false;
+                    for (ObjectGuid const& guid : instance->CopyPlayerGuids())
+                        if (Player* player = ObjectAccessor::FindPlayer(guid))
+                            if (player->IsInWorld() && player->GetMap() == instance && player->GetExactDist2d(x, y) <= 200.0f)
+                            {
+                                playerNearDeck = true;
+                                break;
+                            }
+
+                    if (!playerNearDeck)
+                    {
+                        SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
+                        ResetAbandonedGunship(true);
+                    }
+                }
+            }
+
             // Xinef: A Feast of Souls (24547) whispers
             if (LichKingRandomWhisperTimer <= diff)
             {
@@ -2248,6 +2385,9 @@ public:
                         break;
                     case EVENT_RESPAWN_GUNSHIP:
                         SpawnGunship();
+                        break;
+                    case EVENT_RESET_GUNSHIP:
+                        ResetAbandonedGunship(false, true);
                         break;
                     case EVENT_RESPAWN_SINDRAGOSA:
                         if (!GetCreature(DATA_SINDRAGOSA))
@@ -2512,6 +2652,7 @@ public:
         bool _saurfangEventPending;
         bool _saurfangZeppelinDocked;
         bool _saurfangZeppelinLeaving;
+        time_t _gunshipGossipTime;
         ObjectGuid PlagueSigilGUID;
         ObjectGuid BloodwingSigilGUID;
         ObjectGuid FrostwingSigilGUID;

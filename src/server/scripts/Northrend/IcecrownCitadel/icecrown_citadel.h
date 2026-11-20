@@ -42,6 +42,12 @@ extern Position const TerenasSpawn;
 extern Position const TerenasSpawnHeroic;
 extern Position const SpiritWardenSpawn;
 
+// Defined in boss_icecrown_gunship_battle.cpp
+// Despawns the gunship battle's passengers and removes both ships.
+void ResetGunshipTransports(InstanceScript* instance);
+// Casts the wipe explosion on the friendly ship's hull immediately.
+void ExplodeGunshipHull(InstanceScript* instance);
+
 // Shared spells used by more than one script
 enum SharedSpells
 {
@@ -135,6 +141,7 @@ enum DataTypes
     DATA_SAURFANG_CAMP              = 43,
     DATA_SAURFANG_OUTRO_ZEPPELIN    = 44,
     DATA_SAURFANG_EVENT_SPAWN       = 45,
+    DATA_GUNSHIP_GOSSIP             = 46,
 
     // pussywizard:
     DATA_BUFF_AVAILABLE             = 251,

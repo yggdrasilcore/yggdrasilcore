@@ -219,7 +219,7 @@ Position const OrgrimsHammerTeleportExit = { 7.461699f, 0.158853f, 35.72989f, 0.
 
 // Alliance encounter
 Position const OrgrimsHammerTeleportPortal = { 47.550990f, -0.101778f, 37.61111f, 0.0f };
-Position const SkybreakerTeleportExit      = { -17.55738f, -0.090421f, 21.18366f, 0.0f };
+Position const SkybreakerTeleportExit      = { -17.55738f, -0.090421f, 20.82f, 0.0f };
 
 uint32 const MuradinExitPathSize = 10;
 Position const MuradinExitPath[MuradinExitPathSize] =
@@ -545,6 +545,21 @@ static void EngageGunshipEncounterFrames(InstanceScript* instance)
     instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, enemyShip, 1);
     instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, friendlyShip, 2);
     friendlyShip->CastSpell(friendlyShip, SPELL_CHECK_FOR_PLAYERS, true);
+
+    // Players left on the rampart below miss the deck for the whole fight.
+    if (Transport* transport = friendlyShip->GetTransport())
+    {
+        Position const& exitPos = horde ? OrgrimsHammerTeleportExit : SkybreakerTeleportExit;
+        float x, y, z, o;
+        exitPos.GetPosition(x, y, z, o);
+        transport->CalculatePassengerPosition(x, y, z, &o);
+
+        instance->instance->DoForAllPlayers([=](Player* player)
+        {
+            if (player->GetPositionZ() < 215.0f)
+                player->NearTeleportTo(x, y, z, o);
+        });
+    }
 }
 
 static void RestoreGunshipPassengers(Transport* transport)
@@ -593,11 +608,17 @@ static bool IsGunshipCreatureEntry(uint32 entry)
         case NPC_SKYBREAKER_MARINE:
         case NPC_SKYBREAKER_SERGEANT:
         case NPC_SKYBREAKER_DECKHAND:
+        case NPC_ORGRIMS_HAMMER_CREW:
         case NPC_KOR_KRON_BATTLE_MAGE:
         case NPC_KOR_KRON_AXETHROWER:
         case NPC_KOR_KRON_ROCKETEER:
         case NPC_KOR_KRON_REAVER:
         case NPC_KOR_KRON_SERGEANT:
+        case NPC_IGB_HIGH_OVERLORD_SAURFANG:
+        case NPC_IGB_MURADIN_BRONZEBEARD:
+        case NPC_ZAFOD_BOOMBOX:
+        case NPC_HIGH_CAPTAIN_JUSTIN_BARTLETT:
+        case NPC_SKY_REAVER_KORM_BLACKSCAR:
             return true;
         default:
             return false;
@@ -644,6 +665,61 @@ static void DespawnGunshipCreatures(Map* map)
     }
 }
 
+void ResetGunshipTransports(InstanceScript* instance)
+{
+    if (!instance)
+        return;
+
+    Map* map = instance->instance;
+    Transport* friendlyTransport = map ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
+    Transport* enemyTransport = map ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
+
+    RestoreGunshipPassengers(friendlyTransport);
+    RestoreGunshipPassengers(enemyTransport);
+
+    DespawnGunshipCreatures(map);
+
+    if (friendlyTransport)
+    {
+        if (MotionTransport* mt = friendlyTransport->ToMotionTransport())
+            mt->UnloadNonStaticPassengers();
+    }
+
+    if (enemyTransport)
+    {
+        if (MotionTransport* mt = enemyTransport->ToMotionTransport())
+            mt->UnloadNonStaticPassengers();
+    }
+
+    if (friendlyTransport)
+        friendlyTransport->AddObjectToRemoveList();
+
+    if (enemyTransport)
+        enemyTransport->AddObjectToRemoveList();
+}
+
+// Explodes the losing ship's hull. The ships stay in place for the 8 second
+// loss sequence; ResetGunshipTransports removes them afterwards.
+void ExplodeGunshipHull(InstanceScript* instance)
+{
+    Transport* friendlyTransport = instance ? instance->instance->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
+    if (!friendlyTransport)
+        return;
+
+    MotionTransport* t = friendlyTransport->ToMotionTransport();
+    if (!t)
+        return;
+
+    Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+    for (ObjectGuid const& guid : passengers)
+    {
+        WorldObject* passenger = t->GetPassenger(guid);
+        if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
+            continue;
+        passenger->ToCreature()->CastSpell(passenger->ToCreature(), SPELL_EXPLOSION_WIPE, true);
+    }
+}
+
 class ResetEncounterEvent : public BasicEvent
 {
 public:
@@ -667,31 +743,7 @@ public:
 
         _owner->CastSpell(_owner, _spellId, true);
 
-        Transport* friendlyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
-        Transport* enemyTransport = instance ? map->GetTransport(instance->GetGuidData(DATA_ENEMY_GUNSHIP)) : nullptr;
-
-        RestoreGunshipPassengers(friendlyTransport);
-        RestoreGunshipPassengers(enemyTransport);
-
-        DespawnGunshipCreatures(map);
-
-        if (friendlyTransport)
-        {
-            if (MotionTransport* mt = friendlyTransport->ToMotionTransport())
-                mt->UnloadNonStaticPassengers();
-        }
-
-        if (enemyTransport)
-        {
-            if (MotionTransport* mt = enemyTransport->ToMotionTransport())
-                mt->UnloadNonStaticPassengers();
-        }
-
-        if (friendlyTransport)
-            friendlyTransport->AddObjectToRemoveList();
-
-        if (enemyTransport)
-            enemyTransport->AddObjectToRemoveList();
+        ResetGunshipTransports(instance);
 
         return true;
     }
@@ -812,18 +864,24 @@ public:
             if (Aura* a = me->GetAura(SPELL_CHECK_FOR_PLAYERS))
                 a->SetDuration(0);
 
-            uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
-            if (MotionTransport* t = (defeatedShip ? defeatedShip->ToMotionTransport() : nullptr))
+            // Every despawn route is a loss; the hull plays the wipe explosion at once
+            // and only the victory ship plays its own explosion here.
+            if (isVictory)
             {
-                Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
-                for (ObjectGuid const& guid : passengers)
+                if (MotionTransport* t = (defeatedShip ? defeatedShip->ToMotionTransport() : nullptr))
                 {
-                    WorldObject* passenger = t->GetPassenger(guid);
-                    if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
-                        continue;
-                    passenger->ToCreature()->CastSpell(passenger->ToCreature(), explosionSpell, true);
+                    Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+                    for (ObjectGuid const& guid : passengers)
+                    {
+                        WorldObject* passenger = t->GetPassenger(guid);
+                        if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
+                            continue;
+                        passenger->ToCreature()->CastSpell(passenger->ToCreature(), SPELL_EXPLOSION_VICTORY, true);
+                    }
                 }
             }
+            else
+                ExplodeGunshipHull(_instance);
 
             uint32 cannonEntry = _teamIdInInstance == TEAM_HORDE ? NPC_HORDE_GUNSHIP_CANNON : NPC_ALLIANCE_GUNSHIP_CANNON;
             if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
@@ -1021,6 +1079,7 @@ public:
             _rocketeersYellCooldown = time_t(0);
             checkTimer = 1000;
             _exitingShip = false;
+            me->setActive(true);
         }
 
         void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
@@ -1031,6 +1090,7 @@ public:
             Transport* transport = me->GetTransport();
             if (!transport)
                 return;
+            _instance->SetData(DATA_GUNSHIP_GOSSIP, 1);
             transport->setActive(true);
             if (MotionTransport* motionTransport = transport->ToMotionTransport())
                 motionTransport->EnableMovement(true);
@@ -1163,11 +1223,12 @@ public:
 					if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS)
 					{
 						_instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
+						ExplodeGunshipHull(_instance);
 					}
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 8s);
 					
                     return;
 				}
@@ -1394,6 +1455,7 @@ public:
             _mortarYellCooldown = time_t(0);
             checkTimer = 1000;
             _exitingShip = false;
+            me->setActive(true);
         }
 
         void sGossipSelect(Player* /*player*/, uint32 /*sender*/, uint32 /*action*/) override
@@ -1404,6 +1466,7 @@ public:
             Transport* transport = me->GetTransport();
             if (!transport)
                 return;
+            _instance->SetData(DATA_GUNSHIP_GOSSIP, 1);
             transport->setActive(true);
             if (MotionTransport* motionTransport = transport->ToMotionTransport())
                 motionTransport->EnableMovement(true);
@@ -1534,11 +1597,14 @@ public:
 				if (!nearestPlayer)
 				{					
 					if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS)
+					{
 						_instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
+                        ExplodeGunshipHull(_instance);
+					}
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H  : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 8s);
                         
 					return;
 				}
@@ -1896,7 +1962,7 @@ protected:
 
 struct npc_gunship_boarding_addAI : public ScriptedAI
 {
-    npc_gunship_boarding_addAI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1))
+    npc_gunship_boarding_addAI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()), Slot(nullptr), Index(uint32(-1)), _reachedEnemyShip(false), _boardMoveSent(false)
     {
         anyValid = true;
         checkTimer = 1000;
@@ -1968,11 +2034,18 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
             me->SetTransportHomePosition(x, y, z, o);
 
             me->CastSpell(me, SPELL_TELEPORT_TO_ENEMY_SHIP, true);
+            _reachedEnemyShip = true;
         }
     }
 
     void UpdateAI(uint32 diff) override
     {
+        if (!_reachedEnemyShip)
+            return;
+
+        if (!_boardMoveSent)
+            SendBoardMove();
+
         if (checkTimer <= diff)
         {
             checkTimer = 1000;
@@ -1989,17 +2062,77 @@ struct npc_gunship_boarding_addAI : public ScriptedAI
                     anyValid = true;
                     me->SetInCombatWith(p);
                     p->SetInCombatWith(me);
-                    me->AddThreat(p, 0.0f);
+                    // Equal base threat so a victim exists; attackers out-threat it.
+                    me->AddThreat(p, 1.0f);
+                }
+            }
+
+            // The opposing captain and crew are targets too.
+            std::list<Creature*> enemies;
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_IGB_MURADIN_BRONZEBEARD, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_IGB_HIGH_OVERLORD_SAURFANG, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_MARINE, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_SERGEANT, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_RIFLEMAN, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_SKYBREAKER_SORCERER, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_KOR_KRON_REAVER, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_KOR_KRON_SERGEANT, 200.0f);
+            me->GetCreatureListWithEntryInGrid(enemies, NPC_KOR_KRON_ROCKETEER, 200.0f);
+            for (Creature* enemy : enemies)
+            {
+                if (!enemy || enemy == me || !enemy->IsAlive())
+                    continue;
+                if (CanAIAttack(enemy) && me->IsValidAttackTarget(enemy))
+                {
+                    anyValid = true;
+                    me->SetInCombatWith(enemy);
+                    enemy->SetInCombatWith(me);
+                    me->AddThreat(enemy, 1.0f);
                 }
             }
         }
         else
             checkTimer -= diff;
+
+        // Pick a victim and go after it.
+        if (me->SelectVictim())
+            AttackStart(me->GetVictim());
+    }
+
+    void SendBoardMove()
+    {
+        // The transport re-probe re-attaches the add to the enemy deck a tick
+        // after the teleport; a point move issued any earlier is resolved
+        // against the ship it left.
+        Transport* playerShip = Instance->instance->GetTransport(Instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE));
+        if (!playerShip || me->GetTransport() != playerShip)
+            return;
+
+        _boardMoveSent = true;
+
+        // Walk to the opposing captain.
+        uint32 captainEntry = Instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_ALLIANCE ? NPC_IGB_MURADIN_BRONZEBEARD : NPC_IGB_HIGH_OVERLORD_SAURFANG;
+        Creature* captain = me->FindNearestCreature(captainEntry, 200.0f);
+        if (!captain)
+            return;
+
+        // GetNearPoint adds both combat reaches, so the point sits at the
+        // captain's edge rather than inside it.
+        float x, y, z;
+        captain->GetNearPoint(me, x, y, z, CONTACT_DISTANCE, 0.0f, captain->GetAngle(me));
+        me->GetMotionMaster()->MovePoint(0, x, y, z, FORCED_MOVEMENT_NONE, 0.0f, false);
     }
 
     bool CanAIAttack(Unit const* target) const override
     {
-        return Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS && target->GetTransport() && target->GetTransport() != me->GetTransport() && target->GetPositionZ() < 478.0f && (me->GetEntry() == NPC_SKYBREAKER_SERGEANT || me->GetEntry() == NPC_SKYBREAKER_MARINE ? (target->GetPositionY() < 2431.0f) : (target->GetPositionY() > 2042.0f));
+        if (Instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != IN_PROGRESS || !target || target->GetPositionZ() >= 478.0f)
+            return false;
+
+        // The transport re-probe re-attaches the add to the deck it stands on, so
+        // its own transport link no longer identifies the ship it left. Fight
+        // everything aboard the players' ship instead.
+        Transport* playerShip = Instance->instance->GetTransport(Instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE));
+        return playerShip && target->GetTransport() == playerShip;
     }
 
 protected:
@@ -2012,6 +2145,8 @@ protected:
     bool anyValid;
     uint16 checkTimer;
     bool _usedDesperateResolve;
+    bool _reachedEnemyShip;
+    bool _boardMoveSent;
     InstanceScript* Instance;
     SlotInfo const* Slot;
     uint32 Index;
