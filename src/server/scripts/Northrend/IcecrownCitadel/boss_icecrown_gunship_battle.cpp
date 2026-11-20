@@ -698,6 +698,28 @@ void ResetGunshipTransports(InstanceScript* instance)
         enemyTransport->AddObjectToRemoveList();
 }
 
+// Explodes the losing ship's hull. The ships stay in place for the 8 second
+// loss sequence; ResetGunshipTransports removes them afterwards.
+void ExplodeGunshipHull(InstanceScript* instance)
+{
+    Transport* friendlyTransport = instance ? instance->instance->GetTransport(instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)) : nullptr;
+    if (!friendlyTransport)
+        return;
+
+    MotionTransport* t = friendlyTransport->ToMotionTransport();
+    if (!t)
+        return;
+
+    Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+    for (ObjectGuid const& guid : passengers)
+    {
+        WorldObject* passenger = t->GetPassenger(guid);
+        if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
+            continue;
+        passenger->ToCreature()->CastSpell(passenger->ToCreature(), SPELL_EXPLOSION_WIPE, true);
+    }
+}
+
 class ResetEncounterEvent : public BasicEvent
 {
 public:
@@ -842,18 +864,24 @@ public:
             if (Aura* a = me->GetAura(SPELL_CHECK_FOR_PLAYERS))
                 a->SetDuration(0);
 
-            uint32 explosionSpell = isVictory ? SPELL_EXPLOSION_VICTORY : SPELL_EXPLOSION_WIPE;
-            if (MotionTransport* t = (defeatedShip ? defeatedShip->ToMotionTransport() : nullptr))
+            // Every despawn route is a loss; the hull plays the wipe explosion at once
+            // and only the victory ship plays its own explosion here.
+            if (isVictory)
             {
-                Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
-                for (ObjectGuid const& guid : passengers)
+                if (MotionTransport* t = (defeatedShip ? defeatedShip->ToMotionTransport() : nullptr))
                 {
-                    WorldObject* passenger = t->GetPassenger(guid);
-                    if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
-                        continue;
-                    passenger->ToCreature()->CastSpell(passenger->ToCreature(), explosionSpell, true);
+                    Transport::PassengerGuidSet const passengers = t->GetStaticPassengerGuids();
+                    for (ObjectGuid const& guid : passengers)
+                    {
+                        WorldObject* passenger = t->GetPassenger(guid);
+                        if (!passenger || !t->HasStaticPassenger(guid) || !passenger->IsCreature() || passenger->GetEntry() != NPC_GUNSHIP_HULL)
+                            continue;
+                        passenger->ToCreature()->CastSpell(passenger->ToCreature(), SPELL_EXPLOSION_VICTORY, true);
+                    }
                 }
             }
+            else
+                ExplodeGunshipHull(_instance);
 
             uint32 cannonEntry = _teamIdInInstance == TEAM_HORDE ? NPC_HORDE_GUNSHIP_CANNON : NPC_ALLIANCE_GUNSHIP_CANNON;
             if (GameObject* go = _instance->instance->GetGameObject(_instance->GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
@@ -1195,11 +1223,12 @@ public:
 					if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS)
 					{
 						_instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
+						ExplodeGunshipHull(_instance);
 					}
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 8s);
 					
                     return;
 				}
@@ -1568,11 +1597,14 @@ public:
 				if (!nearestPlayer)
 				{					
 					if (_instance->GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) == IN_PROGRESS)
+					{
 						_instance->SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
+                        ExplodeGunshipHull(_instance);
+					}
 					
 					uint32 teleportSpellId = _instance->GetData(DATA_TEAMID_IN_INSTANCE) == TEAM_HORDE ? SPELL_TELEPORT_PLAYERS_ON_RESET_H  : SPELL_TELEPORT_PLAYERS_ON_RESET_A;
 					
-                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 1ms);
+                    me->m_Events.AddEventAtOffset(new ResetEncounterEvent(me, teleportSpellId), 8s);
                         
 					return;
 				}

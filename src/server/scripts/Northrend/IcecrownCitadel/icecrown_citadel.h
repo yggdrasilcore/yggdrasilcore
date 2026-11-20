@@ -45,6 +45,8 @@ extern Position const SpiritWardenSpawn;
 // Defined in boss_icecrown_gunship_battle.cpp
 // Despawns the gunship battle's passengers and removes both ships.
 void ResetGunshipTransports(InstanceScript* instance);
+// Casts the wipe explosion on the friendly ship's hull immediately.
+void ExplodeGunshipHull(InstanceScript* instance);
 
 // Shared spells used by more than one script
 enum SharedSpells

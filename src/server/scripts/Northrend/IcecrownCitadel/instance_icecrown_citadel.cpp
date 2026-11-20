@@ -55,6 +55,7 @@ enum TimedEvents
     EVENT_REBUILD_PLATFORM      = 3,
     EVENT_RESPAWN_GUNSHIP       = 4,
     EVENT_RESPAWN_SINDRAGOSA    = 5,
+    EVENT_RESET_GUNSHIP         = 6,
     EVENT_SAURFANG_ZEPPELIN_DOCK = 7,
     EVENT_SAURFANG_OUTRO_TIMEOUT = 8,
     EVENT_SAURFANG_ZEPPELIN_REMOVE = 9,
@@ -357,7 +358,7 @@ public:
             if (GetBossState(DATA_LADY_DEATHWHISPER) == DONE && GetBossState(DATA_ICECROWN_GUNSHIP_BATTLE) != DONE)
             {
                 if (instance->GetPlayerCountLocked() <= 1 && !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
-                    ResetAbandonedGunship();
+                    ResetAbandonedGunship(false, true);
 
                 SpawnGunship();
             }
@@ -1434,8 +1435,9 @@ public:
             return gunship->GetExactDist2d(start.Node->x, start.Node->y) <= 5.0f;
         }
 
-        // Removes both ships; SpawnGunship rebuilds the friendly one docked.
-        void ResetAbandonedGunship()
+        // Returns false when the ships are never touched: a fight with players near
+        // the ship, the gossip grace period, or a reset whose rebuild is pending.
+        bool CanResetAbandonedGunship()
         {
             // A fight with players still near the ship is not abandoned, however far
             // the ships are from their spawn point.
@@ -1450,14 +1452,14 @@ public:
                     {
                         Player* player = ObjectAccessor::FindPlayer(guid);
                         if (player && player->IsInWorld() && player->GetMap() == instance && player->GetExactDist2d(x, y) <= 200.0f)
-                            return;
+                            return false;
                     }
                 }
             }
 
             // The captains enable movement on gossip, long before the encounter starts.
             if (GameTime::GetGameTime().count() - _gunshipGossipTime < 90)
-                return;
+                return false;
 
             // Both ships are already gone: this reset has run and the rebuild is
             // pending. Tearing down again cleared a non-existent ship, so the
@@ -1467,6 +1469,27 @@ public:
             {
                 if (!Events.HasTimeUntilEvent(EVENT_RESPAWN_GUNSHIP))
                     Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 30s);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        // Every reset explodes the ship at once and removes it 8 seconds later,
+        // the same sequence as a hull death. immediate is the rebuild kick.
+        void ResetAbandonedGunship(bool explode, bool immediate = false)
+        {
+            if (!CanResetAbandonedGunship())
+                return;
+
+            if (explode)
+                ExplodeGunshipHull(this);
+
+            if (!immediate)
+            {
+                if (!Events.HasTimeUntilEvent(EVENT_RESET_GUNSHIP))
+                    Events.ScheduleEvent(EVENT_RESET_GUNSHIP, 8s);
 
                 return;
             }
@@ -2247,7 +2270,7 @@ public:
             {
                 if (!instance->HavePlayers() || !IsGunshipAtSpawnPosition(instance->GetTransport(GunshipGUID)))
                 {
-                    ResetAbandonedGunship();
+                    ResetAbandonedGunship(true);
                 }
                 else if (instance->GetCreature(GetGuidData(DATA_ICECROWN_GUNSHIP_BATTLE)))
                 {
@@ -2266,7 +2289,7 @@ public:
                     if (!playerNearDeck)
                     {
                         SetBossState(DATA_ICECROWN_GUNSHIP_BATTLE, FAIL);
-                        ResetAbandonedGunship();
+                        ResetAbandonedGunship(true);
                     }
                 }
             }
@@ -2360,6 +2383,9 @@ public:
                         break;
                     case EVENT_RESPAWN_GUNSHIP:
                         SpawnGunship();
+                        break;
+                    case EVENT_RESET_GUNSHIP:
+                        ResetAbandonedGunship(false, true);
                         break;
                     case EVENT_RESPAWN_SINDRAGOSA:
                         if (!GetCreature(DATA_SINDRAGOSA))
