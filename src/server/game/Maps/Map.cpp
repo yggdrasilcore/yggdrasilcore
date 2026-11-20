@@ -409,6 +409,9 @@ bool Map::AddToMap(Transport* obj, bool /*checkTransport*/)
         sScriptMgr->OnTransportCreate(obj);
     }
 
+    // Membership is per map: every add is announced, the first one included.
+    sScriptMgr->OnTransportEnterMap(obj, this);
+
     return true;
 }
 
@@ -860,6 +863,10 @@ void Map::RemoveFromMap(Transport* obj, bool remove)
         _transports.erase(obj);
 
     obj->ResetMap();
+
+    // Announced after the transport has left the map, so a handler can re-add it
+    // safely. The map is passed explicitly because the transport has no map now.
+    sScriptMgr->OnTransportLeaveMap(obj, this);
 
     RemoveObjectFromMapUpdateList(obj);
     i_objectsToRemove.erase(obj);

@@ -20,6 +20,8 @@
 
 #include "ScriptObject.h"
 
+class Map;
+
 class TransportScript : public ScriptObject, public UpdatableScript<Transport>
 {
 protected:
@@ -40,6 +42,16 @@ public:
     // instance id are known. Like OnTransportDestroy, this is broadcast to every
     // registered TransportScript, not only to the one bound to the transport.
     virtual void OnTransportCreate(Transport* /*transport*/) { }
+
+    // Called every time the transport is added to a map, including when a motion
+    // transport moves to another map. OnTransportCreate only announces the first
+    // one, so this is the hook a per-map observer uses. Paired with
+    // OnTransportLeaveMap.
+    virtual void OnTransportEnterMap(Transport* /*transport*/, Map* /*map*/) { }
+
+    // Called every time the transport is removed from a map, including the removal
+    // that precedes a move to another map and the one that precedes destruction.
+    virtual void OnTransportLeaveMap(Transport* /*transport*/, Map* /*map*/) { }
 
     // Called every transport update tick. Unlike OnUpdate, this is not gated on
     // the transport's script id, so it reaches scripts that are not bound to it.

@@ -52,6 +52,28 @@ void ScriptMgr::OnTransportCreate(Transport* transport)
     });
 }
 
+void ScriptMgr::OnTransportEnterMap(Transport* transport, Map* map)
+{
+    ASSERT(transport);
+    ASSERT(map);
+
+    ExecuteScript<TransportScript>([=](TransportScript* script)
+    {
+        script->OnTransportEnterMap(transport, map);
+    });
+}
+
+void ScriptMgr::OnTransportLeaveMap(Transport* transport, Map* map)
+{
+    ASSERT(transport);
+    ASSERT(map);
+
+    ExecuteScript<TransportScript>([=](TransportScript* script)
+    {
+        script->OnTransportLeaveMap(transport, map);
+    });
+}
+
 void ScriptMgr::OnTransportUpdate(Transport* transport, uint32 diff)
 {
     ASSERT(transport);
