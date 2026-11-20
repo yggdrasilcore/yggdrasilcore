@@ -25,10 +25,10 @@ void ScriptMgr::OnAddPassenger(Transport* transport, Player* player)
     ASSERT(transport);
     ASSERT(player);
 
-    if (auto tempScript = ScriptRegistry<TransportScript>::GetScriptById(transport->GetScriptId()))
+    ExecuteScript<TransportScript>([=](TransportScript* script)
     {
-        tempScript->OnAddPassenger(transport, player);
-    }
+        script->OnAddPassenger(transport, player);
+    });
 }
 
 void ScriptMgr::OnAddCreaturePassenger(Transport* transport, Creature* creature)
@@ -36,10 +36,10 @@ void ScriptMgr::OnAddCreaturePassenger(Transport* transport, Creature* creature)
     ASSERT(transport);
     ASSERT(creature);
 
-    if (auto tempScript = ScriptRegistry<TransportScript>::GetScriptById(transport->GetScriptId()))
+    ExecuteScript<TransportScript>([=](TransportScript* script)
     {
-        tempScript->OnAddCreaturePassenger(transport, creature);
-    }
+        script->OnAddCreaturePassenger(transport, creature);
+    });
 }
 
 void ScriptMgr::OnRemovePassenger(Transport* transport, Player* player)
@@ -47,10 +47,21 @@ void ScriptMgr::OnRemovePassenger(Transport* transport, Player* player)
     ASSERT(transport);
     ASSERT(player);
 
-    if (auto tempScript = ScriptRegistry<TransportScript>::GetScriptById(transport->GetScriptId()))
+    ExecuteScript<TransportScript>([=](TransportScript* script)
     {
-        tempScript->OnRemovePassenger(transport, player);
-    }
+        script->OnRemovePassenger(transport, player);
+    });
+}
+
+void ScriptMgr::OnRemoveCreaturePassenger(Transport* transport, Creature* creature)
+{
+    ASSERT(transport);
+    ASSERT(creature);
+
+    ExecuteScript<TransportScript>([=](TransportScript* script)
+    {
+        script->OnRemoveCreaturePassenger(transport, creature);
+    });
 }
 
 void ScriptMgr::OnTransportCreate(Transport* transport)
@@ -91,10 +102,12 @@ void ScriptMgr::OnTransportDestroy(Transport* transport)
 
 void ScriptMgr::OnRelocate(Transport* transport, uint32 waypointId, uint32 mapId, float x, float y, float z)
 {
-    if (auto tempScript = ScriptRegistry<TransportScript>::GetScriptById(transport->GetScriptId()))
+    ASSERT(transport);
+
+    ExecuteScript<TransportScript>([=](TransportScript* script)
     {
-        tempScript->OnRelocate(transport, waypointId, mapId, x, y, z);
-    }
+        script->OnRelocate(transport, waypointId, mapId, x, y, z);
+    });
 }
 
 TransportScript::TransportScript(const char* name)

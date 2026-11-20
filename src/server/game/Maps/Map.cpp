@@ -401,6 +401,9 @@ bool Map::AddToMap(Transport* obj, bool /*checkTransport*/)
         }
     }
 
+    obj->SetCreateAnnounced();
+    sScriptMgr->OnTransportCreate(obj);
+
     return true;
 }
 

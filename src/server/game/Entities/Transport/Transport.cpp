@@ -89,7 +89,9 @@ bool MotionTransport::HasStaticPassengers() const
 
 MotionTransport::~MotionTransport()
 {
-    sScriptMgr->OnTransportDestroy(this);
+    if (IsCreateAnnounced())
+        sScriptMgr->OnTransportDestroy(this);
+
     HashMapHolder<MotionTransport>::Remove(this);
 
     UnloadStaticPassengers();
@@ -425,6 +427,10 @@ void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
         {
             sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
+        }
+        else if (Creature* creature = passenger->ToCreature())
+        {
+            sScriptMgr->OnRemoveCreaturePassenger(ToTransport(), creature);
         }
     }
 
@@ -851,6 +857,9 @@ StaticTransport::StaticTransport() : Transport(), _needDoInitialRelocation(false
 
 StaticTransport::~StaticTransport()
 {
+    if (IsCreateAnnounced())
+        sScriptMgr->OnTransportDestroy(this);
+
     for (;;)
     {
         ObjectGuid guid;
@@ -1074,6 +1083,8 @@ void StaticTransport::Update(uint32 diff)
 {
     GameObject::Update(diff);
 
+    sScriptMgr->OnTransportUpdate(this, diff);
+
     if (!IsInWorld())
         return;
 
@@ -1278,6 +1289,10 @@ void StaticTransport::RemovePassenger(WorldObject* passenger, bool withAll)
         {
             sScriptMgr->OnRemovePassenger(ToTransport(), plr);
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
+        }
+        else if (Creature* creature = passenger->ToCreature())
+        {
+            sScriptMgr->OnRemoveCreaturePassenger(ToTransport(), creature);
         }
     }
 

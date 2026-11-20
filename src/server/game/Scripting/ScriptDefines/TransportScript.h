@@ -37,6 +37,9 @@ public:
     // Called when a player exits the transport.
     virtual void OnRemovePassenger(Transport* /*transport*/, Player* /*player*/) { }
 
+    // Called when a creature exits the transport.
+    virtual void OnRemoveCreaturePassenger(Transport* /*transport*/, Creature* /*creature*/) { }
+
     // Called after the transport has been added to its map, when its map and
     // instance id are known. Like OnTransportDestroy, this is broadcast to every
     // registered TransportScript, not only to the one bound to the transport.

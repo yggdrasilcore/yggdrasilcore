@@ -307,6 +307,7 @@ public: /* TransportScript */
     void OnAddPassenger(Transport* transport, Player* player);
     void OnAddCreaturePassenger(Transport* transport, Creature* creature);
     void OnRemovePassenger(Transport* transport, Player* player);
+    void OnRemoveCreaturePassenger(Transport* transport, Creature* creature);
     void OnTransportCreate(Transport* transport);
     void OnTransportUpdate(Transport* transport, uint32 diff);
     void OnTransportDestroy(Transport* transport);
