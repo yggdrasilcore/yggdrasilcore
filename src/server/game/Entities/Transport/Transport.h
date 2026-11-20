@@ -32,7 +32,7 @@ struct CreatureData;
 class Transport : public GameObject, public TransportBase
 {
 public:
-    Transport() : GameObject(), _passengerMap(nullptr) {}
+    Transport() : GameObject(), _passengerMap(nullptr), _createAnnounced(false) {}
     void SetMap(Map* map) override { GameObject::SetMap(map); _passengerMap.store(map, std::memory_order_relaxed); }
     void CalculatePassengerPosition(float& x, float& y, float& z, float* o = nullptr) const override { TransportBase::CalculatePassengerPosition(x, y, z, o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation()); }
     void CalculatePassengerOffset(float& x, float& y, float& z, float* o = nullptr) const override { TransportBase::CalculatePassengerOffset(x, y, z, o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation()); }
@@ -48,6 +48,11 @@ public:
     [[nodiscard]] bool HasPassenger(ObjectGuid const& guid) const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _passengers.find(guid) != _passengers.end(); }
     [[nodiscard]] size_t GetPassengerCount() const { std::lock_guard<std::recursive_mutex> guard(_passengersLock); return _passengers.size(); }
 
+    // Set once the transport has been added to its map, so that OnTransportDestroy is only
+    // broadcast for transports whose creation was announced.
+    [[nodiscard]] bool IsCreateAnnounced() const { return _createAnnounced; }
+    void SetCreateAnnounced() { _createAnnounced = true; }
+
     virtual void DelayedUpdate(uint32 /*diff*/) {}
 
     uint32 GetPathProgress() const { return GetGOValue()->Transport.PathProgress; }
@@ -59,6 +64,7 @@ protected:
     mutable PassengerGuidSet _passengers;
     std::atomic<Map*> _passengerMap;
     mutable std::recursive_mutex _passengersLock;
+    bool _createAnnounced;
 };
 
 class MotionTransport : public Transport

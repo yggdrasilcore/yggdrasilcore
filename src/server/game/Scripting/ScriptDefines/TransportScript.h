@@ -20,6 +20,8 @@
 
 #include "ScriptObject.h"
 
+class Map;
+
 class TransportScript : public ScriptObject, public UpdatableScript<Transport>
 {
 protected:
@@ -28,19 +30,28 @@ protected:
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return true; }
 
-    // Called when a player boards the transport.
-    virtual void OnAddPassenger(Transport* /*transport*/, Player* /*player*/) { }
+    // Called when a passenger joins the transport: a player or creature that boards
+    // it, or a static creature/gameobject loaded with the transport's grid.
+    virtual void OnAddPassenger(Transport* /*transport*/, WorldObject* /*passenger*/) { }
 
-    // Called when a creature boards the transport.
-    virtual void OnAddCreaturePassenger(Transport* /*transport*/, Creature* /*creature*/) { }
-
-    // Called when a player exits the transport.
-    virtual void OnRemovePassenger(Transport* /*transport*/, Player* /*player*/) { }
+    // Called when a passenger leaves the transport, including a static passenger
+    // unloaded with the transport's grid.
+    virtual void OnRemovePassenger(Transport* /*transport*/, WorldObject* /*passenger*/) { }
 
     // Called after the transport has been added to its map, when its map and
     // instance id are known. Like OnTransportDestroy, this is broadcast to every
     // registered TransportScript, not only to the one bound to the transport.
     virtual void OnTransportCreate(Transport* /*transport*/) { }
+
+    // Called every time the transport is added to a map, including when a motion
+    // transport moves to another map. OnTransportCreate only announces the first
+    // one, so this is the hook a per-map observer uses. Paired with
+    // OnTransportLeaveMap.
+    virtual void OnTransportEnterMap(Transport* /*transport*/, Map* /*map*/) { }
+
+    // Called every time the transport is removed from a map, including the removal
+    // that precedes a move to another map and the one that precedes destruction.
+    virtual void OnTransportLeaveMap(Transport* /*transport*/, Map* /*map*/) { }
 
     // Called every transport update tick. Unlike OnUpdate, this is not gated on
     // the transport's script id, so it reaches scripts that are not bound to it.
@@ -49,7 +60,8 @@ public:
     // Called when a transport is destroyed, before it is removed from the world.
     virtual void OnTransportDestroy(Transport* /*transport*/) { }
 
-    // Called when transport moves.
+    // Called for each waypoint the transport advances to, not for every position
+    // update.
     virtual void OnRelocate(Transport* /*transport*/, uint32 /*waypointId*/, uint32 /*mapId*/, float /*x*/, float /*y*/, float /*z*/) { }
 };
 
