@@ -470,6 +470,9 @@ inline void Battleground::_CheckSafePositions(uint32 diff)
         if (!player || !player->IsInWorld() || player->GetBattleground() != this)
             continue;
 
+        if (player->IsGameMaster())
+            continue;
+
         Position pos = player->GetPosition();
         Position const* startPos = GetTeamStartPosition(player->GetBgTeamId());
 

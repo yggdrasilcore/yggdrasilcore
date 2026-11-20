@@ -308,6 +308,7 @@ public: /* TransportScript */
     void OnAddCreaturePassenger(Transport* transport, Creature* creature);
     void OnRemovePassenger(Transport* transport, Player* player);
     void OnTransportUpdate(Transport* transport, uint32 diff);
+    void OnTransportDestroy(Transport* transport);
     void OnRelocate(Transport* transport, uint32 waypointId, uint32 mapId, float x, float y, float z);
 
 public: /* AchievementCriteriaScript */

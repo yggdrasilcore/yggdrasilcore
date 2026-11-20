@@ -89,6 +89,7 @@ bool MotionTransport::HasStaticPassengers() const
 
 MotionTransport::~MotionTransport()
 {
+    sScriptMgr->OnTransportDestroy(this);
     HashMapHolder<MotionTransport>::Remove(this);
 
     UnloadStaticPassengers();
