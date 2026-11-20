@@ -20,6 +20,7 @@
 #include "MapMgr.h"
 #include "MoveSpline.h"
 #include "QueryResult.h"
+#include "ScriptMgr.h"
 #include "Transport.h"
 
 TransportTemplate::~TransportTemplate()
@@ -414,6 +415,7 @@ MotionTransport* TransportMgr::CreateTransport(uint32 entry, ObjectGuid::LowType
 
     HashMapHolder<MotionTransport>::Insert(trans);
     trans->GetMap()->AddToMap<Transport>(trans);
+    sScriptMgr->OnTransportCreate(trans);
     return trans;
 }
 

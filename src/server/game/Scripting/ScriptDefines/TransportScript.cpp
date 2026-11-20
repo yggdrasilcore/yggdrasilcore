@@ -53,6 +53,16 @@ void ScriptMgr::OnRemovePassenger(Transport* transport, Player* player)
     }
 }
 
+void ScriptMgr::OnTransportCreate(Transport* transport)
+{
+    ASSERT(transport);
+
+    ExecuteScript<TransportScript>([=](TransportScript* script)
+    {
+        script->OnTransportCreate(transport);
+    });
+}
+
 void ScriptMgr::OnTransportUpdate(Transport* transport, uint32 diff)
 {
     ASSERT(transport);
