@@ -1459,6 +1459,18 @@ public:
             if (GameTime::GetGameTime().count() - _gunshipGossipTime < 90)
                 return;
 
+            // Both ships are already gone: this reset has run and the rebuild is
+            // pending. Tearing down again cleared a non-existent ship, so the
+            // watchdog below kept calling us and re-sent every player above the
+            // deck to the loss position until the ship respawned.
+            if (!GunshipGUID && !EnemyGunshipGUID)
+            {
+                if (!Events.HasTimeUntilEvent(EVENT_RESPAWN_GUNSHIP))
+                    Events.ScheduleEvent(EVENT_RESPAWN_GUNSHIP, 30s);
+
+                return;
+            }
+
             ResetGunshipTransports(this);
 
             GunshipGUID.Clear();
