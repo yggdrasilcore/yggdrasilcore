@@ -401,8 +401,13 @@ bool Map::AddToMap(Transport* obj, bool /*checkTransport*/)
         }
     }
 
-    obj->SetCreateAnnounced();
-    sScriptMgr->OnTransportCreate(obj);
+    // A transport keeps its identity when it is moved to another map (motion
+    // transports teleport across map borders), so creation is announced once.
+    if (!obj->IsCreateAnnounced())
+    {
+        obj->SetCreateAnnounced();
+        sScriptMgr->OnTransportCreate(obj);
+    }
 
     return true;
 }

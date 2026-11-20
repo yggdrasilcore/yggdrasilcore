@@ -252,7 +252,10 @@ void MotionTransport::Update(uint32 diff)
         LOG_ERROR("entities.transport", "Could not initialize GameObjectAI for Transport");
 
     if (GetKeyFrames().size() <= 1)
+    {
+        sScriptMgr->OnTransportUpdate(this, diff);
         return;
+    }
 
     if (IsMoving() || !_pendingStop)
         SetPathProgress(GetPathProgress() + diff);
@@ -312,7 +315,11 @@ void MotionTransport::Update(uint32 diff)
         // Departure event
         if (_currentFrame->IsTeleportFrame())
             if (TeleportTransport(_nextFrame->Node->mapid, _nextFrame->Node->x, _nextFrame->Node->y, _nextFrame->Node->z, _nextFrame->InitialOrientation))
+            {
+                // This tick ends here, on another map.
+                sScriptMgr->OnTransportUpdate(this, diff);
                 return; // Update more in new map thread
+            }
     }
 
     // Set position
@@ -388,8 +395,6 @@ void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
     if (inserted)
     {
-        sScriptMgr->OnAddPassenger(ToTransport(), passenger);
-
         if (withAll)
         {
             float x, y, z, o;
@@ -405,6 +410,8 @@ void MotionTransport::AddPassenger(WorldObject* passenger, bool withAll)
                 passenger->ToUnit()->AddUnitState(UNIT_STATE_IGNORE_PATHFINDING);
             }
         }
+
+        sScriptMgr->OnAddPassenger(ToTransport(), passenger);
     }
 }
 
@@ -422,8 +429,6 @@ void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 
     if (erased)
     {
-        sScriptMgr->OnRemovePassenger(ToTransport(), passenger);
-
         if (Player* plr = passenger->ToPlayer())
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
     }
@@ -446,6 +451,9 @@ void MotionTransport::RemovePassenger(WorldObject* passenger, bool withAll)
     {
         passenger->ToUnit()->ClearUnitState(UNIT_STATE_IGNORE_PATHFINDING);
     }
+
+    if (erased)
+        sScriptMgr->OnRemovePassenger(ToTransport(), passenger);
 }
 
 Creature* MotionTransport::CreateNPCPassenger(ObjectGuid::LowType guid, CreatureData const* data)
@@ -1078,10 +1086,10 @@ void StaticTransport::Update(uint32 diff)
 {
     GameObject::Update(diff);
 
-    sScriptMgr->OnTransportUpdate(this, diff);
-
     if (!IsInWorld())
         return;
+
+    sScriptMgr->OnTransportUpdate(this, diff);
 
     if (!m_goValue.Transport.AnimationInfo)
         return;
@@ -1247,8 +1255,6 @@ void StaticTransport::AddPassenger(WorldObject* passenger, bool withAll)
 
     if (inserted)
     {
-        sScriptMgr->OnAddPassenger(ToTransport(), passenger);
-
         if (withAll)
         {
             if (Transport* t = passenger->GetTransport()) // SHOULD NEVER HAPPEN
@@ -1263,6 +1269,8 @@ void StaticTransport::AddPassenger(WorldObject* passenger, bool withAll)
             passenger->m_movementInfo.transport.guid = GetGUID();
             passenger->m_movementInfo.transport.pos.Relocate(x, y, z, o);
         }
+
+        sScriptMgr->OnAddPassenger(ToTransport(), passenger);
     }
 }
 
@@ -1279,8 +1287,6 @@ void StaticTransport::RemovePassenger(WorldObject* passenger, bool withAll)
 
     if (erased)
     {
-        sScriptMgr->OnRemovePassenger(ToTransport(), passenger);
-
         if (Player* plr = passenger->ToPlayer())
             plr->SetFallInformation(GameTime::GetGameTime().count(), plr->GetPositionZ());
     }
@@ -1292,6 +1298,9 @@ void StaticTransport::RemovePassenger(WorldObject* passenger, bool withAll)
         passenger->m_movementInfo.transport.guid.Clear();
         passenger->m_movementInfo.transport.pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
     }
+
+    if (erased)
+        sScriptMgr->OnRemovePassenger(ToTransport(), passenger);
 }
 
 std::string MotionTransport::GetDebugInfo() const

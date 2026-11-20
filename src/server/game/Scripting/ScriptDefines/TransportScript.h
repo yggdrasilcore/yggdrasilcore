@@ -28,11 +28,12 @@ protected:
 public:
     [[nodiscard]] bool IsDatabaseBound() const override { return true; }
 
-    // Called when a passenger boards the transport: a player, a creature or a
-    // gameobject.
+    // Called when a passenger joins the transport: a player or creature that boards
+    // it, or a static creature/gameobject loaded with the transport's grid.
     virtual void OnAddPassenger(Transport* /*transport*/, WorldObject* /*passenger*/) { }
 
-    // Called when a passenger exits the transport.
+    // Called when a passenger leaves the transport, including a static passenger
+    // unloaded with the transport's grid.
     virtual void OnRemovePassenger(Transport* /*transport*/, WorldObject* /*passenger*/) { }
 
     // Called after the transport has been added to its map, when its map and
@@ -47,7 +48,8 @@ public:
     // Called when a transport is destroyed, before it is removed from the world.
     virtual void OnTransportDestroy(Transport* /*transport*/) { }
 
-    // Called when transport moves.
+    // Called for each waypoint the transport advances to, not for every position
+    // update.
     virtual void OnRelocate(Transport* /*transport*/, uint32 /*waypointId*/, uint32 /*mapId*/, float /*x*/, float /*y*/, float /*z*/) { }
 };
 
