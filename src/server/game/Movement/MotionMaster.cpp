@@ -477,6 +477,21 @@ void MotionMaster::MovePoint(uint32 id, float x, float y, float z, ForcedMovemen
 
     if (_owner->IsPlayer())
     {
+        // Retarget the running point movement instead of replacing it: replacing it stops the
+        // spline first, so the replacement starts from a stop position observers have not
+        // rendered yet (visible snap at the pivot).
+        if (slot == _top && !_needInit[slot] && GetMotionSlotType(slot) == POINT_MOTION_TYPE)
+        {
+            if (MovementGenerator* gen = GetMotionSlot(slot))
+            {
+                if (static_cast<PointMovementGenerator<Player>*>(gen)->Retarget(_owner->ToPlayer(), id, x, y, z, forcedMovement, speed, orientation, generatePath, forceDestination))
+                {
+                    LOG_DEBUG("movement.motionmaster", "Player ({}) retargeted point (Id: {} X: {} Y: {} Z: {})", _owner->GetGUID().ToString(), id, x, y, z);
+                    return;
+                }
+            }
+        }
+
         LOG_DEBUG("movement.motionmaster", "Player ({}) targeted point (Id: {} X: {} Y: {} Z: {})", _owner->GetGUID().ToString(), id, x, y, z);
         Mutate(new PointMovementGenerator<Player>(id, x, y, z, forcedMovement, speed, orientation, nullptr, generatePath, forceDestination), slot);
     }

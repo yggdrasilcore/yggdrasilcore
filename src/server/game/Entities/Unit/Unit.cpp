@@ -16816,9 +16816,10 @@ void Unit::StopMoving()
     if (movespline->Finalized())
         return;
 
-    // Update position now since Stop does not start a new movement that can be updated later
-    if (movespline->HasStarted())
-        UpdateSplinePosition();
+    // Update position now since Stop does not start a new movement that can be updated later.
+    // A spline launched earlier in this tick has not advanced yet (time_passed == 0), but the
+    // observer already renders from the spline origin; sync the stop position unconditionally.
+    UpdateSplinePosition();
 
     Movement::MoveSplineInit init(this);
     init.Stop();
