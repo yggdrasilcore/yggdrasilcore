@@ -7337,8 +7337,14 @@ SpellCastResult Spell::CheckItems()
             case SPELL_EFFECT_CREATE_ITEM:
             case SPELL_EFFECT_CREATE_ITEM_2:
             {
-                // m_targets.GetUnitTarget() means explicit cast, otherwise we dont check for possible equip error
-                Unit* target = m_targets.GetUnitTarget() ? m_targets.GetUnitTarget() : player;
+                // The item is created for the effect's target, which is not necessarily the spell's
+                // explicit target. Effects that target the caster (e.g. item spells used on a creature,
+                // like the Empty Birdcage) must check the caster's inventory instead.
+                Unit* target = player;
+                if (m_spellInfo->Effects[i].TargetA.GetTarget() != TARGET_UNIT_CASTER && m_spellInfo->Effects[i].TargetB.GetTarget() != TARGET_UNIT_CASTER)
+                    if (Unit* unitTarget = m_targets.GetUnitTarget())
+                        target = unitTarget;
+
                 if (target->IsPlayer() && !IsTriggered())
                 {
                     // SPELL_EFFECT_CREATE_ITEM_2 differs from SPELL_EFFECT_CREATE_ITEM in that it picks the random item to create from a pool of potential items,
