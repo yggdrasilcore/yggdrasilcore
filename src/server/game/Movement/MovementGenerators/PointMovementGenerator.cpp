@@ -42,6 +42,12 @@ void PointMovementGenerator<T>::DoInitialize(T* unit)
     if (!unit->IsStopped())
         unit->StopMoving();
 
+    Launch(unit);
+}
+
+template<class T>
+void PointMovementGenerator<T>::Launch(T* unit)
+{
     unit->AddUnitState(UNIT_STATE_ROAMING | UNIT_STATE_ROAMING_MOVE);
     if (id == EVENT_CHARGE || id == EVENT_CHARGE_PREPATH)
     {

@@ -48,6 +48,42 @@ public:
 
     bool GetDestination(float& x, float& y, float& z) const { x = i_x; y = i_y; z = i_z; return true; }
 
+    /**
+     * @brief Points an already running point movement at a new destination without stopping it.
+     *
+     * Mutating a fresh generator (as MovePoint used to do) stops the running spline first, so the
+     * replacement spline starts from a stop position that observers have not rendered yet.
+     * Returns false when this generator cannot be retargeted (charge) and the caller has to
+     * create a new one.
+     */
+    bool Retarget(T* unit, uint32 newId, float x, float y, float z, ForcedMovement forcedMovement, float newSpeed, float newOrientation, bool generatePath, bool forceDestination)
+    {
+        if (id == EVENT_CHARGE || id == EVENT_CHARGE_PREPATH)
+            return false;
+
+        id = newId;
+        i_x = x;
+        i_y = y;
+        i_z = z;
+        speed = newSpeed;
+        i_orientation = newOrientation;
+        _forcedMovement = forcedMovement;
+        _generatePath = generatePath;
+        _forceDestination = forceDestination;
+        _reverseOrientation = false;
+        m_precomputedPath.clear();
+
+        if (unit->HasUnitState(UNIT_STATE_NOT_MOVE) || unit->IsMovementPreventedByCasting())
+        {
+            i_recalculateSpeed = true;
+            i_deferred = true;
+            return true;
+        }
+
+        Launch(unit);
+        return true;
+    }
+
     void Relaunch(T* unit)
     {
         if (_generatePath)
@@ -55,6 +91,8 @@ public:
         DoInitialize(unit);
     }
 private:
+    void Launch(T* unit);
+
     uint32 id;
     float i_x, i_y, i_z;
     float speed;
