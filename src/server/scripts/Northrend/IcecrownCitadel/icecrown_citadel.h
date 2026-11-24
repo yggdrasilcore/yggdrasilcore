@@ -142,6 +142,7 @@ enum DataTypes
     DATA_SAURFANG_OUTRO_ZEPPELIN    = 44,
     DATA_SAURFANG_EVENT_SPAWN       = 45,
     DATA_GUNSHIP_GOSSIP             = 46,
+    DATA_BPC_INTRO                  = 47,
 
     // pussywizard:
     DATA_BUFF_AVAILABLE             = 251,
@@ -152,7 +153,13 @@ enum DataTypes
     DATA_LK_HC_AVAILABLE            = 256,
     DATA_SINDRAGOSA_INTRO           = 257,
 
-    DATA_BPC_TRASH_DIED             = 300,
+    DATA_BPC_TRASH_COUNT            = 300,
+};
+
+enum BloodPrinceTrash
+{
+    BPC_TRASH_DOOR_COUNT            = 4,
+    BPC_TRASH_INTRO_COUNT           = 15,
 };
 
 enum PersistentData
@@ -304,6 +311,7 @@ enum CreaturesIds
 
     // Blood-Queen Lana'thel
     NPC_BLOOD_QUEEN_LANA_THEL                   = 37955,
+    NPC_BLOOD_QUEEN_INTRO                       = 38004,
 
     // Frostwing Halls gauntlet event
     NPC_CROK_SCOURGEBANE                        = 37129,
@@ -559,6 +567,9 @@ enum SharedActions
 
     // Blood-Queen Lana'thel
     ACTION_KILL_MINCHAR         = -379550,
+
+    // Blood Prince Council
+    ACTION_BPC_START_INTRO      = -380040,
 
     // Frostwing Halls gauntlet event
     ACTION_VRYKUL_DEATH         = 37129,
