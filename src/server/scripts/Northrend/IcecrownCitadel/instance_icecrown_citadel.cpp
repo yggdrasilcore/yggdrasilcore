@@ -155,6 +155,7 @@ ObjectData const creatureData[] =
     { NPC_SINDRAGOSA,     DATA_SINDRAGOSA     },
     { NPC_THE_SKYBREAKER, DATA_THE_SKYBREAKER },
     { NPC_ORGRIMS_HAMMER, DATA_ORGRIMS_HAMMER },
+    { NPC_BLOOD_QUEEN_INTRO, DATA_BPC_INTRO  },
     { 0,                  0                   }
 };
 
@@ -1092,6 +1093,8 @@ public:
                     return BloodQuickeningState;
                 case DATA_HEROIC_ATTEMPTS:
                     return HeroicAttempts;
+                case DATA_BPC_TRASH_COUNT:
+                    return BloodPrinceTrashCount;
                 case DATA_SINDRAGOSA_INTRO:
                     return (IsSindragosaIntroDone ? 1 : 0);
                 default:
@@ -1985,12 +1988,23 @@ public:
                         SaveToDB();
                         break;
                     }
-                case DATA_BPC_TRASH_DIED:
+                case DATA_BPC_TRASH_COUNT:
                     {
-                        if (++BloodPrinceTrashCount >= 4)
+                        ++BloodPrinceTrashCount;
+                        if (BloodPrinceTrashCount >= BPC_TRASH_DOOR_COUNT && GetBossState(DATA_BLOOD_PRINCE_TRASH) != DONE)
                         {
+                            // Seed the state; SetBossState(DONE) while TO_BE_DECIDED does not update doors
                             SetBossState(DATA_BLOOD_PRINCE_TRASH, NOT_STARTED);
                             SetBossState(DATA_BLOOD_PRINCE_TRASH, DONE);
+                        }
+
+                        if (BloodPrinceTrashCount >= BPC_TRASH_INTRO_COUNT)
+                        {
+                            if (Creature* intro = GetCreature(DATA_BPC_INTRO))
+                            {
+                                if (intro->SelectNearestPlayer(100.0f))
+                                    intro->AI()->DoAction(ACTION_BPC_START_INTRO);
+                            }
                         }
                         SaveToDB();
                         break;
