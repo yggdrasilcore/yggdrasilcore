@@ -1221,21 +1221,21 @@ public:
                 return;
             }
 
-            _introDone = true;
-            Talk(SAY_INTRO_1);
-            _events.SetPhase(1);
-            _events.ScheduleEvent(EVENT_INTRO_1, 14s);
-            // summon a visual trigger
-            if (Creature* summon = DoSummon(NPC_FLOATING_TRIGGER, triggerPos, 15000, TEMPSUMMON_TIMED_DESPAWN))
+            if (_instance->GetData(DATA_BPC_TRASH_COUNT) < BPC_TRASH_INTRO_COUNT)
             {
-                summon->SetDisplayId(11686); // it's a general npc, and the template has 2 models (first is an infernal)
-                summon->CastSpell(summon, SPELL_OOC_INVOCATION_VISUAL, true);
-                summon->SetSpeed(MOVE_RUN, 0.15f, true);
-                summon->GetMotionMaster()->MovePoint(0, triggerEndPos);
+                return;
             }
+
+            StartIntro();
         }
 
         void AttackStart(Unit* /*who*/) override { }
+
+        void DoAction(int32 action) override
+        {
+            if (action == ACTION_BPC_START_INTRO)
+                StartIntro();
+        }
 
         bool CanAIAttack(Unit const* /*target*/) const override { return false; }
 
@@ -1274,6 +1274,25 @@ public:
                 {
                     valanar->AI()->DoAction(ACTION_STAND_UP);
                 }
+            }
+        }
+
+        void StartIntro()
+        {
+            if (_introDone || _instance->GetData(DATA_BPC_TRASH_COUNT) < BPC_TRASH_INTRO_COUNT)
+                return;
+
+            _introDone = true;
+            Talk(SAY_INTRO_1);
+            _events.SetPhase(1);
+            _events.ScheduleEvent(EVENT_INTRO_1, 14s);
+            // summon a visual trigger
+            if (Creature* summon = DoSummon(NPC_FLOATING_TRIGGER, triggerPos, 15000, TEMPSUMMON_TIMED_DESPAWN))
+            {
+                summon->SetDisplayId(11686); // it's a general npc, and the template has 2 models (first is an infernal)
+                summon->CastSpell(summon, SPELL_OOC_INVOCATION_VISUAL, true);
+                summon->SetSpeed(MOVE_RUN, 0.15f, true);
+                summon->GetMotionMaster()->MovePoint(0, triggerEndPos);
             }
         }
 
