@@ -71,6 +71,7 @@
 #include "Vehicle.h"
 #include "World.h"
 #include "WorldPacket.h"
+#include "WorldSession.h"
 #include <cmath>
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -19834,6 +19835,18 @@ void Unit::_ExitVehicle(Position const* exitPosition)
         WorldPacket data(SMSG_SPLINE_MOVE_UNROOT, 8);
         data << GetPackGUID();
         SendMessageToSet(&data, false);
+    }
+
+    // The exiting player's own client keeps its vehicle attachment unless it is
+    // handed its post-exit movement state; the exit spline alone does not clear it.
+    if (player && player->GetSession())
+    {
+        MovementInfo anchor = player->m_movementInfo;
+        anchor.guid = player->GetGUID();
+        anchor.time = getMSTime();
+        WorldPacket hb(MSG_MOVE_HEARTBEAT, 64);
+        player->GetSession()->WriteMovementInfo(&hb, &anchor);
+        player->GetSession()->SendPacket(&hb);
     }
 
     // xinef: hack for flameleviathan seat vehicle
