@@ -561,15 +561,12 @@ bool Vehicle::AddPassenger(Unit* unit, int8 seatId)
         init.SetTransportEnter();
         init.Launch();
 
-        // Observers get the root only after the board. The passenger already got
-        // SMSG_FORCE_MOVE_ROOT from SetControlled above; sending them a spline root
-        // as well leaves an unmatched root on their own client, since the exit path
-        // only sends SMSG_FORCE_MOVE_UNROOT.
+        // Observers get the root only after the board.
         if (unit->IsPlayer())
         {
             WorldPacket rootSpline(SMSG_SPLINE_MOVE_ROOT, unit->GetPackGUID().size());
             rootSpline << unit->GetPackGUID();
-            unit->SendMessageToSet(&rootSpline, unit->ToPlayer());
+            unit->SendMessageToSet(&rootSpline, true);
         }
 
         // Nested attach: self drops the board-tick spline, resend once settled.
